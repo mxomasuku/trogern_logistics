@@ -1,9 +1,35 @@
+# Node
 **/node_modules/
+**/dist/
+**/.env
+**/.DS_Store
 
+# Package lock files (pick your package manager)
 **/package-lock.json
-
 **/yarn.lock
-
 **/pnpm-lock.yaml
-
 **/bun.lockb
+
+# Firebase service accounts (DON'T LEAK THIS)
+**/dashboard-api/*firebase-adminsdk.json
+
+# Logs
+**/logs
+**/*.log
+
+# Testing outputs
+**/coverage/
+
+# IDE junk
+.vscode/
+.idea/
+*.swp
+
+# Optional: macOS + Linux junk
+**/.Trash
+**/.cache/
+**/.parcel-cache/
+
+# Optional: Compiled TS if you ever use `tsc` outside build folder
+*.js
+*.js.map
