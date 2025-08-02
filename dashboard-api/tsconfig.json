@@ -1,13 +1,14 @@
 {
   "compilerOptions": {
-    "target": "es6",
     "module": "commonjs",
-    "resolveJsonModule": true,
-    "esModuleInterop": true,
+    "target": "es6",
+    "moduleResolution": "node",
     "outDir": "dist",
     "rootDir": "src",
-    "strict": true,
-    "types": ["jest", "node"]
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+    "strict": true
   },
   "include": ["src", "src/__tests__"],
   "exclude": ["dist"]

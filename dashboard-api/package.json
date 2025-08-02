@@ -5,22 +5,26 @@
   "main": "server.ts",
   "scripts": {
     "test": "jest",
-    "start": "nodemon server.ts",
-    "dev": "nodemon server.ts"
+    "start": "nodemon src/server.ts",
+    "dev": "nodemon --watch src --ext ts --exec ts-node src/server.ts",
+    "emulators-start": "firebase emulators:start --only firestore,auth",
+    "serve-local-dev": "npm run start export FIRESTORE_EMULATOR_HOST='127.0.0.1:8083' && export FIREBASE_AUTH_EMULATOR_HOST='127.0.0.1:9099' && export FIREBASE_STORAGE_EMULATOR_HOST='127.0.01:9199'"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "type": "commonjs",
   "dependencies": {
     "cors": "^2.8.5",
     "dotenv": "^17.2.1",
     "express": "^5.1.0",
     "firebase": "^12.0.0",
-    "firebase-admin": "^13.4.0"
+    "firebase-admin": "^13.4.0",
+    "morgan": "^1.10.1"
   },
   "devDependencies": {
+    "@types/cors": "^2.8.19",
     "@types/jest": "^30.0.0",
+    "@types/morgan": "^1.9.10",
     "@types/supertest": "^6.0.3",
     "jest": "^30.0.5",
     "nodemon": "^3.1.10",
