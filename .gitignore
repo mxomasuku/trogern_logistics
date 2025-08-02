@@ -33,3 +33,5 @@
 # Optional: Compiled TS if you ever use `tsc` outside build folder
 *.js
 *.js.map
+
+.env.development
