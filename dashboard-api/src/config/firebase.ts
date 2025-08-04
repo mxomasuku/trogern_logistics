@@ -30,4 +30,4 @@ if(process.env.FIRESTORE_EMULATOR_HOST){
     db.settings({host: process.env.FIRESTORE_EMULATOR_HOST, ssl: false})
     console.log("Connected to firestore emulator")
 }
-module.exports = { admin, db };
+export = { admin, db };
