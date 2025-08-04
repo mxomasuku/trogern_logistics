@@ -1,10 +1,13 @@
 import {Router} from 'express';
-import { loginUser } from '../controllers/auth.controller';
+import { loginUser, logoutUser } from '../controllers/auth.controller';
+import { verifySessionCookie } from '../middleware/verifySessionCookie';
 
 
 const router = Router()
 
 router.post('/login', loginUser )
+router.post('/logout', verifySessionCookie, logoutUser);
+
 
 
 
