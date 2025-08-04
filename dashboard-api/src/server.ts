@@ -10,6 +10,7 @@ import authRoutes from './routes/auth.routes';
 import incomeRoutes from './routes/income.routes';
 import cookieParser from 'cookie-parser'
 import { verifySession } from './utils/firebase-auth';
+import { verifySessionCookie } from './middleware/verifySessionCookie';
 
 dotenv.config();
 
@@ -32,17 +33,17 @@ if (process.env.NODE_ENV === 'development') {
 app.use('/api/v1/auth', authRoutes )
 
 app.use(verifySession)
-app.use('/api/v1/vehicles', vehicleRoutes);
-app.use('/api/v1/drivers', driverRoutes); // placeholder
-app.use('/api/v1/income', incomeRoutes)
+app.use('/api/v1/drivers', verifySessionCookie, driverRoutes);
+app.use('/api/v1/vehicles', verifySessionCookie, vehicleRoutes);
+app.use('/api/v1/income', verifySessionCookie, incomeRoutes)
 
-// 🏓 Healthcheck
+//  Healthcheck
 app.get('/ping', (req, res) => {
   console.log("✅ Ping route hit");
   res.send("pong");
 });
 
-// ❌ 404 handler for unregistered routes
+// 404 handler for unregistered routes
 app.use((_req, res) => {
   res.status(404).json({ error: 'Route not found' });
 });
