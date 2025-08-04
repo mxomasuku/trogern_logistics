@@ -81,6 +81,7 @@ if (missingFields.length > 0) {
       createdAt: now,
       updatedAt: now,
     });
+    console.log(docRef);
     res.status(200).json({ 
       message: `${req.body.name} added successfully`,
       data: undefined

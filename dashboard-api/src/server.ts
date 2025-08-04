@@ -6,6 +6,10 @@ import morgan from 'morgan';
 // ROUTES
 import vehicleRoutes from '../src/routes/driver.routes'
 import driverRoutes from './routes/driver.routes'; 
+import authRoutes from './routes/auth.routes';
+import incomeRoutes from './routes/income.routes';
+import cookieParser from 'cookie-parser'
+import { verifySession } from './utils/firebase-auth';
 
 dotenv.config();
 
@@ -17,6 +21,7 @@ const PORT = process.env.PORT || 5000;
 // ✅ Middleware
 app.use(cors());
 app.use(express.json());
+app.use(cookieParser());
 
 // 🪵 Optional: Log incoming requests
 if (process.env.NODE_ENV === 'development') {
@@ -24,8 +29,12 @@ if (process.env.NODE_ENV === 'development') {
 }
 
 // ✅ API Routes (versioned)
+app.use('/api/v1/auth', authRoutes )
+
+app.use(verifySession)
 app.use('/api/v1/vehicles', vehicleRoutes);
 app.use('/api/v1/drivers', driverRoutes); // placeholder
+app.use('/api/v1/income', incomeRoutes)
 
 // 🏓 Healthcheck
 app.get('/ping', (req, res) => {
