@@ -21,19 +21,43 @@ export const loginUser = async (req: Request, res: Response) => {
     const data: FirebaseAuthResponse = await signInWithEmailAndPassword(email, password);
 
     const idToken = data.idToken;
-    const expiresIn = 60 * 60 * 24 * 5 * 1000; 
+    const expiresIn = 60 * 60 * 24 * 5 * 1000; // 5 days
 
     const sessionCookie = await admin.auth().createSessionCookie(idToken, { expiresIn });
 
+    // ✅ Set cookie ONCE with correct options
     res.cookie('session', sessionCookie, {
       maxAge: expiresIn,
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production', // true only in prod
+      sameSite: 'lax',
+    });
+
+    // ✅ Send JSON response
+    res.status(200).json({ message: 'Login successful' });
+
+  } catch (err: any) {
+    res.status(401).json({ error: err.message || 'Authentication failed' });
+  }
+};
+
+export const logoutUser = async (req: Request, res: Response) => {
+  try {
+    // Optional: Invalidate session server-side
+    if ((req as any).user?.uid) {
+      await admin.auth().revokeRefreshTokens((req as any).user.uid);
+    }
+
+    // Clear the session cookie
+    res.clearCookie('session', {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
     });
 
-    res.status(200).json({ message: 'Login successful' });
+    res.status(200).json({ message: 'Logged out successfully' });
   } catch (err: any) {
-    res.status(401).json({ error: err.message || 'Authentication failed' });
+    console.error('Logout error:', err);
+    res.status(500).json({ error: 'Failed to logout' });
   }
 };
