@@ -13,22 +13,23 @@ export async function signInWithEmailAndPassword(
   email: string,
   password: string
 ): Promise<FirebaseAuthResponse> {
-  const FIREBASE_AUTH_EMULATOR_URL =
-    process.env.FIREBASE_AUTH_EMULATOR_URL || 'http://127.0.0.1:9099';
-  const API_KEY = 'dummy'; 
+  const isEmulator = !!process.env.FIREBASE_AUTH_EMULATOR_URL;
 
-  const url = `${FIREBASE_AUTH_EMULATOR_URL}/identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${API_KEY}`;
+  const baseUrl = isEmulator
+    ? `${process.env.FIREBASE_AUTH_EMULATOR_URL}/identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=dummy`
+    : `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${process.env.FIREBASE_API_KEY}`;
 
   try {
-    const response = await axios.post<FirebaseAuthResponse>(url, {
+    const response = await axios.post<FirebaseAuthResponse>(baseUrl, {
       email,
       password,
       returnSecureToken: true,
     });
 
-    console.log("response on login", response.data)
+    console.log("[signIn] Firebase Auth Response", response.data);
     return response.data;
   } catch (error: any) {
-    throw new Error(error.response?.data?.error?.message || 'Login failed');
+    console.error("[signIn] Error:", error?.response?.data || error.message);
+    throw new Error(error?.response?.data?.error?.message || 'Login failed');
   }
 }

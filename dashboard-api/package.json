@@ -6,8 +6,10 @@
   "scripts": {
     "test": "jest",
     "start": "nodemon src/server.ts",
+    "build": "tsc",
+    "prod": "cross-env NODE_ENV=production node dist/server.js",
     "dev": "nodemon --watch src --ext ts --exec ts-node src/server.ts",
-    "emulators-start": "firebase emulators:start --only firestore,auth",
+    "emulators": "firebase emulators:start --only firestore,auth",
     "serve-local-dev": "npm run start export FIRESTORE_EMULATOR_HOST='127.0.0.1:8083' && export FIREBASE_AUTH_EMULATOR_HOST='127.0.0.1:9099' && export FIREBASE_STORAGE_EMULATOR_HOST='127.0.01:9199'"
   },
   "keywords": [],
@@ -32,6 +34,7 @@
     "@types/jest": "^30.0.0",
     "@types/morgan": "^1.9.10",
     "@types/supertest": "^6.0.3",
+    "cross-env": "^10.0.0",
     "jest": "^30.0.5",
     "nodemon": "^3.1.10",
     "supertest": "^7.1.4",
