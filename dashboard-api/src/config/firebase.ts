@@ -4,10 +4,12 @@ import * as path from 'path';
 import dotenv from 'dotenv';
 
 
+// dotenv.config({
+//   path: process.env.NODE_ENV === 'development' ? '.env.development' : '.env.production'
+// });
 dotenv.config({
-  path: process.env.NODE_ENV === 'development' ? '.env.development' : '.env'
+  path: process.env.NODE_ENV === 'production' ? '.env.production' : '.env.development'
 });
-
 // dotenv.config(); // Loads .env by default
 
 console.log("firebase credential path:", process.env.FIREBASE_CREDENTIAL_PATH)
