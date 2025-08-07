@@ -4,7 +4,7 @@ import dotenv from 'dotenv';
 import morgan from 'morgan';
 
 // ROUTES
-import vehicleRoutes from '../src/routes/driver.routes'
+import vehicleRoutes from './routes/vehicles.routes'
 import driverRoutes from './routes/driver.routes'; 
 import authRoutes from './routes/auth.routes';
 import incomeRoutes from './routes/income.routes';
@@ -13,8 +13,9 @@ import { verifySession } from './utils/firebase-auth';
 import { verifySessionCookie } from './middleware/verifySessionCookie';
 
 dotenv.config();
-
+console.log("ENV:", process.env.NODE_ENV);
 console.log('🧪 FIREBASE_CREDENTIAL_PATH:', process.env.FIREBASE_CREDENTIAL_PATH);
+
 
 const app = express();
 const PORT = process.env.PORT || 5000;
