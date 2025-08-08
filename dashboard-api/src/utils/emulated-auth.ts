@@ -26,10 +26,8 @@ export async function signInWithEmailAndPassword(
       returnSecureToken: true,
     });
 
-    console.log("[signIn] Firebase Auth Response", response.data);
     return response.data;
   } catch (error: any) {
-    console.error("[signIn] Error:", error?.response?.data || error.message);
-    throw new Error(error?.response?.data?.error?.message || 'Login failed');
+    throw new Error(error.response?.data?.error?.message || 'Login failed');
   }
 }
