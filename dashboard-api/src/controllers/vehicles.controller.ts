@@ -240,22 +240,3 @@ export const deleteVehicle = async (req: Request, res: Response) => {
   }
 };
 
-// GET /api/v1/vehicles/service-history/:id
-export const getVehicleServiceHistory = async (req: Request, res: Response) => {
-  try {
-    const id = req.params.id;
-    const parent = vehiclesRef.doc(id);
-    const exists = await parent.get();
-    if (!exists.exists) return res.status(404).json({ error: 'Vehicle not found' });
-
-    const snap = await parent.collection('serviceRecords').orderBy('date', 'desc').get();
-    const records = snap.docs.map(d => {
-      const data = d.data() as { date?: FirebaseFirestore.Timestamp } & Record<string, unknown>;
-      return { id: d.id, ...data, date: data.date ? data.date.toDate().toISOString() : undefined };
-    });
-
-    res.status(200).json({ data: records });
-  } catch (err: any) {
-    res.status(500).json({ error: 'Failed to fetch service history', message: err.message });
-  }
-};
