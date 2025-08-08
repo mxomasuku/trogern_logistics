@@ -37,3 +37,38 @@ export interface VehicleCreateDTO {
 }
 
 export type VehicleUpdateDTO = Partial<VehicleCreateDTO>;
+
+
+export interface ServiceItem {
+  name: string;
+  cost: number;        // per unit
+  quantity: number;
+  unit: string;        // "pieces", "liters", etc.
+}
+
+export interface ServiceRecord {
+  date: FirebaseFirestore.Timestamp;  // when serviced
+  mechanic: string;
+  cost: number;                       // total cost for this service
+  condition: string;                  // e.g. "good", "requires attention"
+  itemsChanged: ServiceItem[];        // line items
+  notes?: string;
+
+  createdAt?: FirebaseFirestore.Timestamp;
+  updatedAt?: FirebaseFirestore.Timestamp;
+}
+
+// DTO for incoming payload (dates as strings)
+export interface ServiceRecordDTO {
+  date: string;               // ISO date string
+  mechanic: string;
+  cost: number | string;
+  condition: string;
+  itemsChanged: Array<{
+    name: string;
+    cost: number | string;
+    quantity: number | string;
+    unit: string;
+  }>;
+  notes?: string;
+}
