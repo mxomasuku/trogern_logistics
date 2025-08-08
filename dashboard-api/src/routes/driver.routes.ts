@@ -9,10 +9,10 @@ import {
 
 const router = Router();
 
-router.get('/', getAllDrivers);
-router.get('/:id', getDriverById);
+router.get('/get', getAllDrivers);
+router.get('/get/:id', getDriverById);
 router.post('/add', addDriver);
-router.put('/:id', updateDriver);
-router.delete('/:id', deleteDriver);
+router.put('/update/:id', updateDriver);
+router.delete('/delete/:id', deleteDriver);
 
 export default router;
