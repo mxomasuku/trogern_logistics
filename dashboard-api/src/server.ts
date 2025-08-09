@@ -30,6 +30,10 @@ if (process.env.NODE_ENV === 'development') {
   app.use(morgan('dev'));
 }
 
+app.use(cors({
+  origin: 'http://localhost:5173', // Vite dev
+  credentials: true
+}));
 // ✅ API Routes (versioned)
 app.use('/api/v1/auth', authRoutes )
 
