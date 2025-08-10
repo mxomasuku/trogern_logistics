@@ -1,3 +1,18 @@
+
+
+export interface ApiResponse<T = any> {
+  isSuccessful: boolean;
+  data: T | null;
+  error: ApiError | null;
+}
+
+export interface ApiError {
+  code: string;
+  message: string;
+  details?: any; 
+}
+
+
 export type VehicleStatus = 'active' | 'inactive' | 'maintenance' | 'retired';
 export type RouteType = 'local' | 'highway' | 'mixed';
 
