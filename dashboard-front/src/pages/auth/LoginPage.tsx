@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
-import { useLoginMutation } from "@/features/auth/authSlice";
+import { useLoginMutation } from "@/pages/auth/authSlice";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
@@ -25,8 +25,8 @@ export default function LoginPage() {
     e.preventDefault();
     await login({ email, password }).unwrap();
 
-    let to = storedFromRef.current || "/drivers";
-    if (!to.startsWith("/")) to = "/drivers"; // sanitize
+    let to = storedFromRef.current || "/home";
+    if (!to.startsWith("/")) to = "/home"; // sanitize
 
     try {
       sessionStorage.removeItem("postLoginRedirect");

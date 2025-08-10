@@ -1,38 +1,22 @@
-import { Routes, Route, Navigate } from "react-router-dom";
-import AppLayout from "@/layouts/AppLayout";
+// src/routes/AppRoutes.tsx
+import { Routes, Route } from "react-router-dom";
+import HomeLayout from "@/layouts/HomeLayout/HomeLayout";
 import Protected from "@/components/Protected";
-import LoginPage from "@/features/auth/LoginPage";
-import DriversPage from "@/features/drivers/DriversPage";
-import VehiclesPage from "@/features/vehicles/VehiclesPage";
-import ServicePage from "@/features/service/ServicePage";
+import DriversPage from "@/pages/drivers/DriversPage";
+import VehiclesPage from "@/pages/vehicles/VehiclesPage";
+import ServicePage from "@/pages/service/ServicePage";
+import LoginPage from "@/pages/auth/LoginPage";
+import Home from "@/pages/home/Home";
 
 export default function AppRoutes() {
   return (
     <Routes>
-      {/* Public */}
-      <Route path="login" element={<LoginPage />} />
-
-      {/* Layout + protected area */}
-      <Route path="/" element={<AppLayout />}>
-        {/* index == "/" */}
-        <Route index element={<Navigate to="drivers" replace />} />
-
-        {/* child paths are RELATIVE here (no leading slash) */}
-        <Route
-          path="drivers"
-          element={<Protected><DriversPage /></Protected>}
-        />
-        <Route
-          path="vehicles"
-          element={<Protected><VehiclesPage /></Protected>}
-        />
-        <Route
-          path="service"
-          element={<Protected><ServicePage /></Protected>}
-        />
-
-        {/* 404 fallback inside layout */}
-        <Route path="*" element={<Navigate to="drivers" replace />} />
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/" element={<HomeLayout />}>
+        <Route path="home" element={<Protected><Home/></Protected>}/>
+        <Route path="drivers" element={<Protected><DriversPage /></Protected>} />
+        <Route path="vehicles" element={<Protected><VehiclesPage /></Protected>} />
+        <Route path="service" element={<Protected><ServicePage /></Protected>} />
       </Route>
     </Routes>
   );

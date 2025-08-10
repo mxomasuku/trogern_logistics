@@ -1,6 +1,6 @@
 import { configureStore } from '@reduxjs/toolkit';
 import { api } from './rtk';
-import authReducer from '../features/auth/authSlice';
+import authReducer from '../pages/auth/authSlice';
 
 export const store = configureStore({
   reducer: {
