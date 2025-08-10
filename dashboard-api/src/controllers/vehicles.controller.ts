@@ -1,52 +1,64 @@
 import { Request, Response } from 'express';
-import { Vehicle, VehicleCreateDTO, VehicleUpdateDTO, VehicleStatus, RouteType } from '../interfaces/interfaces';
+import {
+  Vehicle,
+  VehicleCreateDTO,
+  VehicleUpdateDTO,
+  VehicleStatus,
+  RouteType,
+} from '../interfaces/interfaces';
 const { db, admin } = require('../config/firebase');
+import { success, failure } from '../utils/apiResponse';
 
-const vehiclesRef: FirebaseFirestore.CollectionReference = db.collection('vehicles');
+// ---------- Firestore refs & helpers ----------
+const vehiclesCollection: FirebaseFirestore.CollectionReference = db.collection('vehicles');
+const FirestoreTimestamp = admin.firestore.Timestamp;
 
-// ---------- helpers ----------
-const ts = admin.firestore.Timestamp;
-const nowTs = () => ts.now();
+const nowTs = () => FirestoreTimestamp.now();
 
-const parseDate = (value?: string): FirebaseFirestore.Timestamp | undefined => {
+const parseDateToTs = (value?: string): FirebaseFirestore.Timestamp | undefined => {
   if (!value) return undefined;
-  const ms = Date.parse(value);
-  if (Number.isNaN(ms)) return undefined;
-  return ts.fromMillis(ms);
+  const milliseconds = Date.parse(value);
+  if (Number.isNaN(milliseconds)) return undefined;
+  return FirestoreTimestamp.fromMillis(milliseconds);
 };
 
-// quick enums guard (runtime)
-const isStatus = (v: any): v is VehicleStatus =>
+// Runtime guards for enums
+const isVehicleStatus = (v: unknown): v is VehicleStatus =>
   v === 'active' || v === 'inactive' || v === 'maintenance' || v === 'retired';
-const isRoute = (v: any): v is RouteType =>
+
+const isRouteType = (v: unknown): v is RouteType =>
   v === 'local' || v === 'highway' || v === 'mixed';
 
-// normalize + validate create DTO -> Vehicle
-function toVehicle(dto: VehicleCreateDTO): { ok: true; value: Vehicle } | { ok: false; errors: string[] } {
+// ---------- Normalizers / Validators ----------
+
+function toVehicle(
+  dto: VehicleCreateDTO
+): { ok: true; value: Vehicle } | { ok: false; errors: string[] } {
   const errors: string[] = [];
 
   const plateNumber = (dto.plateNumber || '').trim();
   const make = (dto.make || '').trim();
   const model = (dto.model || '').trim();
-  const yearNum = Number(dto.year);
-  const currentMileageNum = Number(dto.currentMileage);
+  const year = Number(dto.year);
+  const currentMileage = Number(dto.currentMileage);
   const color = (dto.color ?? '').trim();
   const vin = (dto.vin ?? '').trim();
   const assignedDriver = dto.assignedDriver ?? null;
   const status = dto.status ?? 'active';
   const route = dto.route;
-  const datePurchasedTs = parseDate(dto.datePurchased);
-  const lastServiceDateTs = parseDate(dto.lastServiceDate);
+  const datePurchased = parseDateToTs(dto.datePurchased);
+  const lastServiceDate = parseDateToTs(dto.lastServiceDate);
 
   if (!plateNumber) errors.push('plateNumber');
   if (!make) errors.push('make');
   if (!model) errors.push('model');
-  if (!Number.isFinite(yearNum) || String(yearNum).length !== 4) errors.push('year (4-digit number)');
-  if (!Number.isFinite(currentMileageNum) || currentMileageNum < 0) errors.push('currentMileage (non-negative number)');
-  if (!dto.datePurchased || !datePurchasedTs) errors.push('datePurchased (ISO date)');
-  if (!isRoute(route)) errors.push(`route (${['local','highway','mixed'].join('|')})`);
-  if (!isStatus(status)) errors.push(`status (${['active','inactive','maintenance','retired'].join('|')})`);
-  if (dto.lastServiceDate && !lastServiceDateTs) errors.push('lastServiceDate (ISO date)');
+  if (!Number.isFinite(year) || String(year).length !== 4) errors.push('year (4-digit number)');
+  if (!Number.isFinite(currentMileage) || currentMileage < 0)
+    errors.push('currentMileage (non-negative number)');
+  if (!dto.datePurchased || !datePurchased) errors.push('datePurchased (ISO date)');
+  if (!isRouteType(route)) errors.push("route (one of: 'local'|'highway'|'mixed')");
+  if (!isVehicleStatus(status)) errors.push("status (one of: 'active'|'inactive'|'maintenance'|'retired')");
+  if (dto.lastServiceDate && !lastServiceDate) errors.push('lastServiceDate (ISO date)');
 
   if (errors.length) return { ok: false, errors };
 
@@ -54,136 +66,154 @@ function toVehicle(dto: VehicleCreateDTO): { ok: true; value: Vehicle } | { ok: 
     plateNumber,
     make,
     model,
-    year: yearNum,
+    year,
     color,
     vin,
     assignedDriver,
     status,
-    datePurchased: datePurchasedTs!,
+    datePurchased: datePurchased!,
     route,
-    lastServiceDate: lastServiceDateTs,
-    currentMileage: currentMileageNum,
+    lastServiceDate,
+    currentMileage,
     createdAt: nowTs(),
     updatedAt: nowTs(),
   };
+
   return { ok: true, value };
 }
 
-// normalize + validate partial update DTO -> Partial<Vehicle>
-function toVehicleUpdate(dto: VehicleUpdateDTO): { ok: true; value: Partial<Vehicle> } | { ok: false; errors: string[] } {
+function toVehicleUpdate(
+  dto: VehicleUpdateDTO
+): { ok: true; value: Partial<Vehicle> } | { ok: false; errors: string[] } {
   const errors: string[] = [];
-  const out: Partial<Vehicle> = {};
+  const update: Partial<Vehicle> = {};
 
   if ('plateNumber' in dto) {
-    const v = (dto.plateNumber ?? '').trim();
-    if (!v) errors.push('plateNumber');
-    else out.plateNumber = v;
+    const plateNumber = (dto.plateNumber ?? '').trim();
+    if (!plateNumber) errors.push('plateNumber');
+    else update.plateNumber = plateNumber;
   }
 
   if ('make' in dto) {
-    const v = (dto.make ?? '').trim();
-    if (!v) errors.push('make');
-    else out.make = v;
+    const make = (dto.make ?? '').trim();
+    if (!make) errors.push('make');
+    else update.make = make;
   }
 
   if ('model' in dto) {
-    const v = (dto.model ?? '').trim();
-    if (!v) errors.push('model');
-    else out.model = v;
+    const model = (dto.model ?? '').trim();
+    if (!model) errors.push('model');
+    else update.model = model;
   }
 
   if ('year' in dto) {
-    const n = Number(dto.year);
-    if (!Number.isFinite(n) || String(n).length !== 4) errors.push('year (4-digit number)');
-    else out.year = n;
+    const year = Number(dto.year);
+    if (!Number.isFinite(year) || String(year).length !== 4) errors.push('year (4-digit number)');
+    else update.year = year;
   }
 
-  if ('color' in dto) out.color = (dto.color ?? '').trim();
-  if ('vin' in dto) out.vin = (dto.vin ?? '').trim();
-  if ('assignedDriver' in dto) out.assignedDriver = dto.assignedDriver ?? null;
+  if ('color' in dto) update.color = (dto.color ?? '').trim();
+  if ('vin' in dto) update.vin = (dto.vin ?? '').trim();
+  if ('assignedDriver' in dto) update.assignedDriver = dto.assignedDriver ?? null;
 
   if ('status' in dto) {
-    const v = dto.status;
-    if (!isStatus(v)) errors.push(`status (${['active','inactive','maintenance','retired'].join('|')})`);
-    else out.status = v;
+    const status = dto.status;
+    if (!isVehicleStatus(status)) errors.push("status (one of: 'active'|'inactive'|'maintenance'|'retired')");
+    else update.status = status;
   }
 
   if ('route' in dto) {
-    const v = dto.route;
-    if (!isRoute(v)) errors.push(`route (${['local','highway','mixed'].join('|')})`);
-    else out.route = v;
+    const route = dto.route;
+    if (!isRouteType(route)) errors.push("route (one of: 'local'|'highway'|'mixed')");
+    else update.route = route;
   }
 
   if ('datePurchased' in dto) {
-    const tsVal = parseDate(dto.datePurchased);
-    if (dto.datePurchased && !tsVal) errors.push('datePurchased (ISO date)');
-    else if (tsVal) out.datePurchased = tsVal;
+    const datePurchased = parseDateToTs(dto.datePurchased);
+    if (dto.datePurchased && !datePurchased) errors.push('datePurchased (ISO date)');
+    else if (datePurchased) update.datePurchased = datePurchased;
   }
 
   if ('lastServiceDate' in dto) {
-    const tsVal = parseDate(dto.lastServiceDate);
-    if (dto.lastServiceDate && !tsVal) errors.push('lastServiceDate (ISO date)');
-    else if (tsVal) out.lastServiceDate = tsVal;
+    const lastServiceDate = parseDateToTs(dto.lastServiceDate);
+    if (dto.lastServiceDate && !lastServiceDate) errors.push('lastServiceDate (ISO date)');
+    else if (lastServiceDate) update.lastServiceDate = lastServiceDate;
   }
 
   if ('currentMileage' in dto) {
-    const n = Number(dto.currentMileage);
-    if (!Number.isFinite(n) || n < 0) errors.push('currentMileage (non-negative number)');
-    else out.currentMileage = n;
+    const currentMileage = Number(dto.currentMileage);
+    if (!Number.isFinite(currentMileage) || currentMileage < 0)
+      errors.push('currentMileage (non-negative number)');
+    else update.currentMileage = currentMileage;
   }
 
   if (errors.length) return { ok: false, errors };
+  if (Object.keys(update).length === 0) return { ok: false, errors: ['No valid fields to update'] };
 
-  if (Object.keys(out).length === 0) return { ok: false, errors: ['No valid fields to update'] };
-
-  out.updatedAt = nowTs();
-  return { ok: true, value: out };
+  update.updatedAt = nowTs();
+  return { ok: true, value: update };
 }
 
-// serialize Firestore doc -> plain object with ISO dates
-const tsToIso = (t?: FirebaseFirestore.Timestamp) => (t ? t.toDate().toISOString() : undefined);
+// ---------- Serialization ----------
+
+const tsToIso = (t?: FirebaseFirestore.Timestamp) =>
+  (t ? t.toDate().toISOString() : undefined);
+
 const vehicleDocToJson = (doc: FirebaseFirestore.DocumentSnapshot) => {
-  const d = doc.data() as Vehicle | undefined;
-  if (!d) return null;
+  const data = doc.data() as Vehicle | undefined;
+  if (!data) return null;
+
   return {
     id: doc.id,
-    plateNumber: d.plateNumber,
-    make: d.make,
-    model: d.model,
-    year: d.year,
-    color: d.color ?? '',
-    vin: d.vin ?? '',
-    assignedDriver: d.assignedDriver ?? null,
-    status: d.status ?? 'active',
-    datePurchased: tsToIso(d.datePurchased),
-    route: d.route,
-    lastServiceDate: tsToIso(d.lastServiceDate),
-    currentMileage: d.currentMileage,
-    createdAt: tsToIso(d.createdAt),
-    updatedAt: tsToIso(d.updatedAt),
+    plateNumber: data.plateNumber,
+    make: data.make,
+    model: data.model,
+    year: data.year,
+    color: data.color ?? '',
+    vin: data.vin ?? '',
+    assignedDriver: data.assignedDriver ?? null,
+    status: data.status ?? 'active',
+    datePurchased: tsToIso(data.datePurchased),
+    route: data.route,
+    lastServiceDate: tsToIso(data.lastServiceDate),
+    currentMileage: data.currentMileage,
+    createdAt: tsToIso(data.createdAt),
+    updatedAt: tsToIso(data.updatedAt),
   };
 };
 
-// ---------- controllers ----------
+// ---------- Controllers ----------
 
 // GET /api/v1/vehicles
 export const getAllVehicles = async (_req: Request, res: Response) => {
   try {
-    const snap = await vehiclesRef.get();
-    res.status(200).json({ data: snap.docs.map(vehicleDocToJson) });
-  } catch (err: any) {
-    res.status(500).json({ error: 'Failed to fetch vehicles', message: err.message });
+    const snapshot = await vehiclesCollection.get();
+    const vehicles = snapshot.docs.map(vehicleDocToJson);
+    return res.status(200).json(success(vehicles));
+  } catch (error: any) {
+    console.error('Error fetching vehicles:', error);
+    return res
+      .status(500)
+      .json(failure('SERVER_ERROR', 'Failed to fetch vehicles', error.message));
   }
 };
 
 // GET /api/v1/vehicles/:id
 export const getVehicle = async (req: Request, res: Response) => {
   try {
-    const doc = await vehiclesRef.doc(req.params.id).get();
-    if (!doc.exists) return res.status(404).json({ error: 'Vehicle not found' });
-    res.status(200).json(vehicleDocToJson(doc));
-  } catch (err: any) {
-    res.status(500).json({ error: 'Failed to fetch vehicle', message: err.message });
+    const vehicleId = req.params.id;
+    const doc = await vehiclesCollection.doc(vehicleId).get();
+
+    if (!doc.exists) {
+      return res.status(404).json(failure('NOT_FOUND', 'Vehicle not found', { id: vehicleId }));
+    }
+
+    return res.status(200).json(success(vehicleDocToJson(doc)));
+  } catch (error: any) {
+    console.error('Error fetching vehicle:', error);
+    return res
+      .status(500)
+      .json(failure('SERVER_ERROR', 'Failed to fetch vehicle', error.message));
   }
 };
 
@@ -191,52 +221,73 @@ export const getVehicle = async (req: Request, res: Response) => {
 export const addVehicle = async (req: Request<{}, {}, VehicleCreateDTO>, res: Response) => {
   const result = toVehicle(req.body);
   if (!result.ok) {
-    return res.status(400).json({
-      error: 'Validation failed',
-      message: `Provide valid: ${result.errors.join(', ')}`,
-    });
+    return res
+      .status(400)
+      .json(failure('VALIDATION_ERROR', 'Validation failed', { fields: result.errors }));
   }
 
   try {
-    const docRef = await vehiclesRef.add(result.value);
-    const saved = await docRef.get();
-    res.status(201).json({ message: 'Vehicle added', data: vehicleDocToJson(saved) });
-  } catch (err: any) {
-    res.status(500).json({ error: 'Failed to add vehicle', message: err.message });
+    const createdRef = await vehiclesCollection.add(result.value);
+    const createdSnap = await createdRef.get();
+    return res.status(201).json(success(vehicleDocToJson(createdSnap)));
+  } catch (error: any) {
+    console.error('Error adding vehicle:', error);
+    return res
+      .status(500)
+      .json(failure('SERVER_ERROR', 'Failed to add vehicle', error.message));
   }
 };
 
 // PUT /api/v1/vehicles/:id
-export const updateVehicle = async (req: Request<{ id: string }, {}, VehicleUpdateDTO>, res: Response) => {
+export const updateVehicle = async (
+  req: Request<{ id: string }, {}, VehicleUpdateDTO>,
+  res: Response
+) => {
   const parsed = toVehicleUpdate(req.body);
   if (!parsed.ok) {
-    return res.status(400).json({ error: 'Validation failed', message: parsed.errors.join(', ') });
+    return res
+      .status(400)
+      .json(failure('VALIDATION_ERROR', 'Validation failed', { fields: parsed.errors }));
   }
 
   try {
-    const ref = vehiclesRef.doc(req.params.id);
-    const existing = await ref.get();
-    if (!existing.exists) return res.status(404).json({ error: 'Vehicle not found' });
+    const vehicleId = req.params.id;
+    const vehicleRef = vehiclesCollection.doc(vehicleId);
+    const existingSnap = await vehicleRef.get();
 
-    await ref.update(parsed.value);
-    const updated = await ref.get();
-    res.status(200).json({ message: 'Vehicle updated', data: vehicleDocToJson(updated) });
-  } catch (err: any) {
-    res.status(500).json({ error: 'Failed to update vehicle', message: err.message });
+    if (!existingSnap.exists) {
+      return res.status(404).json(failure('NOT_FOUND', 'Vehicle not found', { id: vehicleId }));
+    }
+
+    await vehicleRef.update(parsed.value);
+    const updatedSnap = await vehicleRef.get();
+
+    return res.status(200).json(success(vehicleDocToJson(updatedSnap)));
+  } catch (error: any) {
+    console.error('Error updating vehicle:', error);
+    return res
+      .status(500)
+      .json(failure('SERVER_ERROR', 'Failed to update vehicle', error.message));
   }
 };
 
 // DELETE /api/v1/vehicles/:id
 export const deleteVehicle = async (req: Request, res: Response) => {
   try {
-    const ref = vehiclesRef.doc(req.params.id);
-    const doc = await ref.get();
-    if (!doc.exists) return res.status(404).json({ error: 'Vehicle not found' });
+    const vehicleId = req.params.id;
+    const vehicleRef = vehiclesCollection.doc(vehicleId);
+    const existingSnap = await vehicleRef.get();
 
-    await ref.delete();
-    res.status(200).json({ message: 'Vehicle deleted' });
-  } catch (err: any) {
-    res.status(500).json({ error: 'Failed to delete vehicle', message: err.message });
+    if (!existingSnap.exists) {
+      return res.status(404).json(failure('NOT_FOUND', 'Vehicle not found', { id: vehicleId }));
+    }
+
+    await vehicleRef.delete();
+    return res.status(200).json(success({ id: vehicleId }));
+  } catch (error: any) {
+    console.error('Error deleting vehicle:', error);
+    return res
+      .status(500)
+      .json(failure('SERVER_ERROR', 'Failed to delete vehicle', error.message));
   }
 };
-

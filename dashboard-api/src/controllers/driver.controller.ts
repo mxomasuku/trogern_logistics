@@ -1,57 +1,73 @@
 import { Request, Response } from 'express';
 const { db } = require('../config/firebase');
-import { firestore } from 'firebase-admin';
+import type { QueryDocumentSnapshot } from 'firebase-admin/firestore';
+import { success, failure } from '../utils/apiResponse';
+
+// Firestore collection ref
+const driversRef = db.collection('drivers');
 
 export interface Driver {
   name: string;
   licenseNumber: string;
   nationalId: string;
   contact: string;
-  email: string;
-  address: string;
-  dob: string; 
+  email?: string;
+  address?: string;
+  dob: string; // ISO date
   gender: 'Male' | 'Female' | 'Other';
   status: 'active' | 'inactive' | 'suspended';
-  experienceYears: number;
-  vehicleAssigned: string;
+  experienceYears?: number;
+  vehicleAssigned?: string | null;
   nextOfKin: {
     name: string;
-    relationship: string;
+    relationship?: string;
     phone: string;
   };
   emergencyContact: string;
+  isActive?: boolean; // optional toggle
 }
 
-const driversRef = db.collection('drivers');
-
+// GET /drivers
 export const getAllDrivers = async (_req: Request, res: Response) => {
   try {
     const snapshot = await driversRef.get();
-    const drivers = snapshot.docs.map((doc: FirebaseFirestore.QueryDocumentSnapshot) => ({
+    const drivers = snapshot.docs.map((doc: QueryDocumentSnapshot) => ({
       id: doc.id,
-      ...doc.data()
+      ...doc.data(),
     }));
 
-    res.status(200).json(drivers);
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch drivers' });
+    return res.status(200).json(success(drivers));
+  } catch (error: any) {
+    console.error('Error fetching drivers:', error);
+    return res
+      .status(500)
+      .json(failure('SERVER_ERROR', 'Failed to fetch drivers', error.message));
   }
 };
 
+// GET /drivers/:id
 export const getDriverById = async (req: Request, res: Response) => {
   const { id } = req.params;
+
   try {
     const doc = await driversRef.doc(id).get();
-    if (!doc.exists) return res.status(404).json({ error: 'Driver not found' });
-    res.status(200).json({ id: doc.id, ...doc.data() });
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch driver' });
+    if (!doc.exists) {
+      return res
+        .status(404)
+        .json(failure('NOT_FOUND', 'Driver not found', { id }));
+    }
+
+    const payload = { id: doc.id, ...doc.data() };
+    return res.status(200).json(success(payload));
+  } catch (error: any) {
+    console.error('Error fetching driver by id:', error);
+    return res
+      .status(500)
+      .json(failure('SERVER_ERROR', 'Failed to fetch driver', error.message));
   }
 };
 
-
-
-
+// POST /drivers/add
 export const addDriver = async (req: Request<{}, {}, Driver>, res: Response) => {
   const {
     name,
@@ -59,17 +75,19 @@ export const addDriver = async (req: Request<{}, {}, Driver>, res: Response) => 
     address = '',
     licenseNumber,
     nationalId,
-    vehicleAssigned = '',
+    vehicleAssigned = null,
     status = 'inactive',
     dob,
     gender,
     experienceYears = 0,
     nextOfKin,
-    emergencyContact
+    emergencyContact,
+    email = '',
+    isActive = true,
   } = req.body;
 
+  // Validate requireds
   const missingFields: string[] = [];
-
   if (!name) missingFields.push('name');
   if (!contact) missingFields.push('contact');
   if (!licenseNumber) missingFields.push('licenseNumber');
@@ -81,11 +99,15 @@ export const addDriver = async (req: Request<{}, {}, Driver>, res: Response) => 
   if (!emergencyContact) missingFields.push('emergencyContact');
 
   if (missingFields.length > 0) {
-    return res.status(400).json({
-      error: 'Missing required fields',
-      message: `Please provide the following field(s): ${missingFields.join(', ')}`,
-      data: undefined
-    });
+    return res
+      .status(400)
+      .json(
+        failure(
+          'VALIDATION_ERROR',
+          'Missing required fields',
+          { missingFields }
+        )
+      );
   }
 
   try {
@@ -95,7 +117,7 @@ export const addDriver = async (req: Request<{}, {}, Driver>, res: Response) => 
       licenseNumber,
       nationalId,
       contact,
-      email: req.body.email || '',
+      email,
       address,
       dob,
       gender,
@@ -104,47 +126,60 @@ export const addDriver = async (req: Request<{}, {}, Driver>, res: Response) => 
       vehicleAssigned,
       nextOfKin,
       emergencyContact,
+      isActive,
     };
 
-    await driversRef.add({
+    const docRef = await driversRef.add({
       ...driverData,
       createdAt: now,
-      updatedAt: now
+      updatedAt: now,
     });
 
-    res.status(200).json({
-      message: `${driverData.name} added successfully`,
-      data: driverData
-    });
-  } catch (error) {
-    res.status(500).json({
-      error: 'Failed to add driver',
-      message: (error as Error).message,
-      data: undefined
-    });
+    return res
+      .status(201)
+      .json(
+        success({
+          id: docRef.id,
+          ...driverData,
+          createdAt: now,
+          updatedAt: now,
+        })
+      );
+  } catch (error: any) {
+    console.error('Error adding driver:', error);
+    return res
+      .status(500)
+      .json(failure('SERVER_ERROR', 'Failed to add driver', error.message));
   }
 };
 
+// PUT /drivers/:id
 export const updateDriver = async (req: Request, res: Response) => {
   const { id } = req.params;
-  const data = req.body;
-  data.updatedAt = new Date().toISOString();
+  const patch = { ...req.body, updatedAt: new Date().toISOString() };
 
   try {
-    await driversRef.doc(id).update(data);
-    res.status(200).json({ message: 'Driver updated' });
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to update driver' });
+    await driversRef.doc(id).set(patch, { merge: true });
+    return res.status(200).json(success({ id, ...patch }));
+  } catch (error: any) {
+    console.error('Error updating driver:', error);
+    return res
+      .status(500)
+      .json(failure('SERVER_ERROR', 'Failed to update driver', error.message));
   }
 };
 
+// DELETE /drivers/:id
 export const deleteDriver = async (req: Request, res: Response) => {
   const { id } = req.params;
 
   try {
     await driversRef.doc(id).delete();
-    res.status(200).json({ message: 'Driver deleted' });
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to delete driver' });
+    return res.status(200).json(success({ id }));
+  } catch (error: any) {
+    console.error('Error deleting driver:', error);
+    return res
+      .status(500)
+      .json(failure('SERVER_ERROR', 'Failed to delete driver', error.message));
   }
 };
