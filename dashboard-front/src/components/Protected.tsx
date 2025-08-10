@@ -1,5 +1,5 @@
 import { Navigate, useLocation } from "react-router-dom";
-import { useMeQuery } from "@/features/auth/authSlice";
+import { useMeQuery } from "@/pages/auth/authSlice";
 
 export default function Protected({ children }: { children: React.ReactNode }) {
   const { data: me, isLoading } = useMeQuery();
