@@ -51,3 +51,12 @@ export async function deleteDriver(id: string): Promise<void> {
   const { data } = await http.delete<ApiResponse>(`/api/v1/drivers/${id}`);
   if (!data?.isSuccessful) throw new Error(data?.error?.message ?? "Failed to delete driver");
 }
+
+export async function searchDriversByName(name: string): Promise<Driver[]> {
+  const { data } = await http.get<{ isSuccessful: boolean; data: Driver[] }>(
+    `/api/v1/drivers/search`,
+    { params: { name } }
+  );
+  if (!data?.isSuccessful) throw new Error("Failed to search drivers");
+  return data.data;
+}
