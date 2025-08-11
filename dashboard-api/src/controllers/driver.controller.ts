@@ -183,3 +183,35 @@ export const deleteDriver = async (req: Request, res: Response) => {
       .json(failure('SERVER_ERROR', 'Failed to delete driver', error.message));
   }
 };
+
+export const searchDrivers = async (req: Request, res: Response) => {
+  const { name } = req.params;              // ← params, not query
+
+  if (!name || typeof name !== "string") {
+    return res
+      .status(400)
+      .json(failure("MISSING_PARAM", "Path parameter 'name' is required"));
+  }
+
+  try {
+    const searchTerm = name.trim().toLowerCase();
+
+    const snapshot = await driversRef
+      .orderBy("nameLower")                 // make sure you store this on create/update
+      .startAt(searchTerm)
+      .endAt(searchTerm + "\uf8ff")
+      .get();
+
+    const drivers = snapshot.docs.map((doc: QueryDocumentSnapshot) => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
+
+    return res.status(200).json(success(drivers));
+  } catch (error: any) {
+    console.error("Error searching drivers:", error);
+    return res
+      .status(500)
+      .json(failure("SERVER_ERROR", "Failed to search drivers", error.message));
+  }
+};
