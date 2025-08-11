@@ -39,7 +39,7 @@ export async function getVehicle(id: string): Promise<Vehicle> {
 }
 
 export async function addVehicle(payload: VehicleCreateDTO): Promise<Vehicle> {
-  const { data } = await http.post<ApiResponse<Vehicle>>("/api/v1/vehicles/add", payload);
+  const { data } = await http.post<ApiResponse<Vehicle>>("/api/v1/vehicles/add-vehicle", payload);
   if (!data?.isSuccessful) throw new Error(data?.error?.message ?? "Failed to add vehicle");
   return data.data!;
 }
