@@ -1,5 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
-import { getDrivers, addDriver, updateDriver, deleteDriver, type Driver, type NewDriver } from "@/api/drivers";
+import {
+  getDrivers,
+  addDriver,
+  updateDriver,
+  deleteDriver,
+  type Driver,
+  type NewDriver,
+} from "@/api/drivers";
+
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -11,7 +19,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
-  DialogOverlay,            // 👈 add overlay
+  DialogOverlay,
 } from "@/components/ui/dialog";
 import {
   AlertDialog,
@@ -21,21 +29,34 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogOverlay,       // 👈 add overlay
+  AlertDialogOverlay,
 } from "@/components/ui/alert-dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
 import { Loader2, Pencil, Plus, Trash2, Search } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+
+/* ======================
+   Page
+   ====================== */
 
 export default function DriversPage() {
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
 
+  // Add/Edit modal state
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Driver | null>(null);
 
+  // Delete confirm
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -234,6 +255,7 @@ function DriverModal({
 }) {
   const isEdit = !!initial?.id;
 
+  // Form state
   const [name, setName] = useState(initial?.name ?? "");
   const [licenseNumber, setLicenseNumber] = useState(initial?.licenseNumber ?? "");
   const [nationalId, setNationalId] = useState(initial?.nationalId ?? "");
@@ -254,6 +276,7 @@ function DriverModal({
 
   useEffect(() => {
     if (!open) return;
+    // reset/prefill when opening
     setName(initial?.name ?? "");
     setLicenseNumber(initial?.licenseNumber ?? "");
     setNationalId(initial?.nationalId ?? "");
@@ -272,6 +295,7 @@ function DriverModal({
   }, [open, initial]);
 
   const onSubmit = async () => {
+    // minimal validation
     const missing: string[] = [];
     if (!name) missing.push("name");
     if (!licenseNumber) missing.push("licenseNumber");
@@ -324,7 +348,7 @@ function DriverModal({
       {/* Strong overlay to avoid transparency */}
       <DialogOverlay className="fixed inset-0 bg-black/60 backdrop-blur-sm" />
 
-      {/* Opaque content + white text in light mode, normal in dark */}
+      {/* Opaque content + white text in light mode, normal tokens in dark */}
       <DialogContent className="max-w-3xl bg-neutral-900 text-white dark:bg-card dark:text-card-foreground">
         <DialogHeader>
           <DialogTitle>{isEdit ? "Edit driver" : "Add driver"}</DialogTitle>
@@ -338,10 +362,24 @@ function DriverModal({
           <TextField label="License Number" value={licenseNumber} onChange={setLicenseNumber} required />
           <TextField label="National ID" value={nationalId} onChange={setNationalId} required />
           <TextField label="Date of Birth" value={dob} onChange={setDob} type="date" required />
-          <SelectField label="Gender" value={gender} onValueChange={(v) => setGender(v as Driver["gender"])} items={["Male","Female","Other"]} />
-          <SelectField label="Status" value={status} onValueChange={(v) => setStatus(v as Driver["status"])} items={["active","inactive","suspended"]} />
+
+          {/* Fixed (opaque) Selects */}
+          <OpaqueSelectField
+            label="Gender"
+            value={gender}
+            onValueChange={(v) => setGender(v as Driver["gender"])}
+            items={["Male","Female","Other"]}
+          />
+          <OpaqueSelectField
+            label="Status"
+            value={status}
+            onValueChange={(v) => setStatus(v as Driver["status"])}
+            items={["active","inactive","suspended"]}
+          />
+
           <NumberField label="Experience (years)" value={experienceYears} onChange={setExperienceYears} min={0} />
           <TextField label="Assigned Vehicle" value={vehicleAssigned} onChange={setVehicleAssigned} placeholder="plate or id" />
+
           <div className="col-span-1 md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-4">
             <TextField label="Next of kin (name)" value={nextOfKinName} onChange={setNextOfKinName} required />
             <TextField label="Relationship" value={nextOfKinRelationship} onChange={setNextOfKinRelationship} />
@@ -351,7 +389,12 @@ function DriverModal({
         </div>
 
         <DialogFooter>
-          <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={submitting} className="text-white/90 hover:text-white dark:text-foreground">
+          <Button
+            variant="ghost"
+            onClick={() => onOpenChange(false)}
+            disabled={submitting}
+            className="text-white/90 hover:text-white dark:text-foreground"
+          >
             Cancel
           </Button>
           <Button onClick={onSubmit} disabled={submitting}>
@@ -386,7 +429,10 @@ function TextField({
 }) {
   return (
     <div className={className}>
-      <Label className="mb-1 inline-block">{label}{required && <span className="text-red-500"> *</span>}</Label>
+      <Label className="mb-1 inline-block">
+        {label}
+        {required && <span className="text-red-500"> *</span>}
+      </Label>
       <Input type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} />
     </div>
   );
@@ -424,7 +470,11 @@ function NumberField({
   );
 }
 
-function SelectField({
+/**
+ * OPAQUE Select (not translucent), readable in light and dark.
+ * Use this instead of the default to avoid glassmorphism bleeding through.
+ */
+function OpaqueSelectField({
   label,
   value,
   onValueChange,
@@ -440,11 +490,27 @@ function SelectField({
   return (
     <div className={className}>
       <Label className="mb-1 inline-block">{label}</Label>
+
       <Select value={value} onValueChange={onValueChange}>
-        <SelectTrigger><SelectValue placeholder="Select…" /></SelectTrigger>
-        <SelectContent>
+        {/* Opaque trigger in light mode; normal tokens in dark */}
+        <SelectTrigger className="bg-neutral-900 text-white dark:bg-background dark:text-foreground border-white/20 dark:border-border">
+          <SelectValue placeholder="Select…" />
+        </SelectTrigger>
+
+        {/* Opaque dropdown panel */}
+        <SelectContent
+          className="z-[60] bg-neutral-900 text-white dark:bg-popover dark:text-popover-foreground border border-white/15 dark:border-border shadow-xl"
+          position="popper"
+          sideOffset={6}
+        >
           {items.map((opt) => (
-            <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+            <SelectItem
+              key={opt}
+              value={opt}
+              className="capitalize focus:bg-white/10 data-[state=checked]:bg-white/15 data-[state=checked]:text-white"
+            >
+              {opt}
+            </SelectItem>
           ))}
         </SelectContent>
       </Select>

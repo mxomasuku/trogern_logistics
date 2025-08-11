@@ -525,13 +525,25 @@ function SelectField<T extends string>({
   return (
     <div className={className}>
       <Label className="mb-1 inline-block">{label}</Label>
+
       <Select value={value} onValueChange={onValueChange}>
-        <SelectTrigger>
+        {/* Opaque trigger: readable text in both themes */}
+        <SelectTrigger className="bg-neutral-900 text-white dark:bg-background dark:text-foreground border-white/20 dark:border-border">
           <SelectValue placeholder="Select…" />
         </SelectTrigger>
-        <SelectContent>
+
+        {/* Opaque dropdown panel with proper contrast */}
+        <SelectContent
+          className="z-[60] bg-neutral-900 text-white dark:bg-popover dark:text-popover-foreground border border-white/15 dark:border-border shadow-xl"
+          position="popper"
+          sideOffset={6}
+        >
           {items.map((opt) => (
-            <SelectItem key={opt} value={opt} className="capitalize">
+            <SelectItem
+              key={opt}
+              value={opt}
+              className="capitalize focus:bg-white/10 data-[state=checked]:bg-white/15 data-[state=checked]:text-white dark:focus:bg-accent dark:data-[state=checked]:bg-accent"
+            >
               {opt}
             </SelectItem>
           ))}
