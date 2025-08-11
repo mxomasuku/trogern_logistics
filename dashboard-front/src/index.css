@@ -1,1 +1,13 @@
 @import "tailwindcss";
+
+/* Make shadcn popover surface SOLID for anything using this class */
+.solid-popover {
+  /* light */
+  --popover: 0 0% 100%;
+  --popover-foreground: 222.2 84% 4.9%;
+}
+.dark .solid-popover {
+  /* dark */
+  --popover: 240 10% 3.9%;
+  --popover-foreground: 0 0% 98%;
+}

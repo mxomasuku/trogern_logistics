@@ -1,67 +1,119 @@
-// src/components/layout/UserMenu.tsx
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import {
-  DropdownMenu, DropdownMenuTrigger, DropdownMenuContent,
-  DropdownMenuItem, DropdownMenuSeparator, DropdownMenuLabel,
-} from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { Moon, Sun, User, Settings } from "lucide-react";
+import { Settings, Moon, Sun, User } from "lucide-react";
 import { getInitialDark, setDark } from "@/lib/theme";
+import { cn } from "@/lib/utils";
 import { DarkModeToggle } from "./dark-mode-toggle";
 
 export default function UserMenu() {
   const navigate = useNavigate();
+  const [open, setOpen] = useState(false);
   const [isDark, setIsDark] = useState<boolean>(getInitialDark());
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const btnRef = useRef<HTMLButtonElement | null>(null);
 
-  useEffect(() => { setDark(isDark); }, [isDark]);
+  useEffect(() => {
+    setDark(isDark);
+  }, [isDark]);
+
+  // close on outside click / Esc
+  useEffect(() => {
+    function onDocClick(e: MouseEvent) {
+      if (!open) return;
+      const t = e.target as Node;
+      if (rootRef.current && !rootRef.current.contains(t)) setOpen(false);
+    }
+    function onEsc(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpen(false);
+    }
+    document.addEventListener("mousedown", onDocClick);
+    document.addEventListener("keydown", onEsc);
+    return () => {
+      document.removeEventListener("mousedown", onDocClick);
+      document.removeEventListener("keydown", onEsc);
+    };
+  }, [open]);
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <button
-          className="inline-flex items-center gap-2 rounded-full p-1 hover:bg-accent focus:outline-none"
-          aria-label="Open user menu"
-        >
-          <Avatar className="h-8 w-8">
-            <AvatarImage src="" alt="User" />
-            <AvatarFallback>MM</AvatarFallback>
-          </Avatar>
-        </button>
-      </DropdownMenuTrigger>
+    <div ref={rootRef} className="relative">
+      <button
+        ref={btnRef}
+        onClick={() => setOpen((v) => !v)}
+        className="inline-flex items-center gap-2 rounded-full p-1 hover:bg-accent focus:outline-none"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-label="Open user menu"
+      >
+        <Avatar className="h-8 w-8">
+          <AvatarImage src="" alt="User" />
+          <AvatarFallback>MM</AvatarFallback>
+        </Avatar>
+      </button>
 
-      <DropdownMenuContent align="end" className="w-56" onCloseAutoFocus={(e) => e.preventDefault()}>
-        <DropdownMenuLabel className="flex items-center gap-2">
-          <User className="h-4 w-4" />
-          <span>Account</span>
-        </DropdownMenuLabel>
+      <div
+        role="menu"
+        data-open={open ? "true" : "false"}
+        className={cn(
+          "absolute right-0 mt-2 w-56 select-none rounded-xl z-50 overflow-hidden", // overflow-hidden so overlay rounds too
+          // Solid-but-glass surface (explicit colors to avoid token translucency)
+          "bg-white/70 dark:bg-neutral-900/70",
+          "backdrop-blur-md supports-[backdrop-filter]:bg-white/55 supports-[backdrop-filter]:dark:bg-neutral-900/55",
+          // Border/ring for contrast
+          "border border-black/5 dark:border-white/10 shadow-2xl ring-1 ring-black/5",
+          // Text color per theme
+          "text-slate-900 dark:text-neutral-100",
+          // Animate in
+          "origin-top-right transition-all",
+          open ? "scale-100 opacity-100 pointer-events-auto" : "scale-95 opacity-0 pointer-events-none"
+        )}
+      >
+        {/* 👇 Inner gradient overlay to ensure readability on light & dark */}
+        <div
+          className="
+            pointer-events-none absolute inset-0
+            bg-gradient-to-b from-white/40 to-white/10
+            dark:from-black/40 dark:to-black/10
+            mix-blend-normal
+          "
+        />
 
-        <DropdownMenuItem onClick={() => navigate("/account")} className="cursor-pointer">
-          <Settings className="mr-2 h-4 w-4" />
-          <span>Account settings</span>
-        </DropdownMenuItem>
-
-        <DropdownMenuSeparator />
-
-        {/* Dark mode toggle item (keeps menu open) */}
-        <DropdownMenuItem
-          onSelect={(e) => e.preventDefault()}
-          className="flex items-center justify-between px-2 py-2 focus:bg-transparent"
-        >
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            {isDark ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
-            <span>Dark mode</span>
+        <div className="relative">
+          <div className="px-3 py-2 text-sm font-medium flex items-center gap-2">
+            <User className="h-4 w-4" />
+            Account
           </div>
-          <Switch
-            checked={isDark}
-            onCheckedChange={(v) => setIsDark(!!v)}
-            onPointerDown={(e) => e.stopPropagation()}
-            aria-label="Toggle dark mode"
-          />
-        </DropdownMenuItem>
-        <DarkModeToggle/>
-      </DropdownMenuContent>
-    </DropdownMenu>
+
+          <button
+            role="menuitem"
+            onClick={() => {
+              setOpen(false);
+              navigate("/account");
+            }}
+            className="flex w-full items-center gap-2 px-3 py-2 text-sm rounded-md
+                       hover:bg-black/5 hover:dark:bg-white/10"
+          >
+            <Settings className="h-4 w-4" />
+            Account settings
+          </button>
+
+          <div className="my-2 h-px bg-black/10 dark:bg-white/10" />
+
+  <DarkModeToggle/>
+
+          <div className="p-2">
+            <Button
+              variant="secondary"
+              className="w-full"
+              onClick={() => setOpen(false)}
+            >
+              Close
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
