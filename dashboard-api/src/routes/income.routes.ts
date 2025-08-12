@@ -1,11 +1,16 @@
 import {Response, Request, Router} from 'express';
-import { addIncomeLog } from '../controllers/income.controller';
+import { addIncomeLog, updateExpenseLog, updateIncomeLog, addExpenseLog } from '../controllers/income.controller';
 
 
-const router = Router()
+
+export const router = Router();
 
 
-router.post('/add-income-log', addIncomeLog)
+
+router.post('/add', addIncomeLog);
+router.put('/update/:id', updateIncomeLog);
+router.post('expenses/add', addExpenseLog);
+router.put('/expenses/:id', updateExpenseLog);
 
 export default router;
 
