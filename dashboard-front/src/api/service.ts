@@ -18,9 +18,10 @@ export interface ServiceRecord {
   notes?: string;
   createdAt?: string;
   updatedAt?: string;
+  vehicleId: string
 }
 
-export type ServiceRecordDTO = Omit<ServiceRecord, "id" | "createdAt" | "updatedAt">;
+export type ServiceRecordDTO = Omit<ServiceRecord, "createdAt" | "updatedAt">;
 
 export async function getServiceRecordsForVehicle(vehicleId: string): Promise<ServiceRecord[]> {
   const { data } = await http.get<ApiResponse<ServiceRecord[]>>(
@@ -30,9 +31,19 @@ export async function getServiceRecordsForVehicle(vehicleId: string): Promise<Se
   return data.data!;
 }
 
+export async function getAllServiceRecords(): Promise<ServiceRecord[]>{
+
+  const {data} = await http.get<ApiResponse<ServiceRecord[]>>(
+    "api/v1/service/get",
+  );
+    if (!data?.isSuccessful) throw new Error(data?.error?.message ?? "Failed to load service records");
+
+  return data.data!
+}
+
 export async function addServiceRecord(vehicleId: string, payload: ServiceRecordDTO): Promise<ServiceRecord> {
   const { data } = await http.post<ApiResponse<ServiceRecord>>(
-    `/api/v1/service/${vehicleId}`,
+    `/api/v1/service/add/${vehicleId}`,
     payload
   );
   if (!data?.isSuccessful) throw new Error(data?.error?.message ?? "Failed to add service record");

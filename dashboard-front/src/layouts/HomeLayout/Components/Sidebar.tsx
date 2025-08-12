@@ -4,7 +4,7 @@ import { useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import SideLink from "./SideLink";
-import { ChevronLeft, ChevronRight, Car, Users, Wrench, LogOut, LayoutDashboard, Home } from "lucide-react";
+import { ChevronLeft, ChevronRight, Car, Users, Wrench, LogOut, LayoutDashboard, Home, DollarSign } from "lucide-react";
 import { useLogoutMutation } from "@/pages/auth/authSlice";
 
 
@@ -13,6 +13,7 @@ const NAV = [
   { to: "/drivers", label: "Drivers", icon: Users },
   { to: "/vehicles", label: "Vehicles", icon: Car },
   { to: "/service",  label: "Service",  icon: Wrench },
+  {to: "/income", label: "Income", icon: DollarSign}
 ];
 
 export default function Sidebar() {

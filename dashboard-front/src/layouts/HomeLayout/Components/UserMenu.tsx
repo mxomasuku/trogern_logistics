@@ -61,16 +61,13 @@ export default function UserMenu() {
           // Solid-but-glass surface (explicit colors to avoid token translucency)
           "bg-white/70 dark:bg-neutral-900/70",
           "backdrop-blur-md supports-[backdrop-filter]:bg-white/55 supports-[backdrop-filter]:dark:bg-neutral-900/55",
-          // Border/ring for contrast
           "border border-black/5 dark:border-white/10 shadow-2xl ring-1 ring-black/5",
-          // Text color per theme
           "text-slate-900 dark:text-neutral-100",
-          // Animate in
           "origin-top-right transition-all",
           open ? "scale-100 opacity-100 pointer-events-auto" : "scale-95 opacity-0 pointer-events-none"
         )}
       >
-        {/* 👇 Inner gradient overlay to ensure readability on light & dark */}
+
         <div
           className="
             pointer-events-none absolute inset-0
