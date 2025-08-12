@@ -11,6 +11,7 @@ const router = Router();
 
 // Vehicle-scoped
 router.get('/:vehicleId', getServiceRecordsForVehicle);
+router.post('/add/', addServiceRecord)
 router.post('/:vehicleId', addServiceRecord);
 router.put('/:vehicleId/:serviceId', updateServiceRecord);
 router.delete('/:vehicleId/:serviceId', deleteServiceRecord);
