@@ -5,8 +5,18 @@ export interface IncomeLog {
   id?: string;
   amount: number;
   weekEndingMileage: number;
+  vehicle: string;
+  driver: string;
   note?: string;
   timestamp?: string; 
+}
+
+export interface Expense {
+  driverInvolved: string,
+  vehicleInvolved: string,
+  amount: number,
+  timeStamp: string,
+  loggedBy: string
 }
 
 export async function addIncomeLog(payload: Omit<IncomeLog, "id" | "timestamp">): Promise<IncomeLog> {
@@ -20,3 +30,4 @@ export async function listIncomeLogs(): Promise<IncomeLog[]> {
   if (!data?.isSuccessful) throw new Error(data?.error?.message ?? "Failed to fetch income logs");
   return data.data!;
 }
+
