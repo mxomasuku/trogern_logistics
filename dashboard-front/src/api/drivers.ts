@@ -24,7 +24,7 @@ export interface Driver {
 export type NewDriver = Omit<Driver, "id" | "createdAt" | "updatedAt">;
 
 export async function getDrivers(): Promise<Driver[]> {
-  const { data } = await http.get<ApiResponse<Driver[]>>("/api/v1/drivers");
+  const { data } = await http.get<ApiResponse<Driver[]>>("/api/v1/drivers/get");
   if (!data?.isSuccessful) throw new Error(data?.error?.message ?? "Failed to load drivers");
   return data.data!;
 }

@@ -27,7 +27,7 @@ export type VehicleCreateDTO = Omit<Vehicle, "id" | "createdAt" | "updatedAt">;
 export type VehicleUpdateDTO = Partial<VehicleCreateDTO>;
 
 export async function getVehicles(): Promise<Vehicle[]> {
-  const { data } = await http.get<ApiResponse<Vehicle[]>>("/api/v1/vehicles");
+  const { data } = await http.get<ApiResponse<Vehicle[]>>("/api/v1/vehicles/get");
   if (!data?.isSuccessful) throw new Error(data?.error?.message ?? "Failed to load vehicles");
   return data.data!;
 }
