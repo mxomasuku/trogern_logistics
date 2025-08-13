@@ -114,6 +114,8 @@ export const addExpenseLog = async (req: Request, res: Response) => {
       );
   }
 
+
+
   try {
     const now = new Date();
     const when = date ? new Date(date) : now;
@@ -181,3 +183,84 @@ export const updateExpenseLog = async (req: Request, res: Response) => {
   }
 };
 
+export const getIncomeLogs = async (req: Request, res: Response) => {
+  try {
+    const {
+      driver,
+      vehicle,
+      orderBy: orderByRaw,
+      order: orderRaw,
+      start,
+      end,
+      limit: limitRaw,
+      cursor,
+    } = req.query as {
+      driver?: string;
+      vehicle?: string;
+      orderBy?: "createdAt" | "cashDate";
+      order?: "asc" | "desc";
+      start?: string;
+      end?: string;
+      limit?: string;
+      cursor?: string;
+    };
+
+    const orderBy: "createdAt" | "cashDate" =
+      orderByRaw === "cashDate" ? "cashDate" : "createdAt";
+
+    const order: "asc" | "desc" = orderRaw === "asc" ? "asc" : "desc";
+
+    const limit = Math.min(
+      Math.max(parseInt(limitRaw || "50", 10) || 50, 1),
+      200
+    );
+
+    let q: FirebaseFirestore.Query = incomeRef;
+
+    if (driver) q = q.where("driver", "==", driver);
+    if (vehicle) q = q.where("vehicle", "==", vehicle);
+
+    // Range filters on the selected orderBy field (createdAt or cashDate)
+    if (start) {
+      const d = new Date(start);
+      if (!isNaN(d.valueOf())) q = q.where(orderBy, ">=", d);
+    }
+    if (end) {
+      const d = new Date(end);
+      if (!isNaN(d.valueOf())) q = q.where(orderBy, "<=", d);
+    }
+
+    q = q.orderBy(orderBy, order);
+
+    if (cursor) {
+      const c = new Date(cursor);
+      if (!isNaN(c.valueOf())) q = q.startAfter(c);
+    }
+
+    q = q.limit(limit);
+
+    const snap = await q.get();
+    const items = snap.docs.map((d) => {
+      const data = d.data();
+      return {
+        id: d.id,
+        amount: Number(data.amount),
+        weekEndingMileage: Number(data.weekEndingMileage),
+        vehicle: data.vehicle,
+        driver: data.driver,
+        note: data.note ?? "",
+        createdAt: data.createdAt,
+        cashDate: data.cashDate,
+      };
+    });
+
+    return res.status(200).json(success(items));
+  } catch (error: any) {
+    console.error("Error fetching income logs:", error);
+    return res
+      .status(500)
+      .json(
+        failure("SERVER_ERROR", "Failed to fetch income logs", error.message)
+      );
+  }
+};
