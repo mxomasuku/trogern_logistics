@@ -8,7 +8,8 @@ export interface IncomeLog {
   vehicle: string;
   driver: string;
   note?: string;
-  timestamp?: string; 
+  createdAt: string;   // ISO string or Date.toISOString() from backend
+  cashDate: string;    // same as above, format from backend
 }
 
 export interface Expense {
@@ -26,8 +27,21 @@ export async function addIncomeLog(payload: Omit<IncomeLog, "id" | "timestamp">)
 }
 
 export async function listIncomeLogs(): Promise<IncomeLog[]> {
-  const { data } = await http.get<ApiResponse<IncomeLog[]>>("/api/v1/income");
+  const { data } = await http.get<ApiResponse<IncomeLog[]>>("/api/v1/income/get");
   if (!data?.isSuccessful) throw new Error(data?.error?.message ?? "Failed to fetch income logs");
+  return data.data!;
+}
+export async function updateIncomeLog(
+  id: string,
+  patch: Partial<Omit<IncomeLog, "id" | "timestamp">> & { timestamp?: string }
+): Promise<IncomeLog> {
+  const { data } = await http.put<ApiResponse<IncomeLog>>(
+    `/api/v1/income/${id}`,
+    patch
+  );
+  if (!data?.isSuccessful) {
+    throw new Error(data?.error?.message ?? "Failed to update income log");
+  }
   return data.data!;
 }
 
