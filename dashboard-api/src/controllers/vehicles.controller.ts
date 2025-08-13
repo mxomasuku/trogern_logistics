@@ -218,17 +218,42 @@ export const getVehicle = async (req: Request, res: Response) => {
 };
 
 // POST /api/v1/vehicles/add
-export const addVehicle = async (req: Request<{}, {}, VehicleCreateDTO>, res: Response) => {
+export const addVehicle = async (
+  req: Request<{}, {}, VehicleCreateDTO>,
+  res: Response
+) => {
   const result = toVehicle(req.body);
   if (!result.ok) {
     return res
       .status(400)
-      .json(failure('VALIDATION_ERROR', 'Validation failed', { fields: result.errors }));
+      .json(
+        failure('VALIDATION_ERROR', 'Validation failed', {
+          fields: result.errors,
+        })
+      );
   }
 
   try {
-    const createdRef = await vehiclesCollection.add(result.value);
-    const createdSnap = await createdRef.get();
+    const { plateNumber } = result.value;
+    const docRef = vehiclesCollection.doc(plateNumber);
+
+    // Check for duplicate plate
+    const existing = await docRef.get();
+    if (existing.exists) {
+      return res
+        .status(409)
+        .json(
+          failure(
+            'DUPLICATE_PLATE',
+            `Vehicle with plate number "${plateNumber}" already exists`
+          )
+        );
+    }
+
+    // Save new vehicle
+    await docRef.set(result.value);
+
+    const createdSnap = await docRef.get();
     return res.status(201).json(success(vehicleDocToJson(createdSnap)));
   } catch (error: any) {
     console.error('Error adding vehicle:', error);
