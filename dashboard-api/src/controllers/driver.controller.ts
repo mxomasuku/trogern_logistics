@@ -238,3 +238,29 @@ export const searchDrivers = async (req: Request, res: Response) => {
       .json(failure("SERVER_ERROR", "Failed to search drivers", error.message));
   }
 };
+
+export const getAllActiveDrivers = async (req: Request, res: Response) => {
+  try {
+
+    const snapshot = await driversRef
+      .where("status", "==", "active")
+      .get();
+
+    const drivers = snapshot.docs
+      .map((doc: QueryDocumentSnapshot) => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data,
+        };
+      })
+
+
+    return res.status(200).json(success(drivers));
+  } catch (error: any) {
+    console.error("Error fetching active drivers:", error);
+    return res
+      .status(500)
+      .json(failure("SERVER_ERROR", "Failed to fetch active drivers", error.message));
+  }
+};
