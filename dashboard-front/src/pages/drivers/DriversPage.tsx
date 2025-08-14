@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   getDrivers,
   deleteDriver,
-  type Driver,
+ 
 } from "@/api/drivers";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -22,6 +22,7 @@ import { Loader2, Plus, Search } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { DriverTable } from "./components/DriverTable";
+import type {Driver} from '@/types/types'
 
 export default function DriversPage() {
   const [drivers, setDrivers] = useState<Driver[]>([]);
@@ -47,8 +48,8 @@ export default function DriversPage() {
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return drivers;
-    return drivers.filter((d) =>
-      [d.name, d.contact, d.licenseNumber, d.nationalId, d.email, d.vehicleAssigned]
+    return drivers.filter((driver) =>
+      [driver.name, driver.contact, driver.licenseNumber, driver.nationalId, driver.email, driver.assignedVehicleId]
         .filter(Boolean)
         .some((v) => String(v).toLowerCase().includes(q))
     );

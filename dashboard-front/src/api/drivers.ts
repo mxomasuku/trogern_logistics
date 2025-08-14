@@ -1,25 +1,8 @@
 import { http } from "../lib/http-instance"
-import type { ApiResponse } from "../types/types";
+import type { ApiResponse, Driver } from "../types/types";
 
 // Mirror your server-side Driver type if you have it exported
-export interface Driver {
-  id?: string;
-  name: string;
-  licenseNumber: string;
-  nationalId: string;
-  contact: string;
-  email?: string;
-  address?: string;
-  dob: string;
-  gender: "Male" | "Female" | "Other";
-  status: "active" | "inactive" | "suspended";
-  experienceYears?: number;
-  vehicleAssigned?: string | null;
-  nextOfKin: { name: string; relationship?: string; phone: string };
-  emergencyContact: string;
-  createdAt?: string;
-  updatedAt?: string;
-}
+
 
 export type NewDriver = Omit<Driver, "id" | "createdAt" | "updatedAt">;
 
@@ -59,4 +42,14 @@ export async function searchDriversByName(name: string): Promise<Driver[]> {
   );
   if (!data?.isSuccessful) throw new Error("Failed to search drivers");
   return data.data;
+}
+
+export async function getAllActiveDrivers(): Promise<Driver[]> {
+  const {data} = await http.get<{isSuccessful: boolean; data: Driver[]}>(
+    `/api/v1/drivers/get-active-drivers`,
+
+  )
+  if(!data?.isSuccessful) throw new Error("Failed to get drivers")
+
+    return data.data;
 }
