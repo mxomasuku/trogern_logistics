@@ -11,6 +11,7 @@ import {
 const router = Router();
 
 router.get('/get', getAllVehicles);
+router.get('/get-vehicle/:id', getVehicle)
 router.get('/:id', getVehicle);
 router.post('/add-vehicle', addVehicle);
 router.put('/update/:id', updateVehicle);

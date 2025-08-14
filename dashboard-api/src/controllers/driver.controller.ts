@@ -17,7 +17,7 @@ export interface Driver {
   gender: 'Male' | 'Female' | 'Other';
   status: 'active' | 'inactive' | 'suspended';
   experienceYears?: number;
-  vehicleAssigned?: string | null;
+  assignedVehicleId: string | null;
   nextOfKin: {
     name: string;
     relationship?: string;
@@ -68,14 +68,17 @@ export const getDriverById = async (req: Request, res: Response) => {
 };
 
 // POST /drivers/add
-export const addDriver = async (req: Request<{}, {}, Driver>, res: Response) => {
+export const addDriver = async (
+  req: Request<{}, {}, Driver>,
+  res: Response
+) => {
   const {
     name,
     contact,
     address = '',
     licenseNumber,
     nationalId,
-    vehicleAssigned = null,
+    assignedVehicleId = null,
     status = 'inactive',
     dob,
     gender,
@@ -86,11 +89,14 @@ export const addDriver = async (req: Request<{}, {}, Driver>, res: Response) => 
     isActive = true,
   } = req.body;
 
-  // Validate requireds
+  // Remove spaces from licenseNumber
+  const cleanLicenseNumber = licenseNumber?.replace(/\s+/g, '') || '';
+
+  // Validate required fields
   const missingFields: string[] = [];
   if (!name) missingFields.push('name');
   if (!contact) missingFields.push('contact');
-  if (!licenseNumber) missingFields.push('licenseNumber');
+  if (!cleanLicenseNumber) missingFields.push('licenseNumber');
   if (!nationalId) missingFields.push('nationalId');
   if (!dob) missingFields.push('dob');
   if (!gender) missingFields.push('gender');
@@ -114,7 +120,7 @@ export const addDriver = async (req: Request<{}, {}, Driver>, res: Response) => 
     const now = new Date().toISOString();
     const driverData: Driver = {
       name,
-      licenseNumber,
+      licenseNumber: cleanLicenseNumber,
       nationalId,
       contact,
       email,
@@ -123,13 +129,29 @@ export const addDriver = async (req: Request<{}, {}, Driver>, res: Response) => 
       gender,
       status,
       experienceYears,
-      vehicleAssigned,
+      assignedVehicleId,
       nextOfKin,
       emergencyContact,
       isActive,
     };
 
-    const docRef = await driversRef.add({
+    const docRef = driversRef.doc(cleanLicenseNumber);
+
+    // Check if driver with same licenseNumber already exists
+    const existing = await docRef.get();
+    if (existing.exists) {
+      return res
+        .status(409)
+        .json(
+          failure(
+            'DUPLICATE_LICENSE',
+            `Driver with license number "${cleanLicenseNumber}" already exists`
+          )
+        );
+    }
+
+    // Save driver
+    await docRef.set({
       ...driverData,
       createdAt: now,
       updatedAt: now,
@@ -139,7 +161,7 @@ export const addDriver = async (req: Request<{}, {}, Driver>, res: Response) => 
       .status(201)
       .json(
         success({
-          id: docRef.id,
+          id: cleanLicenseNumber,
           ...driverData,
           createdAt: now,
           updatedAt: now,
@@ -152,6 +174,7 @@ export const addDriver = async (req: Request<{}, {}, Driver>, res: Response) => 
       .json(failure('SERVER_ERROR', 'Failed to add driver', error.message));
   }
 };
+
 
 // PUT /drivers/:id
 export const updateDriver = async (req: Request, res: Response) => {
