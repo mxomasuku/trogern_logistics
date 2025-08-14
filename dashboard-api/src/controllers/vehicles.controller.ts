@@ -326,3 +326,28 @@ export const deleteVehicle = async (req: Request, res: Response) => {
       .json(failure('SERVER_ERROR', 'Failed to delete vehicle', error.message));
   }
 };
+
+
+export const getAllActiveVehicles = async (req: Request, res: Response) => {
+  try {
+    const snapshot = await vehiclesCollection
+      .where("status", "==", "active")
+      .get();
+
+       console.log("vehicles", snapshot);
+    const vehicles = snapshot.docs.map((doc) => ({
+      ...doc.data(),
+    }));
+
+   
+
+    return res.status(200).json(success(vehicles));
+  } catch (error: any) {
+    console.error("Error fetching active vehicles:", error);
+    return res
+      .status(500)
+      .json(
+        failure("SERVER_ERROR", "Failed to fetch active vehicles", error.message)
+      );
+  }
+};
