@@ -54,3 +54,13 @@ export async function deleteVehicle(id: string): Promise<void> {
   const { data } = await http.delete<ApiResponse>(`/api/v1/vehicles/${id}`);
   if (!data?.isSuccessful) throw new Error(data?.error?.message ?? "Failed to delete vehicle");
 }
+
+export async function getAllActiveVehicles(): Promise<Vehicle[]> {
+  const {data} = await http.get<{isSuccessful: boolean; data: Vehicle[]}>(
+    `/api/v1/vehicles/active`,
+
+  )
+  if(!data?.isSuccessful) throw new Error("Failed to get vehicles")
+
+    return data.data;
+}

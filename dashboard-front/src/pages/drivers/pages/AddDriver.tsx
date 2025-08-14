@@ -1,7 +1,7 @@
 // src/pages/drivers/AddDriverPage.tsx
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { addDriver, updateDriver, getDrivers, type NewDriver, type Driver } from "@/api/drivers";
+import { addDriver, updateDriver, getDrivers, type NewDriver} from "@/api/drivers";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -9,6 +9,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, ArrowLeft, Save } from "lucide-react";
 import { toast } from "sonner";
+import type { Driver } from "@/types/types";
+
 
 export default function AddDriver() {
   const navigate = useNavigate();
@@ -27,7 +29,7 @@ export default function AddDriver() {
   const [gender, setGender] = useState<NewDriver["gender"]>("Male");
   const [status, setStatus] = useState<NewDriver["status"]>("inactive");
   const [experienceYears, setExperienceYears] = useState<number>(0);
-  const [vehicleAssigned, setVehicleAssigned] = useState("");
+  const [assignedVehicleId, setAssignedVehicleId] = useState("");
 
   // nested
   const [nextOfKinName, setNextOfKinName] = useState("");
@@ -67,23 +69,23 @@ export default function AddDriver() {
     };
   }, [editId, navigate]);
 
-  const hydrateForm = (d: Driver) => {
-    setName(d.name ?? "");
-    setLicenseNumber(d.licenseNumber ?? "");
-    setNationalId(d.nationalId ?? "");
-    setContact(d.contact ?? "");
-    setEmail(d.email ?? "");
-    setAddress(d.address ?? "");
+  const hydrateForm = (driver: Driver) => {
+    setName(driver.name ?? "");
+    setLicenseNumber(driver.licenseNumber ?? "");
+    setNationalId(driver.nationalId ?? "");
+    setContact(driver.contact ?? "");
+    setEmail(driver.email ?? "");
+    setAddress(driver.address ?? "");
     // ensure date input gets YYYY-MM-DD
-    setDob(d.dob ? d.dob.slice(0, 10) : "");
-    setGender((d.gender as NewDriver["gender"]) ?? "Male");
-    setStatus((d.status as NewDriver["status"]) ?? "inactive");
-    setExperienceYears(Number(d.experienceYears ?? 0));
-    setVehicleAssigned(d.vehicleAssigned ?? "");
-    setNextOfKinName(d.nextOfKin?.name ?? "");
-    setNextOfKinRelationship(d.nextOfKin?.relationship ?? "");
-    setNextOfKinPhone(d.nextOfKin?.phone ?? "");
-    setEmergencyContact(d.emergencyContact ?? "");
+    setDob(driver.dob ? driver.dob.slice(0, 10) : "");
+    setGender((driver.gender as NewDriver["gender"]) ?? "Male");
+    setStatus((driver.status as NewDriver["status"]) ?? "inactive");
+    setExperienceYears(Number(driver.experienceYears ?? 0));
+    setAssignedVehicleId(driver.assignedVehicleId ?? "");
+    setNextOfKinName(driver.nextOfKin?.name ?? "");
+    setNextOfKinRelationship(driver.nextOfKin?.relationship ?? "");
+    setNextOfKinPhone(driver.nextOfKin?.phone ?? "");
+    setEmergencyContact(driver.emergencyContact ?? "");
   };
 
   const handleSave = async () => {
@@ -115,7 +117,7 @@ export default function AddDriver() {
         gender,
         status,
         experienceYears: Number(experienceYears || 0),
-        vehicleAssigned: vehicleAssigned || "",
+        assignedVehicleId: assignedVehicleId || "",
         nextOfKin: {
           name: nextOfKinName,
           relationship: nextOfKinRelationship,
@@ -187,7 +189,7 @@ export default function AddDriver() {
               {/* Assignment & Status */}
               <Section title="Assignment & Status">
                 <Grid two>
-                  <TextField label="Assigned vehicle" value={vehicleAssigned} onChange={setVehicleAssigned} placeholder="plate or id" />
+                  <TextField label="Assigned vehicle" value={assignedVehicleId} onChange={setAssignedVehicleId} placeholder="plate or id" />
                   <SelectField
                     label="Status"
                     value={status}
