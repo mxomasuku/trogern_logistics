@@ -22,6 +22,11 @@ const parseDateToTs = (value?: string): FirebaseFirestore.Timestamp | undefined 
   return FirestoreTimestamp.fromMillis(milliseconds);
 };
 
+// utils/normalize.ts (or alongside your controller)
+export const normalizePlate = (plate?: string) =>
+  (plate ?? "").trim().replace(/\s+/g, "").toUpperCase();
+
+
 // Runtime guards for enums
 const isVehicleStatus = (v: unknown): v is VehicleStatus =>
   v === 'active' || v === 'inactive' || v === 'maintenance' || v === 'retired';
@@ -218,48 +223,53 @@ export const getVehicle = async (req: Request, res: Response) => {
 };
 
 // POST /api/v1/vehicles/add
-export const addVehicle = async (
-  req: Request<{}, {}, VehicleCreateDTO>,
-  res: Response
-) => {
+export const addVehicle = async (req: Request<{}, {}, VehicleCreateDTO>, res: Response) => {
   const result = toVehicle(req.body);
   if (!result.ok) {
     return res
       .status(400)
-      .json(
-        failure('VALIDATION_ERROR', 'Validation failed', {
-          fields: result.errors,
-        })
-      );
+      .json(failure("VALIDATION_ERROR", "Validation failed", { fields: result.errors }));
   }
 
   try {
-    const { plateNumber } = result.value;
-    const docRef = vehiclesCollection.doc(plateNumber);
+    const { plateNumber, ...rest } = result.value;
 
-    // Check for duplicate plate
+    // Normalize (strip spaces + uppercase) and use as docId
+    const plateId = normalizePlate(plateNumber);
+    if (!plateId) {
+      return res
+        .status(400)
+        .json(failure("VALIDATION_ERROR", "Invalid plate number", { fields: { plateNumber: "required" } }));
+    }
+
+    const docRef = vehiclesCollection.doc(plateId);
+
+    // Consistency check — block duplicates even if case/space differs
     const existing = await docRef.get();
     if (existing.exists) {
       return res
         .status(409)
-        .json(
-          failure(
-            'DUPLICATE_PLATE',
-            `Vehicle with plate number "${plateNumber}" already exists`
-          )
-        );
+        .json(failure("DUPLICATE_PLATE", `Vehicle with plate "${plateId}" already exists`));
     }
 
-    // Save new vehicle
-    await docRef.set(result.value);
+    const now = new Date().toISOString();
 
+    // Save canonical plate + (optional) original for audit
+    const payload = {
+      ...rest,
+      plateNumber: plateId,          // canonical (no spaces, uppercase)
+      plateOriginal: plateNumber,    // optional: what user typed
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    await docRef.set(payload);
     const createdSnap = await docRef.get();
+
     return res.status(201).json(success(vehicleDocToJson(createdSnap)));
   } catch (error: any) {
-    console.error('Error adding vehicle:', error);
-    return res
-      .status(500)
-      .json(failure('SERVER_ERROR', 'Failed to add vehicle', error.message));
+    console.error("Error adding vehicle:", error);
+    return res.status(500).json(failure("SERVER_ERROR", "Failed to add vehicle", error.message));
   }
 };
 
