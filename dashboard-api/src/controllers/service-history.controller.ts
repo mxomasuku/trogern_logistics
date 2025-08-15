@@ -81,7 +81,7 @@ export const addServiceRecord = async (
       condition,
       cost: totalCost,
       itemsChanged: normalizedItems,
-      notes: req.body.notes?.trim() || undefined,
+      notes: req.body.notes?.trim() || null,
       createdAt: now,
       updatedAt: now,
     };

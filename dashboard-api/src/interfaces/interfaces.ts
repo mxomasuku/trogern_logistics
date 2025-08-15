@@ -67,7 +67,7 @@ export interface ServiceRecord {
   cost: number;                       // total cost for this service
   condition: string;                  // e.g. "good", "requires attention"
   itemsChanged: ServiceItem[];        // line items
-  notes?: string;
+  notes: string | null;
 
   createdAt?: FirebaseFirestore.Timestamp;
   updatedAt?: FirebaseFirestore.Timestamp;

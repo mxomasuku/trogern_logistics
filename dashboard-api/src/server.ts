@@ -10,6 +10,7 @@ import vehicleRoutes from './routes/vehicles.routes';
 import driverRoutes from './routes/driver.routes';
 import authRoutes from './routes/auth.routes';
 import incomeRoutes from './routes/income.routes';
+import serviceRoutes from './routes/service.routes'
 
 // Auth utils/middleware
 import { verifySession } from './utils/firebase-auth';
@@ -69,6 +70,7 @@ app.use(verifySession);
 app.use('/api/v1/drivers', verifySessionCookie, driverRoutes);
 app.use('/api/v1/vehicles', verifySessionCookie, vehicleRoutes);
 app.use('/api/v1/income', verifySessionCookie, incomeRoutes);
+app.use('/api/v1/service', verifySessionCookie, serviceRoutes)
 
 // ---- Healthcheck ----
 app.get('/ping', (_req: Request, res: Response) => res.send('pong'));
