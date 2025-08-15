@@ -43,7 +43,7 @@ export async function getAllServiceRecords(): Promise<ServiceRecord[]>{
 
 export async function addServiceRecord(vehicleId: string, payload: ServiceRecordDTO): Promise<ServiceRecord> {
   const { data } = await http.post<ApiResponse<ServiceRecord>>(
-    `/api/v1/service/add/${vehicleId}`,
+     `/api/v1/service/add/${vehicleId}`,
     payload
   );
   if (!data?.isSuccessful) throw new Error(data?.error?.message ?? "Failed to add service record");
