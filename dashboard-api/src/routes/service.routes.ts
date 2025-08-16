@@ -10,7 +10,7 @@ import {
 const router = Router();
 
 // Vehicle-scoped
-router.post('/add/:vehicleId', addServiceRecord)
+router.post('/add', addServiceRecord)
 router.get('/:vehicleId', getServiceRecordsForVehicle);
 
 router.post('/:vehicleId', addServiceRecord);
