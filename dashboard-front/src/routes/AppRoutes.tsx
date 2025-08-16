@@ -10,6 +10,7 @@ import Home from "@/pages/home/Home";
 import IncomePage from "@/pages/income/IncomePage";
 import AddDriver from "../pages/drivers/pages/AddDriver"; 
 import AddIncomePage from "@/pages/income/pages/AddIncomePage";
+import AddVehicle from "@/pages/vehicles/pages/AddVehicle"
 
 export default function AppRoutes() {
   return (
@@ -19,7 +20,10 @@ export default function AppRoutes() {
         <Route path="home" element={<Protected><Home /></Protected>} />
         <Route path="drivers" element={<Protected><DriversPage /></Protected>} />
         <Route path="drivers/add" element={<Protected><AddDriver /></Protected>} /> 
-        <Route path="vehicles" element={<Protected><VehiclesPage /></Protected>} />
+
+
+        <Route path="vehicles" element={<Protected><VehiclesPage /></Protected>}/>
+              <Route path="vehicles/add" element={<Protected><AddVehicle /></Protected>}/>
         <Route path="service" element={<Protected><ServicePage /></Protected>} />
 <Route path="income" element={<Protected><IncomePage/></Protected>} />
 <Route path="income/add" element={<Protected><AddIncomePage/></Protected>} />
