@@ -62,6 +62,7 @@ export interface ServiceItem {
 }
 
 export interface ServiceRecord {
+  vehicleId: string
   date: FirebaseFirestore.Timestamp;  // when serviced
   mechanic: string;
   cost: number;                       // total cost for this service

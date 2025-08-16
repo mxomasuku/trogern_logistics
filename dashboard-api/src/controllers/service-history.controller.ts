@@ -1,45 +1,45 @@
-import { Request, Response } from 'express';
-import { ServiceRecord, ServiceRecordDTO, ServiceItem } from '../interfaces/interfaces';
-const { db, admin } = require('../config/firebase');
-import { success, failure } from '../utils/apiResponse';
+import { Request, Response } from "express";
+import { ServiceRecord, ServiceRecordDTO, ServiceItem } from "../interfaces/interfaces";
+const { db, admin } = require("../config/firebase");
+import { success, failure } from "../utils/apiResponse";
 
-const vehiclesCollection: FirebaseFirestore.CollectionReference = db.collection('vehicles');
+/** Top-level collections */
+const vehiclesCollection: FirebaseFirestore.CollectionReference = db.collection("vehicles");
+const serviceRecordsCollection: FirebaseFirestore.CollectionReference = db.collection("service-records");
+
 const FirestoreTimestamp = admin.firestore.Timestamp;
 
-/** Parse ISO date string to Firestore Timestamp (or undefined if invalid). */
-const parseDate = (dateString?: string) => {
-  if (!dateString) return undefined;
-  const milliseconds = Date.parse(dateString);
-  if (Number.isNaN(milliseconds)) return undefined;
-  return FirestoreTimestamp.fromMillis(milliseconds);
+/** Helpers */
+const parseDateToTimestamp = (iso?: string) => {
+  if (!iso) return undefined;
+  const ms = Date.parse(iso);
+  if (Number.isNaN(ms)) return undefined;
+  return FirestoreTimestamp.fromMillis(ms);
 };
 
-/** Validate + normalize service items; collect field errors. */
-const normalizeItems = (rawItems: ServiceRecordDTO['itemsChanged']) => {
-  const fieldErrors: string[] = [];
-  const normalizedItems: ServiceItem[] = [];
+const normalizeItems = (raw: ServiceRecordDTO["itemsChanged"]) => {
+  const errors: string[] = [];
+  const items: ServiceItem[] = [];
 
-  (rawItems || []).forEach((item, index) => {
-    const name = (item?.name || '').trim();
-    const unit = (item?.unit || '').trim();
-    const cost = Number(item?.cost);
-    const quantity = Number(item?.quantity);
+  (raw || []).forEach((it, i) => {
+    const name = (it?.name || "").trim();
+    const unit = (it?.unit || "").trim();
+    const cost = Number(it?.cost);
+    const quantity = Number(it?.quantity);
 
-    if (!name) fieldErrors.push(`itemsChanged[${index}].name`);
-    if (!unit) fieldErrors.push(`itemsChanged[${index}].unit`);
-    if (!Number.isFinite(cost) || cost < 0) fieldErrors.push(`itemsChanged[${index}].cost (>=0)`);
-    if (!Number.isFinite(quantity) || quantity <= 0) fieldErrors.push(`itemsChanged[${index}].quantity (>0)`);
+    if (!name) errors.push(`itemsChanged[${i}].name`);
+    if (!unit) errors.push(`itemsChanged[${i}].unit`);
+    if (!Number.isFinite(cost) || cost < 0) errors.push(`itemsChanged[${i}].cost (>=0)`);
+    if (!Number.isFinite(quantity) || quantity <= 0) errors.push(`itemsChanged[${i}].quantity (>0)`);
 
-    const itemIsValid =
-      name && unit && Number.isFinite(cost) && cost >= 0 && Number.isFinite(quantity) && quantity > 0;
-
-    if (itemIsValid) {
-      normalizedItems.push({ name, unit, cost, quantity });
+    if (name && unit && Number.isFinite(cost) && cost >= 0 && Number.isFinite(quantity) && quantity > 0) {
+      items.push({ name, unit, cost, quantity });
     }
   });
 
-  return { items: normalizedItems, errors: fieldErrors };
+  return { items, errors };
 };
+
 
 export const addServiceRecord = async (
   req: Request<{ vehicleId: string }, {}, ServiceRecordDTO>,
@@ -48,156 +48,174 @@ export const addServiceRecord = async (
   try {
     const { vehicleId } = req.params;
 
-    // Ensure vehicle exists
-    const vehicleDoc = await vehiclesCollection.doc(vehicleId).get();
-    if (!vehicleDoc.exists) {
-      return res.status(404).json(failure('NOT_FOUND', 'Vehicle not found', { vehicleId }));
-    }
 
-    const serviceDate = parseDate(req.body.date);
-    const mechanic = (req.body.mechanic || '').trim();
-    const condition = (req.body.condition || '').trim();
+    const serviceDate = parseDateToTimestamp(req.body.date);
+    const mechanic = (req.body.mechanic || "").trim();
+    const condition = (req.body.condition || "").trim();
     const totalCost = Number(req.body.cost);
-    const { items: normalizedItems, errors: itemFieldErrors } = normalizeItems(req.body.itemsChanged);
+    const { items, errors: itemErrors } = normalizeItems(req.body.itemsChanged);
 
-    const validationErrors: string[] = [];
-    if (!serviceDate) validationErrors.push('date (ISO)');
-    if (!mechanic) validationErrors.push('mechanic');
-    if (!condition) validationErrors.push('condition');
-    if (!Number.isFinite(totalCost) || totalCost < 0) validationErrors.push('cost (>=0)');
-    if (!normalizedItems.length) validationErrors.push('itemsChanged (non-empty)');
-    if (itemFieldErrors.length) validationErrors.push(...itemFieldErrors);
+    const fieldErrors: string[] = [];
+    if (!serviceDate) fieldErrors.push("date (ISO)");
+    if (!mechanic) fieldErrors.push("mechanic");
+    if (!condition) fieldErrors.push("condition");
+    if (!Number.isFinite(totalCost) || totalCost < 0) fieldErrors.push("cost (>=0)");
+    if (!items.length) fieldErrors.push("itemsChanged (non-empty)");
+    if (itemErrors.length) fieldErrors.push(...itemErrors);
 
-    if (validationErrors.length) {
+    if (fieldErrors.length) {
       return res
         .status(400)
-        .json(failure('VALIDATION_ERROR', 'Validation failed', { fields: validationErrors }));
+        .json(failure("VALIDATION_ERROR", "Validation failed", { fields: fieldErrors }));
     }
 
+    // 2) Create
     const now = FirestoreTimestamp.now();
     const recordToCreate: ServiceRecord = {
+      vehicleId: vehicleId, // still stored, but not validated
       date: serviceDate,
       mechanic,
       condition,
       cost: totalCost,
-      itemsChanged: normalizedItems,
+      itemsChanged: items,
       notes: req.body.notes?.trim() || null,
       createdAt: now,
       updatedAt: now,
     };
 
-    const serviceRecordsCollection = vehiclesCollection.doc(vehicleId).collection('serviceRecords');
     const createdRef = await serviceRecordsCollection.add(recordToCreate);
     const createdSnapshot = await createdRef.get();
-    const createdRecord = createdSnapshot.data() as ServiceRecord;
+    const created = createdSnapshot.data() as ServiceRecord;
 
     return res.status(201).json(
       success({
         id: createdSnapshot.id,
-        vehicleId,
-        ...createdRecord,
-        date: createdRecord.date.toDate().toISOString(),
-        createdAt: createdRecord.createdAt?.toDate().toISOString(),
-        updatedAt: createdRecord.updatedAt?.toDate().toISOString(),
+        vehicleId: created.vehicleId,
+        date: created.date.toDate().toISOString(),
+        mechanic: created.mechanic,
+        condition: created.condition,
+        cost: created.cost,
+        itemsChanged: created.itemsChanged,
+        notes: created.notes,
+        createdAt: created.createdAt?.toDate().toISOString(),
+        updatedAt: created.updatedAt?.toDate().toISOString(),
       })
     );
   } catch (error: any) {
-    console.error('Error adding service record:', error);
+    console.error("Error adding service record:", error);
     return res
       .status(500)
-      .json(failure('SERVER_ERROR', 'Failed to add service record', error.message));
+      .json(failure("SERVER_ERROR", "Failed to add service record", error.message));
   }
 };
 
+/**
+ * PUT /api/v1/service/:serviceId/update
+ * Optionally include :vehicleId in the route if you want to cross-check, but not required.
+ */
 export const updateServiceRecord = async (
-  req: Request<{ vehicleId: string; serviceId: string }, {}, Partial<ServiceRecordDTO>>,
+  req: Request<{ serviceId: string }, {}, Partial<ServiceRecordDTO> & { vehicleId?: string }>,
   res: Response
 ) => {
   try {
-    const { vehicleId, serviceId } = req.params;
+    const { serviceId } = req.params;
 
-    const vehicleRef = vehiclesCollection.doc(vehicleId);
-    const vehicleSnapshot = await vehicleRef.get();
-    if (!vehicleSnapshot.exists) {
-      return res.status(404).json(failure('NOT_FOUND', 'Vehicle not found', { vehicleId }));
+    // 1) Load record
+    const recordRef = serviceRecordsCollection.doc(serviceId);
+    const recordSnapshot = await recordRef.get();
+    if (!recordSnapshot.exists) {
+      return res.status(404).json(failure("NOT_FOUND", "Service record not found", { serviceId }));
     }
 
+    // 2) If vehicleId is provided, validate it still exists (and we can also enforce it matches the doc)
+    const requestedVehicleId = (req.body as any).vehicleId;
+    if (requestedVehicleId) {
+      const vehicleSnapshot = await vehiclesCollection.doc(requestedVehicleId).get();
+      if (!vehicleSnapshot.exists) {
+        return res.status(404).json(failure("NOT_FOUND", "Vehicle not found", { vehicleId: requestedVehicleId }));
+      }
+    }
+
+    // 3) Validate partial fields
     const updatePayload: Partial<ServiceRecord> = { updatedAt: FirestoreTimestamp.now() };
-    const validationErrors: string[] = [];
+    const fieldErrors: string[] = [];
 
-    if ('date' in req.body) {
-      const maybeDate = parseDate(req.body.date);
-      if (req.body.date && !maybeDate) validationErrors.push('date (ISO)');
-      else if (maybeDate) updatePayload.date = maybeDate;
+    if ("date" in req.body) {
+      const maybe = parseDateToTimestamp(req.body.date);
+      if (req.body.date && !maybe) fieldErrors.push("date (ISO)");
+      else if (maybe) updatePayload.date = maybe;
+    }
+    if ("mechanic" in req.body) {
+      const mech = (req.body.mechanic ?? "").trim();
+      if (!mech) fieldErrors.push("mechanic");
+      else updatePayload.mechanic = mech;
+    }
+    if ("condition" in req.body) {
+      const cond = (req.body.condition ?? "").trim();
+      if (!cond) fieldErrors.push("condition");
+      else updatePayload.condition = cond;
+    }
+    if ("cost" in req.body) {
+      const total = Number(req.body.cost);
+      if (!Number.isFinite(total) || total < 0) fieldErrors.push("cost (>=0)");
+      else updatePayload.cost = total;
+    }
+    if ("itemsChanged" in req.body) {
+      const { items, errors } = normalizeItems(req.body.itemsChanged || []);
+      if (!items.length) fieldErrors.push("itemsChanged (non-empty)");
+      if (errors.length) fieldErrors.push(...errors);
+      else updatePayload.itemsChanged = items;
+    }
+    if ("notes" in req.body) {
+      updatePayload.notes = req.body.notes?.trim() || undefined;
+    }
+    if ("vehicleId" in req.body && requestedVehicleId) {
+      // If you allow moving a record to a different vehicle, set it here
+      updatePayload.vehicleId = requestedVehicleId;
     }
 
-    if ('mechanic' in req.body) {
-      const mechanic = (req.body.mechanic ?? '').trim();
-      if (!mechanic) validationErrors.push('mechanic');
-      else updatePayload.mechanic = mechanic;
-    }
-
-    if ('condition' in req.body) {
-      const condition = (req.body.condition ?? '').trim();
-      if (!condition) validationErrors.push('condition');
-      else updatePayload.condition = condition;
-    }
-
-    if ('cost' in req.body) {
-      const totalCost = Number(req.body.cost);
-      if (!Number.isFinite(totalCost) || totalCost < 0) validationErrors.push('cost (>=0)');
-      else updatePayload.cost = totalCost;
-    }
-
-    if ('itemsChanged' in req.body) {
-      const { items: normalizedItems, errors: itemFieldErrors } = normalizeItems(req.body.itemsChanged || []);
-      if (!normalizedItems.length) validationErrors.push('itemsChanged (non-empty)');
-      if (itemFieldErrors.length) validationErrors.push(...itemFieldErrors);
-      else updatePayload.itemsChanged = normalizedItems;
-    }
-
-    if (validationErrors.length) {
+    if (fieldErrors.length) {
       return res
         .status(400)
-        .json(failure('VALIDATION_ERROR', 'Validation failed', { fields: validationErrors }));
+        .json(failure("VALIDATION_ERROR", "Validation failed", { fields: fieldErrors }));
     }
-
-    // Only `updatedAt` present → nothing to update
+    // Only updatedAt set → no changes
     if (Object.keys(updatePayload).length === 1) {
-      return res.status(400).json(failure('VALIDATION_ERROR', 'No valid fields to update'));
+      return res.status(400).json(failure("VALIDATION_ERROR", "No valid fields to update"));
     }
 
-    const serviceRecordRef = vehicleRef.collection('serviceRecords').doc(serviceId);
-    const serviceRecordSnapshot = await serviceRecordRef.get();
-    if (!serviceRecordSnapshot.exists) {
-      return res
-        .status(404)
-        .json(failure('NOT_FOUND', 'Service record not found', { vehicleId, serviceId }));
-    }
+    // 4) Persist
+    await recordRef.update(updatePayload);
 
-    await serviceRecordRef.update(updatePayload);
-
-    const updatedSnapshot = await serviceRecordRef.get();
-    const updatedRecord = updatedSnapshot.data() as ServiceRecord;
+    const updatedSnapshot = await recordRef.get();
+    const updated = updatedSnapshot.data() as ServiceRecord;
 
     return res.status(200).json(
       success({
         id: updatedSnapshot.id,
-        vehicleId,
-        ...updatedRecord,
-        date: updatedRecord.date.toDate().toISOString(),
-        createdAt: updatedRecord.createdAt?.toDate().toISOString(),
-        updatedAt: updatedRecord.updatedAt?.toDate().toISOString(),
+        vehicleId: updated.vehicleId,
+        date: updated.date.toDate().toISOString(),
+        mechanic: updated.mechanic,
+        condition: updated.condition,
+        cost: updated.cost,
+        itemsChanged: updated.itemsChanged,
+        notes: updated.notes,
+        createdAt: updated.createdAt?.toDate().toISOString(),
+        updatedAt: updated.updatedAt?.toDate().toISOString(),
       })
     );
   } catch (error: any) {
-    console.error('Error updating service record:', error);
+    console.error("Error updating service record:", error);
     return res
       .status(500)
-      .json(failure('SERVER_ERROR', 'Failed to update service record', error.message));
+      .json(failure("SERVER_ERROR", "Failed to update service record", error.message));
   }
 };
 
+/**
+ * GET /api/v1/service/vehicle/:vehicleId
+ * Returns service records for a specific vehicle (from top-level collection).
+ */
 export const getServiceRecordsForVehicle = async (
   req: Request<{ vehicleId: string }>,
   res: Response
@@ -205,25 +223,28 @@ export const getServiceRecordsForVehicle = async (
   try {
     const { vehicleId } = req.params;
 
+    // Validate vehicle exists (optional but recommended for clean errors)
     const vehicleSnapshot = await vehiclesCollection.doc(vehicleId).get();
     if (!vehicleSnapshot.exists) {
-      return res.status(404).json(failure('NOT_FOUND', 'Vehicle not found', { vehicleId }));
+      return res.status(404).json(failure("NOT_FOUND", "Vehicle not found", { vehicleId }));
     }
 
-    const serviceRecordsQuery = vehiclesCollection
-      .doc(vehicleId)
-      .collection('serviceRecords')
-      .orderBy('date', 'desc');
+    const snapshot = await serviceRecordsCollection
+      .where("vehicleId", "==", vehicleId)
+      .orderBy("date", "desc")
+      .get();
 
-    const serviceRecordsSnapshot = await serviceRecordsQuery.get();
-
-    const records = serviceRecordsSnapshot.docs.map((docSnapshot) => {
-      const record = docSnapshot.data() as ServiceRecord;
+    const records = snapshot.docs.map((doc) => {
+      const record = doc.data() as ServiceRecord;
       return {
-        id: docSnapshot.id,
-        vehicleId,
-        ...record,
+        id: doc.id,
+        vehicleId: record.vehicleId,
         date: record.date.toDate().toISOString(),
+        mechanic: record.mechanic,
+        condition: record.condition,
+        cost: record.cost,
+        itemsChanged: record.itemsChanged,
+        notes: record.notes,
         createdAt: record.createdAt?.toDate().toISOString(),
         updatedAt: record.updatedAt?.toDate().toISOString(),
       };
@@ -231,69 +252,70 @@ export const getServiceRecordsForVehicle = async (
 
     return res.status(200).json(success(records));
   } catch (error: any) {
-    console.error('Error fetching service records for vehicle:', error);
+    console.error("Error fetching service records for vehicle:", error);
     return res
       .status(500)
-      .json(failure('SERVER_ERROR', 'Failed to fetch service records', error.message));
+      .json(failure("SERVER_ERROR", "Failed to fetch service records", error.message));
   }
 };
 
+/**
+ * GET /api/v1/service
+ * Returns all service records across all vehicles (from top-level collection).
+ */
 export const getAllServiceRecords = async (_req: Request, res: Response) => {
   try {
-    const collectionGroupSnapshot = await db
-      .collectionGroup('serviceRecords')
-      .orderBy('date', 'desc')
-      .get();
+    const snapshot = await serviceRecordsCollection.orderBy("date", "desc").get();
 
-    const records = collectionGroupSnapshot.docs.map(
-      (docSnapshot: FirebaseFirestore.QueryDocumentSnapshot<ServiceRecord>) => {
-        const record = docSnapshot.data();
-        const parentVehicleRef = docSnapshot.ref.parent.parent;
-        const vehicleId = parentVehicleRef?.id;
-
-        return {
-          id: docSnapshot.id,
-          vehicleId,
-          ...record,
-          date: record.date.toDate().toISOString(),
-          createdAt: record.createdAt?.toDate().toISOString(),
-          updatedAt: record.updatedAt?.toDate().toISOString(),
-        };
-      }
-    );
+    const records = snapshot.docs.map((doc) => {
+      const record = doc.data() as ServiceRecord;
+      return {
+        id: doc.id,
+        vehicleId: record.vehicleId,
+        date: record.date.toDate().toISOString(),
+        mechanic: record.mechanic,
+        condition: record.condition,
+        cost: record.cost,
+        itemsChanged: record.itemsChanged,
+        notes: record.notes,
+        createdAt: record.createdAt?.toDate().toISOString(),
+        updatedAt: record.updatedAt?.toDate().toISOString(),
+      };
+    });
 
     return res.status(200).json(success(records));
   } catch (error: any) {
-    console.error('Error fetching all service records:', error);
+    console.error("Error fetching all service records:", error);
     return res
       .status(500)
-      .json(failure('SERVER_ERROR', 'Failed to fetch all service records', error.message));
+      .json(failure("SERVER_ERROR", "Failed to fetch all service records", error.message));
   }
 };
 
+/**
+ * DELETE /api/v1/service/:serviceId
+ */
 export const deleteServiceRecord = async (
-  req: Request<{ vehicleId: string; serviceId: string }>,
+  req: Request<{ serviceId: string }>,
   res: Response
 ) => {
   try {
-    const { vehicleId, serviceId } = req.params;
+    const { serviceId } = req.params;
 
-    const vehicleRef = vehiclesCollection.doc(vehicleId);
-    const serviceRecordRef = vehicleRef.collection('serviceRecords').doc(serviceId);
-
-    const serviceRecordSnapshot = await serviceRecordRef.get();
-    if (!serviceRecordSnapshot.exists) {
+    const recordRef = serviceRecordsCollection.doc(serviceId);
+    const snapshot = await recordRef.get();
+    if (!snapshot.exists) {
       return res
         .status(404)
-        .json(failure('NOT_FOUND', 'Service record not found', { vehicleId, serviceId }));
+        .json(failure("NOT_FOUND", "Service record not found", { serviceId }));
     }
 
-    await serviceRecordRef.delete();
-    return res.status(200).json(success({ id: serviceId, vehicleId }));
+    await recordRef.delete();
+    return res.status(200).json(success({ id: serviceId }));
   } catch (error: any) {
-    console.error('Error deleting service record:', error);
+    console.error("Error deleting service record:", error);
     return res
       .status(500)
-      .json(failure('SERVER_ERROR', 'Failed to delete service record', error.message));
+      .json(failure("SERVER_ERROR", "Failed to delete service record", error.message));
   }
 };
