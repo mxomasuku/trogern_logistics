@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   addServiceRecord,
@@ -6,13 +6,14 @@ import {
   type ServiceItem,
 } from "@/api/service";
 
+import { getAllActiveVehicles } from "@/api/vehicles"; // ← uses your /vehicles/active endpoint
+import type { Vehicle } from "@/types/types";
+
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  DialogFooter,
-} from "@/components/ui/dialog";
+import { DialogFooter } from "@/components/ui/dialog";
 
 import {
   CircleDollarSign,
@@ -36,13 +37,13 @@ const CATEGORY_PRESETS: Record<
   "tyres" | "engineOil" | "brakes" | "suspension" | "airFilter" | "atf" | "other",
   (partial?: Partial<ServiceItem>) => ServiceItem
 > = {
-  tyres: (p = {}) => ({ name: "Tyre", unit: "each", quantity: 1, cost: 0, ...p }),
-  engineOil: (p = {}) => ({ name: "Engine Oil", unit: "litre", quantity: 4, cost: 0, ...p }),
-  brakes: (p = {}) => ({ name: "Brake Pads", unit: "set", quantity: 1, cost: 0, ...p }),
-  suspension: (p = {}) => ({ name: "Suspension Work", unit: "job", quantity: 1, cost: 0, ...p }),
-  airFilter: (p = {}) => ({ name: "Air Filter", unit: "each", quantity: 1, cost: 0, ...p }),
-  atf: (p = {}) => ({ name: "ATF (Transmission Fluid)", unit: "litre", quantity: 4, cost: 0, ...p }),
-  other: (p = {}) => ({ name: "Other Repair", unit: "job", quantity: 1, cost: 0, ...p }),
+  tyres: (partial = {}) => ({ name: "Tyre", unit: "each", quantity: 1, cost: 0, ...partial }),
+  engineOil: (partial = {}) => ({ name: "Engine Oil", unit: "litre", quantity: 4, cost: 0, ...partial }),
+  brakes: (partial = {}) => ({ name: "Brake Pads", unit: "set", quantity: 1, cost: 0, ...partial }),
+  suspension: (partial = {}) => ({ name: "Suspension Work", unit: "job", quantity: 1, cost: 0, ...partial }),
+  airFilter: (partial = {}) => ({ name: "Air Filter", unit: "each", quantity: 1, cost: 0, ...partial }),
+  atf: (partial = {}) => ({ name: "ATF (Transmission Fluid)", unit: "litre", quantity: 4, cost: 0, ...partial }),
+  other: (partial = {}) => ({ name: "Other Repair", unit: "job", quantity: 1, cost: 0, ...partial }),
 };
 
 /* ---------------------------------- */
@@ -53,68 +54,108 @@ export default function AddServicePage() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
 
-  // optional prefill from query (?vehicleId=AGW6418)
-  const [vehicleId, setVehicleId] = useState(params.get("vehicleId") ?? "");
-  const [date, setDate] = useState<string>("");
-  const [mechanic, setMechanic] = useState<string>("");
-  const [condition, setCondition] = useState<string>("");
-  const [notes, setNotes] = useState<string>("");
+  // Vehicles
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [vehiclesLoading, setVehiclesLoading] = useState<boolean>(true);
+  const [vehiclesError, setVehiclesError] = useState<string | null>(null);
 
-  const [items, setItems] = useState<ServiceItem[]>([]);
+  // If a vehicleId is passed in the URL (?vehicleId=AGW6418), preselect it
+  const initialVehicleIdFromQuery = params.get("vehicleId") ?? "";
+  const [selectedVehicleId, setSelectedVehicleId] = useState<string>(initialVehicleIdFromQuery);
+
+  // Core fields
+  const [serviceDate, setServiceDate] = useState<string>("");
+  const [mechanicName, setMechanicName] = useState<string>("");
+  const [vehicleCondition, setVehicleCondition] = useState<string>("");
+  const [serviceNotes, setServiceNotes] = useState<string>("");
+
+  // Line items
+  const [serviceItems, setServiceItems] = useState<ServiceItem[]>([]);
   const [submitting, setSubmitting] = useState(false);
 
-  const total = useMemo(
-    () => items.reduce((sum, i) => sum + (Number(i.cost) || 0) * (Number(i.quantity) || 0), 0),
-    [items]
+  // Compute total from items
+  const serviceTotal = useMemo(
+    () => serviceItems.reduce((sum, item) => sum + (Number(item.cost) || 0) * (Number(item.quantity) || 0), 0),
+    [serviceItems]
   );
 
-  const addPreset = (type: keyof typeof CATEGORY_PRESETS) => {
-    setItems((prev) => [CATEGORY_PRESETS[type](), ...prev]);
+  // Load active vehicles once
+  useEffect(() => {
+    (async () => {
+      setVehiclesLoading(true);
+      setVehiclesError(null);
+      try {
+        const activeVehicles = await getAllActiveVehicles();
+        setVehicles(activeVehicles);
+        // If query param exists and matches one of the vehicles, keep it selected
+        if (initialVehicleIdFromQuery && activeVehicles.some(v => v.id === initialVehicleIdFromQuery || v.plateNumber === initialVehicleIdFromQuery)) {
+          setSelectedVehicleId(initialVehicleIdFromQuery);
+        }
+      } catch (error: any) {
+        const message = error?.message ?? "Failed to load vehicles";
+        setVehiclesError(message);
+        toast.error(message);
+      } finally {
+        setVehiclesLoading(false);
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  /* ---------- Item helpers ---------- */
+
+  const addPresetItem = (category: keyof typeof CATEGORY_PRESETS) => {
+    setServiceItems((previousItems) => [CATEGORY_PRESETS[category](), ...previousItems]);
   };
 
-  const setItem = (idx: number, patch: Partial<ServiceItem>) =>
-    setItems((prev) => prev.map((it, i) => (i === idx ? { ...it, ...patch } : it)));
+  const updateItemAtIndex = (index: number, patch: Partial<ServiceItem>) =>
+    setServiceItems((previousItems) =>
+      previousItems.map((existing, i) => (i === index ? { ...existing, ...patch } : existing))
+    );
 
-  const removeItem = (idx: number) => setItems((prev) => prev.filter((_, i) => i !== idx));
+  const removeItemAtIndex = (index: number) =>
+    setServiceItems((previousItems) => previousItems.filter((_, i) => i !== index));
+
+  /* ---------- Submit ---------- */
 
   const onSubmit = async () => {
-    const missing: string[] = [];
-    if (!vehicleId) missing.push("vehicleId");
-    if (!date) missing.push("date");
-    if (!(items && items.length)) missing.push("at least 1 item");
-    if (missing.length) {
-      toast.error(`Missing/invalid: ${missing.join(", ")}`);
+    const missingFields: string[] = [];
+    if (!selectedVehicleId) missingFields.push("vehicle");
+    if (!serviceDate) missingFields.push("date");
+    if (!(serviceItems && serviceItems.length)) missingFields.push("at least 1 item");
+    if (missingFields.length) {
+      toast.error(`Missing/invalid: ${missingFields.join(", ")}`);
       return;
     }
 
     setSubmitting(true);
     try {
-      const dto: ServiceRecordDTO = {
-        date,
-        mechanic: mechanic || "",
-        vehicleId,
-        condition: condition || "",
-        cost: Number(total),
-        notes: notes || undefined,
-        itemsChanged: items.map((i) => ({
-          name: i.name,
-          unit: i.unit,
-          cost: Number(i.cost) || 0,
-          quantity: Number(i.quantity) || 1,
+      const payload: ServiceRecordDTO = {
+        date: serviceDate,
+        mechanic: mechanicName || "",
+        vehicleId: selectedVehicleId,
+        condition: vehicleCondition || "",
+        cost: Number(serviceTotal),
+        notes: serviceNotes || undefined,
+        itemsChanged: serviceItems.map((item) => ({
+          name: item.name,
+          unit: item.unit,
+          cost: Number(item.cost) || 0,
+          quantity: Number(item.quantity) || 1,
         })),
       };
 
-      const result = await addServiceRecord( dto);
-      console.log("result", result)
+      await addServiceRecord(payload);
       toast.success("Service record added");
-      // Navigate back to list (adjust route to your app)
       navigate("/service");
-    } catch (e: any) {
-      toast.error(e?.message ?? "Save failed");
+    } catch (error: any) {
+      toast.error(error?.message ?? "Save failed");
     } finally {
       setSubmitting(false);
     }
   };
+
+  /* ---------- UI ---------- */
 
   return (
     <div className="space-y-4">
@@ -128,31 +169,85 @@ export default function AddServicePage() {
         <CardHeader>
           <CardTitle>Add Service Record</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
-          {/* Top: core fields */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
-            <Field label="Vehicle ID" value={vehicleId} onChange={setVehicleId} required />
-            <Field label="Date" type="date" value={date} onChange={setDate} required />
-            <Field label="Mechanic" value={mechanic} onChange={setMechanic} />
-            <Field label="Condition" value={condition} onChange={setCondition} />
+
+        <CardContent className="space-y-5">
+          {/* Vehicle selector row */}
+          <div>
+            <Label className="mb-2 inline-block text-sm">Select Vehicle</Label>
+
+            <div className="rounded-lg border">
+              {vehiclesLoading ? (
+                <div className="flex items-center justify-center p-6 text-sm text-muted-foreground">
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading vehicles…
+                </div>
+              ) : vehiclesError ? (
+                <div className="p-6 text-sm text-red-600">{vehiclesError}</div>
+              ) : vehicles.length === 0 ? (
+                <div className="p-6 text-sm text-muted-foreground">No active vehicles found.</div>
+              ) : (
+                <ul className="divide-y">
+                  {vehicles.map((vehicle) => {
+                    // Prefer doc id, fall back to plateNumber if your API returns only that
+                    const vehicleKey = vehicle.id ?? vehicle.plateNumber;
+                    const isSelected = selectedVehicleId === vehicleKey;
+                    return (
+                      <li
+                        key={vehicleKey}
+                        className="flex items-center gap-3 p-3 hover:bg-accent/40"
+                      >
+                        <input
+                          id={`vehicle-${vehicleKey}`}
+                          name="selectedVehicle"
+                          type="radio"
+                          className="h-4 w-4"
+                          checked={isSelected}
+                          onChange={() => setSelectedVehicleId(vehicleKey)}
+                        />
+                        <label
+                          htmlFor={`vehicle-${vehicleKey}`}
+                          className="flex w-full flex-col sm:flex-row sm:items-center sm:justify-between cursor-pointer"
+                        >
+                          <div className="font-medium">
+                            {vehicle.plateNumber}
+                            <span className="ml-2 text-muted-foreground">
+                              {vehicle.make} {vehicle.model} {vehicle.year ? `(${vehicle.year})` : ""}
+                            </span>
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            Status: {vehicle.status}
+                          </div>
+                        </label>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
           </div>
 
-          {/* Category buttons (scrollable row on mobile) */}
+          {/* Core fields */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+            <Field label="Date" type="date" value={serviceDate} onChange={setServiceDate} required />
+            <Field label="Mechanic" value={mechanicName} onChange={setMechanicName} />
+            <Field label="Condition" value={vehicleCondition} onChange={setVehicleCondition} />
+            <Field label="Notes" value={serviceNotes} onChange={setServiceNotes} placeholder="optional" />
+          </div>
+
+          {/* Category buttons */}
           <div className="-mx-2 md:mx-0">
             <div className="flex gap-2 overflow-x-auto px-2 pb-2 md:grid md:grid-cols-4 lg:grid-cols-7 md:overflow-visible md:px-0">
-              <CategoryButton icon={<Car className="h-4 w-4" />} label="Tyres" onClick={() => addPreset("tyres")} />
-              <CategoryButton icon={<Fuel className="h-4 w-4" />} label="Engine Oil" onClick={() => addPreset("engineOil")} />
-              <CategoryButton icon={<Disc className="h-4 w-4" />} label="Brakes" onClick={() => addPreset("brakes")} />
-              <CategoryButton icon={<Activity className="h-4 w-4" />} label="Suspension" onClick={() => addPreset("suspension")} />
-              <CategoryButton icon={<FilterIcon className="h-4 w-4" />} label="Air Filter" onClick={() => addPreset("airFilter")} />
-              <CategoryButton icon={<Wrench className="h-4 w-4" />} label="ATF" onClick={() => addPreset("atf")} />
-              <CategoryButton icon={<Hammer className="h-4 w-4" />} label="Other" onClick={() => addPreset("other")} />
+              <CategoryButton icon={<Car className="h-4 w-4" />} label="Tyres" onClick={() => addPresetItem("tyres")} />
+              <CategoryButton icon={<Fuel className="h-4 w-4" />} label="Engine Oil" onClick={() => addPresetItem("engineOil")} />
+              <CategoryButton icon={<Disc className="h-4 w-4" />} label="Brakes" onClick={() => addPresetItem("brakes")} />
+              <CategoryButton icon={<Activity className="h-4 w-4" />} label="Suspension" onClick={() => addPresetItem("suspension")} />
+              <CategoryButton icon={<FilterIcon className="h-4 w-4" />} label="Air Filter" onClick={() => addPresetItem("airFilter")} />
+              <CategoryButton icon={<Wrench className="h-4 w-4" />} label="ATF" onClick={() => addPresetItem("atf")} />
+              <CategoryButton icon={<Hammer className="h-4 w-4" />} label="Other" onClick={() => addPresetItem("other")} />
             </div>
           </div>
 
           {/* Items editor */}
           <div className="space-y-2">
-            {/* Column headers on md+ */}
             <div className="hidden md:grid grid-cols-12 gap-2 text-xs font-medium text-muted-foreground px-1 pb-1">
               <div className="col-span-4">Item</div>
               <div className="col-span-2">Unit</div>
@@ -161,26 +256,26 @@ export default function AddServicePage() {
               <div className="col-span-2 text-right">Line Total</div>
             </div>
 
-            {items.map((it, i) => {
-              const lineTotal = (Number(it.cost) || 0) * (Number(it.quantity) || 0);
+            {serviceItems.map((item, index) => {
+              const lineTotal = (Number(item.cost) || 0) * (Number(item.quantity) || 0);
               return (
                 <div
-                  key={i}
+                  key={index}
                   className="grid grid-cols-2 md:grid-cols-12 gap-2 items-center rounded-md md:rounded-none md:border-0 border p-2 md:p-0"
                 >
                   <div className="col-span-2 md:col-span-4">
                     <Label className="md:hidden text-xs text-muted-foreground">Item</Label>
                     <Input
-                      value={it.name}
-                      onChange={(e) => setItem(i, { name: e.target.value })}
+                      value={item.name}
+                      onChange={(e) => updateItemAtIndex(index, { name: e.target.value })}
                       placeholder="Item"
                     />
                   </div>
                   <div className="col-span-1 md:col-span-2">
                     <Label className="md:hidden text-xs text-muted-foreground">Unit</Label>
                     <Input
-                      value={it.unit}
-                      onChange={(e) => setItem(i, { unit: e.target.value })}
+                      value={item.unit}
+                      onChange={(e) => updateItemAtIndex(index, { unit: e.target.value })}
                       placeholder="each / litre / set"
                     />
                   </div>
@@ -188,21 +283,21 @@ export default function AddServicePage() {
                     <Label className="md:hidden text-xs text-muted-foreground">Qty</Label>
                     <Input
                       type="number"
-                      value={String(it.quantity ?? 1)}
+                      value={String(item.quantity ?? 1)}
                       min={1}
                       inputMode="numeric"
-                      onChange={(e) => setItem(i, { quantity: Number(e.target.value) })}
+                      onChange={(e) => updateItemAtIndex(index, { quantity: Number(e.target.value) })}
                     />
                   </div>
                   <div className="col-span-1 md:col-span-2">
                     <Label className="md:hidden text-xs text-muted-foreground">Unit Cost</Label>
                     <Input
                       type="number"
-                      value={String(it.cost ?? 0)}
+                      value={String(item.cost ?? 0)}
                       min={0}
                       step={0.01}
                       inputMode="decimal"
-                      onChange={(e) => setItem(i, { cost: Number(e.target.value) })}
+                      onChange={(e) => updateItemAtIndex(index, { cost: Number(e.target.value) })}
                     />
                   </div>
                   <div className="col-span-1 md:col-span-2 flex items-center justify-between md:justify-end gap-2">
@@ -213,7 +308,7 @@ export default function AddServicePage() {
                       size="icon"
                       variant="ghost"
                       className="text-red-600 hover:text-red-700"
-                      onClick={() => removeItem(i)}
+                      onClick={() => removeItemAtIndex(index)}
                       aria-label="Remove item"
                     >
                       ×
@@ -223,18 +318,16 @@ export default function AddServicePage() {
               );
             })}
 
-            {items.length === 0 && (
+            {serviceItems.length === 0 && (
               <div className="text-sm text-muted-foreground py-6 text-center">
                 Tap a category above to add line items.
               </div>
             )}
           </div>
 
-          {/* Notes + total */}
+          {/* Total + actions */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
-            <div className="md:col-span-2">
-              <Field label="Notes" value={notes} onChange={setNotes} placeholder="optional" />
-            </div>
+            <div className="md:col-span-2" />
             <div className="flex md:justify-end items-center">
               <div className="w-full md:w-auto rounded-md border px-3 py-2 text-sm flex items-center justify-between md:justify-normal gap-2">
                 <span className="flex items-center gap-2 text-muted-foreground">
@@ -242,7 +335,7 @@ export default function AddServicePage() {
                   Total
                 </span>
                 <span className="font-semibold">
-                  {total.toLocaleString(undefined, { style: "currency", currency: "USD" })}
+                  {serviceTotal.toLocaleString(undefined, { style: "currency", currency: "USD" })}
                 </span>
               </div>
             </div>
@@ -295,7 +388,13 @@ function CategoryButton({
 }
 
 function Field({
-  label, value, onChange, type = "text", placeholder, required, className,
+  label,
+  value,
+  onChange,
+  type = "text",
+  placeholder,
+  required,
+  className,
 }: {
   label: string;
   value: string;
