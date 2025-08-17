@@ -2,11 +2,14 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   addServiceRecord,
+  updateServiceRecord,
+  getServiceRecordById,
   type ServiceRecordDTO,
   type ServiceItem,
+  type ServiceRecord,
 } from "@/api/service";
 
-import { getAllActiveVehicles } from "@/api/vehicles"; // ← uses your /vehicles/active endpoint
+import { getAllActiveVehicles } from "@/api/vehicles";
 import type { Vehicle } from "@/types/types";
 
 import { Button } from "@/components/ui/button";
@@ -14,7 +17,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { DialogFooter } from "@/components/ui/dialog";
-
 import {
   CircleDollarSign,
   Car,
@@ -54,32 +56,39 @@ export default function AddServicePage() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
 
-  // Vehicles
+  // Determine add vs edit
+  const recordIdFromQuery = params.get("recordId") ?? ""; // if present → edit mode
+  const isEditMode = Boolean(recordIdFromQuery);
+
+  /* ---------- Vehicles ---------- */
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [vehiclesLoading, setVehiclesLoading] = useState<boolean>(true);
   const [vehiclesError, setVehiclesError] = useState<string | null>(null);
 
-  // If a vehicleId is passed in the URL (?vehicleId=AGW6418), preselect it
+  // Optional preselect from query (?vehicleId=AGW6418 or doc id)
   const initialVehicleIdFromQuery = params.get("vehicleId") ?? "";
   const [selectedVehicleId, setSelectedVehicleId] = useState<string>(initialVehicleIdFromQuery);
 
-  // Core fields
+  /* ---------- Form fields ---------- */
   const [serviceDate, setServiceDate] = useState<string>("");
   const [mechanicName, setMechanicName] = useState<string>("");
   const [vehicleCondition, setVehicleCondition] = useState<string>("");
   const [serviceNotes, setServiceNotes] = useState<string>("");
 
-  // Line items
+  // Items
   const [serviceItems, setServiceItems] = useState<ServiceItem[]>([]);
-  const [submitting, setSubmitting] = useState(false);
 
-  // Compute total from items
+  // Page states
+  const [initialLoading, setInitialLoading] = useState<boolean>(isEditMode); // only true for edit
+  const [submitting, setSubmitting] = useState<boolean>(false);
+
+  // Compute total
   const serviceTotal = useMemo(
     () => serviceItems.reduce((sum, item) => sum + (Number(item.cost) || 0) * (Number(item.quantity) || 0), 0),
     [serviceItems]
   );
 
-  // Load active vehicles once
+  /* ---------- Load active vehicles ---------- */
   useEffect(() => {
     (async () => {
       setVehiclesLoading(true);
@@ -87,8 +96,15 @@ export default function AddServicePage() {
       try {
         const activeVehicles = await getAllActiveVehicles();
         setVehicles(activeVehicles);
-        // If query param exists and matches one of the vehicles, keep it selected
-        if (initialVehicleIdFromQuery && activeVehicles.some(v => v.id === initialVehicleIdFromQuery || v.plateNumber === initialVehicleIdFromQuery)) {
+        // If URL has vehicleId, keep it if it matches either doc id or plate
+        if (
+          initialVehicleIdFromQuery &&
+          activeVehicles.some(
+            (vehicle) =>
+              vehicle.id === initialVehicleIdFromQuery ||
+              vehicle.plateNumber === initialVehicleIdFromQuery
+          )
+        ) {
           setSelectedVehicleId(initialVehicleIdFromQuery);
         }
       } catch (error: any) {
@@ -102,6 +118,40 @@ export default function AddServicePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  /* ---------- Load record for edit ---------- */
+  useEffect(() => {
+    if (!isEditMode) return;
+
+    (async () => {
+      setInitialLoading(true);
+      try {
+        const existing = (await getServiceRecordById(recordIdFromQuery)) as ServiceRecord & { id: string };
+
+        // Prefill form
+        setSelectedVehicleId(existing.vehicleId ?? "");
+        setServiceDate(existing.date ? existing.date.slice(0, 10) : ""); // existing.date is ISO
+        setMechanicName(existing.mechanic ?? "");
+        setVehicleCondition(existing.condition ?? "");
+        setServiceNotes(existing.notes ?? "");
+
+        setServiceItems(
+          (existing.itemsChanged || []).map((item) => ({
+            name: item.name,
+            unit: item.unit,
+            cost: Number(item.cost) || 0,
+            quantity: Number(item.quantity) || 1,
+          }))
+        );
+      } catch (error: any) {
+        toast.error(error?.message ?? "Failed to load service record");
+        // If fetch fails, bounce back to the list
+        navigate("/service");
+      } finally {
+        setInitialLoading(false);
+      }
+    })();
+  }, [isEditMode, recordIdFromQuery, navigate]);
+
   /* ---------- Item helpers ---------- */
 
   const addPresetItem = (category: keyof typeof CATEGORY_PRESETS) => {
@@ -110,11 +160,13 @@ export default function AddServicePage() {
 
   const updateItemAtIndex = (index: number, patch: Partial<ServiceItem>) =>
     setServiceItems((previousItems) =>
-      previousItems.map((existing, i) => (i === index ? { ...existing, ...patch } : existing))
+      previousItems.map((existing, currentIndex) =>
+        currentIndex === index ? { ...existing, ...patch } : existing
+      )
     );
 
   const removeItemAtIndex = (index: number) =>
-    setServiceItems((previousItems) => previousItems.filter((_, i) => i !== index));
+    setServiceItems((previousItems) => previousItems.filter((_, currentIndex) => currentIndex !== index));
 
   /* ---------- Submit ---------- */
 
@@ -123,6 +175,7 @@ export default function AddServicePage() {
     if (!selectedVehicleId) missingFields.push("vehicle");
     if (!serviceDate) missingFields.push("date");
     if (!(serviceItems && serviceItems.length)) missingFields.push("at least 1 item");
+
     if (missingFields.length) {
       toast.error(`Missing/invalid: ${missingFields.join(", ")}`);
       return;
@@ -145,8 +198,14 @@ export default function AddServicePage() {
         })),
       };
 
-      await addServiceRecord(payload);
-      toast.success("Service record added");
+      if (isEditMode) {
+        await updateServiceRecord(recordIdFromQuery, payload);
+        toast.success("Service record updated");
+      } else {
+        await addServiceRecord(payload);
+        toast.success("Service record added");
+      }
+
       navigate("/service");
     } catch (error: any) {
       toast.error(error?.message ?? "Save failed");
@@ -167,7 +226,7 @@ export default function AddServicePage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Add Service Record</CardTitle>
+          <CardTitle>{isEditMode ? "Edit Service Record" : "Add Service Record"}</CardTitle>
         </CardHeader>
 
         <CardContent className="space-y-5">
@@ -176,9 +235,9 @@ export default function AddServicePage() {
             <Label className="mb-2 inline-block text-sm">Select Vehicle</Label>
 
             <div className="rounded-lg border">
-              {vehiclesLoading ? (
+              {vehiclesLoading || initialLoading ? (
                 <div className="flex items-center justify-center p-6 text-sm text-muted-foreground">
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading vehicles…
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading…
                 </div>
               ) : vehiclesError ? (
                 <div className="p-6 text-sm text-red-600">{vehiclesError}</div>
@@ -187,20 +246,16 @@ export default function AddServicePage() {
               ) : (
                 <ul className="divide-y">
                   {vehicles.map((vehicle) => {
-                    // Prefer doc id, fall back to plateNumber if your API returns only that
                     const vehicleKey = vehicle.id ?? vehicle.plateNumber;
-                    const isSelected = selectedVehicleId === vehicleKey;
+                    const isChecked = selectedVehicleId === vehicleKey;
                     return (
-                      <li
-                        key={vehicleKey}
-                        className="flex items-center gap-3 p-3 hover:bg-accent/40"
-                      >
+                      <li key={vehicleKey} className="flex items-center gap-3 p-3 hover:bg-accent/40">
                         <input
                           id={`vehicle-${vehicleKey}`}
                           name="selectedVehicle"
                           type="radio"
                           className="h-4 w-4"
-                          checked={isSelected}
+                          checked={isChecked}
                           onChange={() => setSelectedVehicleId(vehicleKey)}
                         />
                         <label
@@ -213,8 +268,9 @@ export default function AddServicePage() {
                               {vehicle.make} {vehicle.model} {vehicle.year ? `(${vehicle.year})` : ""}
                             </span>
                           </div>
-                          <div className="text-xs text-muted-foreground">
-                            Status: {vehicle.status}
+                          <div className="text-xs text-muted-foreground flex gap-3">
+                            <span>Driver: {vehicle.assignedDriver || "—"}</span>
+                            <span>Status: {vehicle.status}</span>
                           </div>
                         </label>
                       </li>
@@ -345,13 +401,13 @@ export default function AddServicePage() {
             <Button variant="ghost" onClick={() => navigate(-1)} disabled={submitting} className="w-full md:w-auto">
               Cancel
             </Button>
-            <Button onClick={onSubmit} disabled={submitting} className="w-full md:w-auto">
+            <Button onClick={onSubmit} disabled={submitting || initialLoading} className="w-full md:w-auto">
               {submitting ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Saving…
                 </>
               ) : (
-                "Save"
+                isEditMode ? "Update" : "Save"
               )}
             </Button>
           </DialogFooter>

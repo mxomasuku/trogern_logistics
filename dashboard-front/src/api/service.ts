@@ -69,3 +69,17 @@ export async function deleteServiceRecord(vehicleId: string, serviceId: string):
   );
   if (!data?.isSuccessful) throw new Error(data?.error?.message ?? "Failed to delete service record");
 }
+
+export async function getServiceRecordById(
+  serviceId: string
+): Promise<ServiceRecord> {
+  const { data } = await http.get<ApiResponse<ServiceRecord>>(
+    `/api/v1/get-service-record/${serviceId}`
+  );
+
+  if (!data?.isSuccessful) {
+    throw new Error(data?.error?.message ?? "Failed to fetch service record");
+  }
+
+  return data.data!;
+}

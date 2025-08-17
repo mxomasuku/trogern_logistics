@@ -11,60 +11,61 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from "@/components/ui/table";
-import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
-  AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogOverlay,
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-
-import { Loader2, Pencil, Plus, Trash2, Search, Filter as FilterIcon } from "lucide-react";
+import { Loader2, Plus, Search } from "lucide-react";
 import { toast } from "sonner";
 
-/* ---------------------------------- */
-/* Page                               */
-/* ---------------------------------- */
+// Reusable table renderer
+import ServiceRecordsTable from "./components/ServiceRecordsTable";
+
+// Local helper type
+type ServiceRecordWithId = ServiceRecord & { id: string };
 
 export default function ServicePage() {
   const navigate = useNavigate();
 
-  const [serviceRecords, setServiceRecords] = useState<(ServiceRecord & { id: string })[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [serviceRecords, setServiceRecords] = useState<ServiceRecordWithId[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const [freeTextQuery, setFreeTextQuery] = useState("");
-  const [vehicleIdFilter, setVehicleIdFilter] = useState("");
+  const [searchText, setSearchText] = useState("");
+  const [vehicleFilter, setVehicleFilter] = useState("");
 
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; vehicleId: string } | null>(null);
 
-  const loadRecords = async () => {
-    setIsLoading(true);
+  const load = async () => {
+    setLoading(true);
     try {
-      if (vehicleIdFilter.trim()) {
-        const list = await getServiceRecordsForVehicle(vehicleIdFilter.trim());
-        setServiceRecords(list as any);
-      } else {
-        const list = await getAllServiceRecords();
-        setServiceRecords(list as any);
-      }
+      const list = vehicleFilter.trim()
+        ? await getServiceRecordsForVehicle(vehicleFilter.trim())
+        : await getAllServiceRecords();
+      setServiceRecords(list as unknown as ServiceRecordWithId[]);
     } catch (error: any) {
       toast.error(error?.message ?? "Failed to load service records");
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
   useEffect(() => {
-    loadRecords();
+    load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const onApplyVehicleFilter = async () => {
-    await loadRecords();
+  const onApplyFilter = async () => {
+    await load();
   };
 
-  const filteredRecords = useMemo(() => {
-    const query = freeTextQuery.trim().toLowerCase();
+  const filtered = useMemo(() => {
+    const query = searchText.trim().toLowerCase();
     if (!query) return serviceRecords;
+
     return serviceRecords.filter((record) =>
       [
         record.vehicleId,
@@ -82,21 +83,20 @@ export default function ServicePage() {
         .filter(Boolean)
         .some((value) => String(value).toLowerCase().includes(query))
     );
-  }, [serviceRecords, freeTextQuery]);
+  }, [serviceRecords, searchText]);
 
-  const onClickAddRecord = () => {
-    navigate("/service/add");
+  const handleEdit = (record: ServiceRecordWithId) => {
+    // Reuse the Add page for editing by passing recordId in the query string
+    navigate(`/service/add?recordId=${encodeURIComponent(record.id)}`);
   };
 
-  const onClickEditRecord = (recordId: string) => {
-    navigate(`/service/${recordId}/edit`);
+  const handleDelete = (record: ServiceRecordWithId) => {
+    setDeleteTarget({ id: record.id, vehicleId: record.vehicleId });
   };
 
   const confirmDelete = async () => {
     if (!deleteTarget) return;
     try {
-      // If your API now deletes by service-record id only, change to:
-      // await deleteServiceRecord(deleteTarget.id);
       await deleteServiceRecord(deleteTarget.vehicleId, deleteTarget.id);
       setServiceRecords((prev) => prev.filter((r) => r.id !== deleteTarget.id));
       toast.success("Service record deleted");
@@ -120,13 +120,12 @@ export default function ServicePage() {
                 <Input
                   className="flex-1 md:w-44"
                   placeholder="Filter by vehicleId…"
-                  value={vehicleIdFilter}
-                  onChange={(e) => setVehicleIdFilter(e.target.value)}
+                  value={vehicleFilter}
+                  onChange={(e) => setVehicleFilter(e.target.value)}
                   inputMode="text"
                   autoComplete="off"
                 />
-                <Button variant="secondary" onClick={onApplyVehicleFilter} className="whitespace-nowrap">
-                  <FilterIcon className="mr-2 h-4 w-4" />
+                <Button variant="secondary" onClick={onApplyFilter} className="whitespace-nowrap">
                   Apply
                 </Button>
               </div>
@@ -136,13 +135,13 @@ export default function ServicePage() {
                 <Input
                   className="pl-8 w-full"
                   placeholder="Search records…"
-                  value={freeTextQuery}
-                  onChange={(e) => setFreeTextQuery(e.target.value)}
+                  value={searchText}
+                  onChange={(e) => setSearchText(e.target.value)}
                   inputMode="search"
                 />
               </div>
 
-              <Button onClick={onClickAddRecord} className="w-full md:w-auto">
+              <Button onClick={() => navigate("/service/add")} className="w-full md:w-auto">
                 <Plus className="h-4 w-4 mr-2" />
                 Add record
               </Button>
@@ -151,122 +150,23 @@ export default function ServicePage() {
         </CardHeader>
 
         <CardContent>
-          {isLoading ? (
+          {loading ? (
             <div className="flex justify-center py-12">
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             </div>
-          ) : filteredRecords.length === 0 ? (
-            <div className="text-sm text-muted-foreground py-10 text-center">
-              No service records found.
-            </div>
           ) : (
-            <>
-              {/* Mobile list (cards) */}
-              <div className="grid gap-3 md:hidden">
-                {filteredRecords.map((record) => (
-                  <div key={record.id} className="rounded-lg border p-3">
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="font-medium">{record.vehicleId}</div>
-                      <div className="text-xs text-muted-foreground">
-                        {record.date ? new Date(record.date).toLocaleDateString() : "-"}
-                      </div>
-                    </div>
-                    <div className="mt-1 text-sm">
-                      <div className="flex items-center justify-between">
-                        <span className="text-muted-foreground">Mechanic</span>
-                        <span>{record.mechanic || "-"}</span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-muted-foreground">Condition</span>
-                        <span className="truncate max-w-[55%] text-right">{record.condition || "-"}</span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-muted-foreground">Cost</span>
-                        <span>{typeof record.cost === "number" ? record.cost.toFixed(2) : record.cost}</span>
-                      </div>
-                      <div className="mt-1 text-xs text-muted-foreground line-clamp-2">
-                        {(record.itemsChanged || []).map((item) => item.name).join(", ") || "No items"}
-                      </div>
-                    </div>
-                    <div className="mt-3 flex justify-end gap-1">
-                      <Button size="sm" variant="secondary" onClick={() => onClickEditRecord(record.id!)}>
-                        <Pencil className="mr-1 h-4 w-4" />
-                        Edit
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        onClick={() => setDeleteTarget({ id: record.id!, vehicleId: record.vehicleId })}
-                      >
-                        <Trash2 className="mr-1 h-4 w-4" />
-                        Delete
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Desktop table */}
-              <div className="hidden md:block">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-40">Date</TableHead>
-                      <TableHead>Vehicle</TableHead>
-                      <TableHead>Mechanic</TableHead>
-                      <TableHead>Condition</TableHead>
-                      <TableHead>Cost</TableHead>
-                      <TableHead>Items</TableHead>
-                      <TableHead className="w-32 text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredRecords.map((record) => (
-                      <TableRow key={record.id}>
-                        <TableCell>{record.date ? new Date(record.date).toLocaleDateString() : "-"}</TableCell>
-                        <TableCell className="font-medium">{record.vehicleId}</TableCell>
-                        <TableCell>{record.mechanic}</TableCell>
-                        <TableCell>{record.condition}</TableCell>
-                        <TableCell>{typeof record.cost === "number" ? record.cost.toFixed(2) : record.cost}</TableCell>
-                        <TableCell
-                          className="max-w-[300px] truncate"
-                          title={(record.itemsChanged || []).map(item => `${item.name} x${item.quantity}`).join(", ")}
-                        >
-                          {(record.itemsChanged || []).slice(0, 3).map(item => item.name).join(", ")}
-                          {(record.itemsChanged || []).length > 3 ? "…" : ""}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            onClick={() => onClickEditRecord(record.id!)}
-                            aria-label="Edit"
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            className="text-red-600 hover:text-red-700"
-                            onClick={() => setDeleteTarget({ id: record.id!, vehicleId: record.vehicleId })}
-                            aria-label="Delete"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            </>
+            <ServiceRecordsTable
+              records={filtered}
+              onEdit={handleEdit}
+              onDelete={handleDelete}
+              emptyMessage="No service records found."
+            />
           )}
         </CardContent>
       </Card>
 
       {/* Delete confirmation */}
       <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
-        <AlertDialogOverlay className="fixed inset-0 bg-black/60 backdrop-blur-none" />
         <AlertDialogContent className="sm:max-w-md rounded-xl border bg-white text-slate-900 dark:bg-neutral-900 dark:text-neutral-100 shadow-2xl">
           <AlertDialogHeader>
             <AlertDialogTitle>Delete this record?</AlertDialogTitle>
