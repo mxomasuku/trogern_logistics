@@ -46,10 +46,7 @@ const normalizeItems = (raw: ServiceRecordDTO["itemsChanged"]) => {
 
 
 
-/**
- * POST /api/v1/service/add
- * Body: ServiceRecordDTO (vehicleId is required in body, but not validated against vehicles here)
- */
+
 export const addServiceRecord = async (
   req: Request<{}, {}, ServiceRecordDTO>,
   res: Response
@@ -117,10 +114,7 @@ export const addServiceRecord = async (
       .json(failure("SERVER_ERROR", "Failed to add service record", error.message));
   }
 };
-/**
- * PUT /api/v1/service/:serviceId/update
- * Optionally include :vehicleId in the route if you want to cross-check, but not required.
- */
+
 export const updateServiceRecord = async (
   req: Request<{ serviceId: string }, {}, Partial<ServiceRecordDTO> & { vehicleId?: string }>,
   res: Response
@@ -220,10 +214,7 @@ export const updateServiceRecord = async (
   }
 };
 
-/**
- * GET /api/v1/service/vehicle/:vehicleId
- * Returns service records for a specific vehicle (from top-level collection).
- */
+
 export const getServiceRecordsForVehicle = async (
   req: Request<{ vehicleId: string }>,
   res: Response
@@ -267,10 +258,7 @@ export const getServiceRecordsForVehicle = async (
   }
 };
 
-/**
- * GET /api/v1/service
- * Returns all service records across all vehicles (from top-level collection).
- */
+
 export const getAllServiceRecords = async (_req: Request, res: Response) => {
   try {
     const snapshot = await serviceRecordsCollection.orderBy("date", "desc").get();
@@ -300,9 +288,7 @@ export const getAllServiceRecords = async (_req: Request, res: Response) => {
   }
 };
 
-/**
- * DELETE /api/v1/service/:serviceId
- */
+
 export const deleteServiceRecord = async (
   req: Request<{ serviceId: string }>,
   res: Response
