@@ -51,21 +51,23 @@ export async function addServiceRecord( payload: ServiceRecordDTO): Promise<Serv
 }
 
 export async function updateServiceRecord(
-  vehicleId: string,
   serviceId: string,
   patch: Partial<ServiceRecordDTO>
 ): Promise<ServiceRecord> {
   const { data } = await http.put<ApiResponse<ServiceRecord>>(
-    `/api/v1/service/${vehicleId}/${serviceId}`,
+    `/api/v1/service/${serviceId}`,
     patch
   );
-  if (!data?.isSuccessful) throw new Error(data?.error?.message ?? "Failed to update service record");
+
+  if (!data?.isSuccessful) {
+    throw new Error(data?.error?.message ?? "Failed to update service record");
+  }
   return data.data!;
 }
 
-export async function deleteServiceRecord(vehicleId: string, serviceId: string): Promise<void> {
+export async function deleteServiceRecord( serviceId: string): Promise<void> {
   const { data } = await http.delete<ApiResponse>(
-    `/api/v1/service/${vehicleId}/${serviceId}`
+    `/api/v1/service/${serviceId}`
   );
   if (!data?.isSuccessful) throw new Error(data?.error?.message ?? "Failed to delete service record");
 }
@@ -74,7 +76,7 @@ export async function getServiceRecordById(
   serviceId: string
 ): Promise<ServiceRecord> {
   const { data } = await http.get<ApiResponse<ServiceRecord>>(
-    `/api/v1/get-service-record/${serviceId}`
+    `/api/v1/service/get/${serviceId}`
   );
 
   if (!data?.isSuccessful) {

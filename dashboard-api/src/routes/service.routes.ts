@@ -13,10 +13,11 @@ const router = Router();
 // Vehicle-scoped
 router.post('/add', addServiceRecord)
 router.get('/get', getAllServiceRecords);
+router.get('/get/:serviceId', getServiceRecordById)
 router.get('/:vehicleId', getServiceRecordsForVehicle);
 
-router.get('/get-service-record/:id', getServiceRecordById)
-router.put('/:vehicleId/:serviceId', updateServiceRecord);
+
+router.put("/service/:serviceId", updateServiceRecord);
 router.delete('/:vehicleId/:serviceId', deleteServiceRecord);
 
 // Global (across vehicles via collectionGroup)
