@@ -313,3 +313,38 @@ export const deleteServiceRecord = async (
       .json(failure("SERVER_ERROR", "Failed to delete service record", error.message));
   }
 };
+
+export const getServiceRecordById = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    if (!id) {
+      return res
+        .status(400)
+        .json(failure("BAD_REQUEST", "Service record ID is required"));
+    }
+
+    const doc = await serviceRecordsCollection.doc(id).get();
+
+    if (!doc.exists) {
+      return res.status(404).json(
+        failure("NOT_FOUND", "Service record not found", {
+          id,
+        })
+      );
+    }
+
+    return res
+      .status(200)
+      .json(success({ id: doc.id, ...doc.data() }));
+  } catch (error: any) {
+    console.error("Error fetching service record by ID:", error);
+    return res.status(500).json(
+      failure(
+        "SERVER_ERROR",
+        "Failed to fetch service record",
+        error.message
+      )
+    );
+  }
+};
