@@ -13,7 +13,7 @@ const router = Router();
 router.post('/add', addServiceRecord)
 router.get('/:vehicleId', getServiceRecordsForVehicle);
 
-router.post('/:vehicleId', addServiceRecord);
+
 router.put('/:vehicleId/:serviceId', updateServiceRecord);
 router.delete('/:vehicleId/:serviceId', deleteServiceRecord);
 

@@ -76,7 +76,8 @@ export interface ServiceRecord {
 
 // DTO for incoming payload (dates as strings)
 export interface ServiceRecordDTO {
-  date: string;               // ISO date string
+  date: string;  
+  vehicleId: string             // ISO date string
   mechanic: string;
   cost: number | string;
   condition: string;
