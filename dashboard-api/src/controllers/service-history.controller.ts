@@ -41,13 +41,22 @@ const normalizeItems = (raw: ServiceRecordDTO["itemsChanged"]) => {
 };
 
 
+
+
+
+
+
+/**
+ * POST /api/v1/service/add
+ * Body: ServiceRecordDTO (vehicleId is required in body, but not validated against vehicles here)
+ */
 export const addServiceRecord = async (
-  req: Request<{ vehicleId: string }, {}, ServiceRecordDTO>,
+  req: Request<{}, {}, ServiceRecordDTO>,
   res: Response
 ) => {
   try {
-    const { vehicleId } = req.params;
-
+    // read from body (NOT params)
+    const vehicleId = (req.body.vehicleId ?? "").trim();
 
     const serviceDate = parseDateToTimestamp(req.body.date);
     const mechanic = (req.body.mechanic || "").trim();
@@ -56,6 +65,7 @@ export const addServiceRecord = async (
     const { items, errors: itemErrors } = normalizeItems(req.body.itemsChanged);
 
     const fieldErrors: string[] = [];
+    if (!vehicleId) fieldErrors.push("vehicleId");
     if (!serviceDate) fieldErrors.push("date (ISO)");
     if (!mechanic) fieldErrors.push("mechanic");
     if (!condition) fieldErrors.push("condition");
@@ -69,10 +79,9 @@ export const addServiceRecord = async (
         .json(failure("VALIDATION_ERROR", "Validation failed", { fields: fieldErrors }));
     }
 
-    // 2) Create
     const now = FirestoreTimestamp.now();
     const recordToCreate: ServiceRecord = {
-      vehicleId: vehicleId, // still stored, but not validated
+      vehicleId,                 // store as plain string
       date: serviceDate,
       mechanic,
       condition,
@@ -84,12 +93,12 @@ export const addServiceRecord = async (
     };
 
     const createdRef = await serviceRecordsCollection.add(recordToCreate);
-    const createdSnapshot = await createdRef.get();
-    const created = createdSnapshot.data() as ServiceRecord;
+    const snap = await createdRef.get();
+    const created = snap.data() as ServiceRecord;
 
     return res.status(201).json(
       success({
-        id: createdSnapshot.id,
+        id: snap.id,
         vehicleId: created.vehicleId,
         date: created.date.toDate().toISOString(),
         mechanic: created.mechanic,
@@ -108,7 +117,6 @@ export const addServiceRecord = async (
       .json(failure("SERVER_ERROR", "Failed to add service record", error.message));
   }
 };
-
 /**
  * PUT /api/v1/service/:serviceId/update
  * Optionally include :vehicleId in the route if you want to cross-check, but not required.
