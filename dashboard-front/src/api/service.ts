@@ -55,7 +55,7 @@ export async function updateServiceRecord(
   patch: Partial<ServiceRecordDTO>
 ): Promise<ServiceRecord> {
   const { data } = await http.put<ApiResponse<ServiceRecord>>(
-    `/api/v1/service/${serviceId}`,
+    `/api/v1/service/update/${serviceId}`,
     patch
   );
 
@@ -67,7 +67,7 @@ export async function updateServiceRecord(
 
 export async function deleteServiceRecord( serviceId: string): Promise<void> {
   const { data } = await http.delete<ApiResponse>(
-    `/api/v1/service/${serviceId}`
+    `/api/v1/service/delete/${serviceId}`
   );
   if (!data?.isSuccessful) throw new Error(data?.error?.message ?? "Failed to delete service record");
 }

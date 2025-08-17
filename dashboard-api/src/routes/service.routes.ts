@@ -17,8 +17,8 @@ router.get('/get/:serviceId', getServiceRecordById)
 router.get('/:vehicleId', getServiceRecordsForVehicle);
 
 
-router.put("/service/:serviceId", updateServiceRecord);
-router.delete('/:vehicleId/:serviceId', deleteServiceRecord);
+router.put("/update/:serviceId", updateServiceRecord);
+router.delete('/delete/:serviceId', deleteServiceRecord);
 
 // Global (across vehicles via collectionGroup)
 
