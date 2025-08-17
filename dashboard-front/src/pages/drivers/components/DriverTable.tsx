@@ -3,7 +3,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { Pencil, Trash2 } from "lucide-react";
-import type { Driver } from "@/api/drivers";
+import type { Driver } from "@/types/types";
 
 
 type DriverTableProps = {
@@ -48,7 +48,7 @@ export function DriverTable({ drivers, onEdit, onDelete, cn }: DriverTableProps)
             >
               {d.status}
             </TableCell>
-            <TableCell>{d.vehicleAssigned || "-"}</TableCell>
+            <TableCell>{d.assignedVehicleId || "-"}</TableCell>
             <TableCell className="text-right">
               <Button size="icon" variant="ghost" onClick={() => onEdit(d)} aria-label="Edit">
                 <Pencil className="h-4 w-4" />

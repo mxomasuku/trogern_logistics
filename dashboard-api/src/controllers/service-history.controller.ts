@@ -129,7 +129,7 @@ export const updateServiceRecord = async (
       return res.status(404).json(failure("NOT_FOUND", "Service record not found", { serviceId }));
     }
 
-    // 2) If vehicleId is provided, validate it still exists (and we can also enforce it matches the doc)
+    // 2) Optional: if vehicleId provided in body, ensure it exists (if you allow reassignment)
     const requestedVehicleId = (req.body as any).vehicleId;
     if (requestedVehicleId) {
       const vehicleSnapshot = await vehiclesCollection.doc(requestedVehicleId).get();
@@ -138,41 +138,46 @@ export const updateServiceRecord = async (
       }
     }
 
-    // 3) Validate partial fields
+    // 3) Validate fields
     const updatePayload: Partial<ServiceRecord> = { updatedAt: FirestoreTimestamp.now() };
     const fieldErrors: string[] = [];
 
     if ("date" in req.body) {
-      const maybe = parseDateToTimestamp(req.body.date);
-      if (req.body.date && !maybe) fieldErrors.push("date (ISO)");
-      else if (maybe) updatePayload.date = maybe;
+      const parsed = parseDateToTimestamp(req.body.date);
+      if (req.body.date && !parsed) fieldErrors.push("date (ISO)");
+      else if (parsed) updatePayload.date = parsed;
     }
+
     if ("mechanic" in req.body) {
-      const mech = (req.body.mechanic ?? "").trim();
-      if (!mech) fieldErrors.push("mechanic");
-      else updatePayload.mechanic = mech;
+      const mechanic = (req.body.mechanic ?? "").trim();
+      if (!mechanic) fieldErrors.push("mechanic");
+      else updatePayload.mechanic = mechanic;
     }
+
     if ("condition" in req.body) {
-      const cond = (req.body.condition ?? "").trim();
-      if (!cond) fieldErrors.push("condition");
-      else updatePayload.condition = cond;
+      const condition = (req.body.condition ?? "").trim();
+      if (!condition) fieldErrors.push("condition");
+      else updatePayload.condition = condition;
     }
+
     if ("cost" in req.body) {
-      const total = Number(req.body.cost);
-      if (!Number.isFinite(total) || total < 0) fieldErrors.push("cost (>=0)");
-      else updatePayload.cost = total;
+      const totalCost = Number(req.body.cost);
+      if (!Number.isFinite(totalCost) || totalCost < 0) fieldErrors.push("cost (>=0)");
+      else updatePayload.cost = totalCost;
     }
+
     if ("itemsChanged" in req.body) {
       const { items, errors } = normalizeItems(req.body.itemsChanged || []);
       if (!items.length) fieldErrors.push("itemsChanged (non-empty)");
       if (errors.length) fieldErrors.push(...errors);
-      else updatePayload.itemsChanged = items;
+      else updatePayload.itemsChanged = items as any;
     }
+
     if ("notes" in req.body) {
       updatePayload.notes = req.body.notes?.trim() || undefined;
     }
+
     if ("vehicleId" in req.body && requestedVehicleId) {
-      // If you allow moving a record to a different vehicle, set it here
       updatePayload.vehicleId = requestedVehicleId;
     }
 
@@ -181,7 +186,8 @@ export const updateServiceRecord = async (
         .status(400)
         .json(failure("VALIDATION_ERROR", "Validation failed", { fields: fieldErrors }));
     }
-    // Only updatedAt set → no changes
+
+    // Only updatedAt present → no real changes
     if (Object.keys(updatePayload).length === 1) {
       return res.status(400).json(failure("VALIDATION_ERROR", "No valid fields to update"));
     }
