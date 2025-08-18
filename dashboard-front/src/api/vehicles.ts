@@ -23,7 +23,7 @@ export async function addVehicle(payload: VehicleCreateDTO): Promise<Vehicle> {
 }
 
 export async function updateVehicle(id: string, patch: VehicleUpdateDTO): Promise<Vehicle> {
-  const { data } = await http.put<ApiResponse<Vehicle>>(`/api/v1/vehicles/${id}`, patch);
+  const { data } = await http.put<ApiResponse<Vehicle>>(`/api/v1/vehicles/update/${id}`, patch);
   if (!data?.isSuccessful) throw new Error(data?.error?.message ?? "Failed to update vehicle");
   return data.data!;
 }
