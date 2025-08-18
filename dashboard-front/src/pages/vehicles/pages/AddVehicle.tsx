@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+// src/pages/vehicles/AddVehiclePage.tsx
+import { useEffect, useMemo, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
   addVehicle,
   updateVehicle,
-  getVehicle,     // if you don't have this in your API wrapper yet, add it
+  getVehicle, // make sure this exists in your API wrapper
 } from "@/api/vehicles";
 import type {
   Vehicle,
@@ -22,14 +23,16 @@ import {
 } from "@/components/ui/select";
 import { ArrowLeft, Loader2, Save } from "lucide-react";
 import { toast } from "sonner";
-
+import { toDateInputValue } from "@/lib/utils";
 const STATUS_OPTS: VehicleStatus[] = ["active", "inactive", "maintenance", "retired"];
 const ROUTE_OPTS: RouteType[] = ["local", "highway", "mixed"];
 
-export default function VehiclePage() {
-  const { id } = useParams<{ id: string }>();     // if present → editing
-  const isEdit = !!id;
+export default function AddVehiclePage() {
   const navigate = useNavigate();
+  const { search } = useLocation();
+  const params = useMemo(() => new URLSearchParams(search), [search]);
+  const editId = params.get("id"); // ← same pattern as drivers/service
+  const isEdit = !!editId;
 
   // form state
   const [plateNumber, setPlateNumber] = useState("");
@@ -45,36 +48,46 @@ export default function VehiclePage() {
   const [lastServiceDate, setLastServiceDate] = useState<string>("");
   const [currentMileage, setCurrentMileage] = useState<number>(0);
 
-  const [loading, setLoading] = useState<boolean>(!!isEdit);
+  const [loadingPrefill, setLoadingPrefill] = useState<boolean>(!!isEdit);
   const [saving, setSaving] = useState(false);
 
-  // Load vehicle if editing
+  // Prefill when editing
   useEffect(() => {
-    if (!isEdit) return;
+    let cancelled = false;
     (async () => {
+      if (!editId) return;
+      setLoadingPrefill(true);
       try {
-        setLoading(true);
-        const v: Vehicle = await getVehicle(id!);
-        setPlateNumber(v.plateNumber ?? "");
-        setMake(v.make ?? "");
-        setModel(v.model ?? "");
-        setYear(v.year ?? new Date().getFullYear());
-        setColor(v.color ?? "");
-        setVin(v.vin ?? "");
-        setAssignedDriver((v.assignedDriver as any) ?? "");
-        setStatus((v.status as VehicleStatus) ?? "active");
-        setRoute((v.route as RouteType) ?? "local");
-        setDatePurchased(v.datePurchased ?? "");
-        setLastServiceDate(v.lastServiceDate ?? "");
-        setCurrentMileage(v.currentMileage ?? 0);
+        const v: Vehicle = await getVehicle(editId);
+        if (cancelled) return;
+        hydrateForm(v);
       } catch (e: any) {
         toast.error(e?.message ?? "Failed to load vehicle");
         navigate("/vehicles");
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoadingPrefill(false);
       }
     })();
-  }, [id, isEdit, navigate]);
+    return () => {
+      cancelled = true;
+    };
+  }, [editId, navigate]);
+
+  const hydrateForm = (v: Vehicle) => {
+    setPlateNumber(v.plateNumber ?? "");
+    setMake(v.make ?? "");
+    setModel(v.model ?? "");
+    setYear(v.year ?? new Date().getFullYear());
+    setColor(v.color ?? "");
+    setVin(v.vin ?? "");
+    setAssignedDriver((v.assignedDriver as any) ?? "");
+    setStatus((v.status as VehicleStatus) ?? "active");
+    setRoute((v.route as RouteType) ?? "local");
+    // ensure "YYYY-MM-DD" for date inputs
+setDatePurchased(toDateInputValue(v.datePurchased));
+setLastServiceDate(toDateInputValue(v.lastServiceDate));
+    setCurrentMileage(Number(v.currentMileage ?? 0));
+  };
 
   const onSave = async () => {
     const missing: string[] = [];
@@ -101,7 +114,7 @@ export default function VehiclePage() {
         vin,
         assignedDriver: assignedDriver || "",
         status,
-        datePurchased,                 // ISO date (YYYY-MM-DD)
+        datePurchased, // "YYYY-MM-DD"
         route,
         lastServiceDate: lastServiceDate || undefined,
         currentMileage: Number(currentMileage || 0),
@@ -109,7 +122,7 @@ export default function VehiclePage() {
 
       if (isEdit) {
         const patch: VehicleUpdateDTO = payload;
-        await updateVehicle(id!, patch);
+        await updateVehicle(editId!, patch);
         toast.success("Vehicle updated");
       } else {
         await addVehicle(payload);
@@ -136,9 +149,10 @@ export default function VehiclePage() {
           <CardTitle>{isEdit ? "Edit Vehicle" : "Add Vehicle"}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
-          {loading ? (
-            <div className="flex justify-center py-16">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          {loadingPrefill ? (
+            <div className="flex justify-center py-16 text-sm text-muted-foreground">
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Loading vehicle…
             </div>
           ) : (
             <>

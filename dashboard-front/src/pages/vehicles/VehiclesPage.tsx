@@ -1,57 +1,28 @@
 import { useEffect, useMemo, useState } from "react";
-import {
-  getVehicles,
-
-  deleteVehicle,
-} from "@/api/vehicles";
+import { getVehicles, deleteVehicle } from "@/api/vehicles";
 import { useNavigate } from "react-router-dom";
-import type {Vehicle,
-
-} from '@/types/types'
+import type { Vehicle } from "@/types/types";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-
-
-import { Loader2, Pencil, Plus, Trash2, Search } from "lucide-react";
+import { Loader2, Plus, Search } from "lucide-react";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
+import { cn} from "@/lib/utils";
 
-
-
+import { VehiclesListTable } from "./components/VehiclesListTable"
 
 export default function VehiclesPage() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-
-  // add/edit modal
-  const [modalOpen, setModalOpen] = useState(false);
-  const [editing, setEditing] = useState<Vehicle | null>(null);
-  const navigate = useNavigate();
-
-  // delete confirm
   const [deleteId, setDeleteId] = useState<string | null>(null);
+
+  const navigate = useNavigate();
 
   useEffect(() => {
     (async () => {
@@ -85,15 +56,6 @@ export default function VehiclesPage() {
     );
   }, [vehicles, search]);
 
-
-
-  const onEdit = (vehicle: Vehicle) => {
-    setEditing(vehicle);
-    setModalOpen(true);
-  };
-
-  const onDelete = (id: string) => setDeleteId(id);
-
   const confirmDelete = async () => {
     if (!deleteId) return;
     try {
@@ -122,10 +84,10 @@ export default function VehiclesPage() {
                 onChange={(e) => setSearch(e.target.value)}
               />
             </div>
-         <Button onClick={() => navigate("/vehicles/add")}>
-  <Plus className="h-4 w-4 mr-2" />
-  Add vehicle
-</Button>
+            <Button onClick={() => navigate("/vehicles/add")}>
+              <Plus className="h-4 w-4 mr-2" />
+              Add vehicle
+            </Button>
           </div>
         </CardHeader>
 
@@ -139,75 +101,18 @@ export default function VehiclesPage() {
               No vehicles found.
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Plate</TableHead>
-                  <TableHead>Make</TableHead>
-                  <TableHead>Model</TableHead>
-                  <TableHead>Year</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Route</TableHead>
-                  <TableHead>Mileage</TableHead>
-                  <TableHead className="w-32 text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filtered.map((v) => (
-                  <TableRow key={v.id}>
-                    <TableCell className="font-medium">{v.plateNumber}</TableCell>
-                    <TableCell>{v.make}</TableCell>
-                    <TableCell>{v.model}</TableCell>
-                    <TableCell>{v.year}</TableCell>
-                    <TableCell
-                      className={cn(
-                        "capitalize",
-                        v.status === "active"
-                          ? "text-emerald-600"
-                          : v.status === "maintenance"
-                          ? "text-amber-600"
-                          : v.status === "retired"
-                          ? "text-gray-500"
-                          : "text-muted-foreground"
-                      )}
-                    >
-                      {v.status}
-                    </TableCell>
-                    <TableCell className="capitalize">{v.route}</TableCell>
-                    <TableCell>
-                      {v.currentMileage?.toLocaleString?.() ?? v.currentMileage}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        onClick={() => onEdit(v)}
-                        aria-label="Edit"
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="text-red-600 hover:text-red-700"
-                        onClick={() => onDelete(v.id!)}
-                        aria-label="Delete"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+            <VehiclesListTable
+              vehicles={filtered}
+              cn={cn}
+              onEdit={(vehicle) => navigate(`/vehicles/add?id=${vehicle.id}`)}
+              onDelete={(id) => setDeleteId(id)}
+            />
           )}
         </CardContent>
       </Card>
 
-
-
       <AlertDialog open={!!deleteId} onOpenChange={(o) => !o && setDeleteId(null)}>
-        <AlertDialogContent  className="sm:max-w-3xl rounded-xl border bg-card text-card-foreground dark:text-card-foreground text-white shadow-2xl overflow-y-auto">
+        <AlertDialogContent className="sm:max-w-3xl rounded-xl border bg-card text-card-foreground shadow-2xl overflow-y-auto">
           <AlertDialogHeader>
             <AlertDialogTitle>Delete this vehicle?</AlertDialogTitle>
           </AlertDialogHeader>
@@ -228,4 +133,3 @@ export default function VehiclesPage() {
     </div>
   );
 }
-
