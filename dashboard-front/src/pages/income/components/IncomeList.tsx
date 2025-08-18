@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, Search, Pencil, Trash2 } from "lucide-react";
+import { Loader2, Search, Pencil } from "lucide-react";
 import { toDateInputValue } from "@/lib/utils";
 
 /** Shared shape for income rows */
@@ -134,16 +134,7 @@ export function IncomeList({ items, loading = false, onDelete, currency = "USD" 
                     >
                       <Pencil className="h-4 w-4" />
                     </Button>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="text-red-600 hover:text-red-700"
-                      onClick={() => handleDelete(row)}
-                      aria-label="Delete"
-                      disabled={!hasId}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                 
                   </TableCell>
                 </TableRow>
               );
