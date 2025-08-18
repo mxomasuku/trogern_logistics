@@ -21,17 +21,17 @@ export interface Vehicle {
   make: string;
   model: string;
   year: number;
-  color?: string;
-  vin?: string;
+  color: string;
+  vin: string;
   assignedDriver?: string | null;
-  status?: VehicleStatus;
+  status: VehicleStatus;
 
   datePurchased: FirebaseFirestore.Timestamp;
-  route: RouteType;
+  route?: RouteType;
   lastServiceDate?: FirebaseFirestore.Timestamp;
   currentMileage: number;
 
-  createdAt?: FirebaseFirestore.Timestamp;
+  createdAt: FirebaseFirestore.Timestamp;
   updatedAt?: FirebaseFirestore.Timestamp;
 }
 

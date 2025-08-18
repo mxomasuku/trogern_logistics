@@ -161,8 +161,7 @@ function toVehicleUpdate(
 
 // ---------- Serialization ----------
 
-const tsToIso = (t?: FirebaseFirestore.Timestamp) =>
-  (t ? t.toDate().toISOString() : undefined);
+
 
 const vehicleDocToJson = (doc: FirebaseFirestore.DocumentSnapshot) => {
   const data = doc.data() as Vehicle | undefined;
@@ -178,12 +177,12 @@ const vehicleDocToJson = (doc: FirebaseFirestore.DocumentSnapshot) => {
     vin: data.vin ?? '',
     assignedDriver: data.assignedDriver ?? null,
     status: data.status ?? 'active',
-    datePurchased: tsToIso(data.datePurchased),
+    datePurchased: data.datePurchased,
     route: data.route,
-    lastServiceDate: tsToIso(data.lastServiceDate),
+    lastServiceDate: data.lastServiceDate,
     currentMileage: data.currentMileage,
-    createdAt: tsToIso(data.createdAt),
-    updatedAt: tsToIso(data.updatedAt),
+    createdAt: data.createdAt,
+    updatedAt: data.updatedAt,
   };
 };
 
