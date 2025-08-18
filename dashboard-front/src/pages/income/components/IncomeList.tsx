@@ -1,7 +1,10 @@
 import { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, Search } from "lucide-react";
+import { Loader2, Search, Pencil, Trash2 } from "lucide-react";
+import { toDateInputValue } from "@/lib/utils";
 
 /** Shared shape for income rows */
 export interface IncomeLog {
@@ -18,13 +21,15 @@ export interface IncomeLog {
 type Props = {
   items: IncomeLog[];
   loading?: boolean;
-  onRowClick?: (row: IncomeLog) => void;
+  /** Called when user clicks delete on a row (provide the id). */
+  onDelete?: (id: string) => void;
   /** ISO 4217 code; display only */
   currency?: string;
 };
 
-export function IncomeList({ items, loading = false, onRowClick, currency = "USD" }: Props) {
+export function IncomeList({ items, loading = false, onDelete, currency = "USD" }: Props) {
   const [search, setSearch] = useState("");
+  const navigate = useNavigate();
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -43,6 +48,16 @@ export function IncomeList({ items, loading = false, onRowClick, currency = "USD
         .some((v) => String(v).toLowerCase().includes(q))
     );
   }, [items, search]);
+
+  const handleEdit = (row: IncomeLog) => {
+    if (!row.id) return;
+    navigate(`/income/add?id=${row.id}`);
+  };
+
+  const handleDelete = (row: IncomeLog) => {
+    if (!row.id) return;
+    onDelete?.(row.id);
+  };
 
   return (
     <div>
@@ -79,38 +94,60 @@ export function IncomeList({ items, loading = false, onRowClick, currency = "USD
               <TableHead>Vehicle</TableHead>
               <TableHead>Driver</TableHead>
               <TableHead>Note</TableHead>
+              <TableHead className="w-28 text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filtered.map((row) => (
-              <TableRow
-                key={row.id ?? row.createdAt ?? row.cashDate}
-                onClick={() => onRowClick?.(row)}
-                className={onRowClick ? "cursor-pointer hover:bg-accent/50" : ""}
-              >
-                <TableCell>
-                  {row.createdAt ? new Date(row.createdAt).toLocaleString() : "-"}
-                </TableCell>
-                <TableCell>
-                  {row.cashDate ? new Date(row.cashDate).toLocaleDateString() : "-"}
-                </TableCell>
-                <TableCell className="text-right">
-                  {Number(row.amount).toLocaleString(undefined, { style: "currency", currency })}
-                </TableCell>
-                <TableCell className="text-right">
-                  {Number(row.weekEndingMileage).toLocaleString()}
-                </TableCell>
-                <TableCell className="truncate max-w-[160px]" title={row.vehicle}>
-                  {row.vehicle}
-                </TableCell>
-                <TableCell className="truncate max-w-[160px]" title={row.driver}>
-                  {row.driver}
-                </TableCell>
-                <TableCell className="truncate max-w-[280px]" title={row.note}>
-                  {row.note || "-"}
-                </TableCell>
-              </TableRow>
-            ))}
+            {filtered.map((row) => {
+              const hasId = !!row.id;
+              return (
+                <TableRow key={row.id ?? `${row.createdAt}-${row.cashDate}`}>
+                 <TableCell>
+  {row.createdAt ? new Date(toDateInputValue(row.createdAt)).toLocaleDateString() : "-"}
+</TableCell>
+                  <TableCell>
+                    {row.cashDate ? new Date(row.cashDate).toLocaleDateString() : "-"}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    {Number(row.amount).toLocaleString(undefined, { style: "currency", currency })}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    {Number(row.weekEndingMileage).toLocaleString()}
+                  </TableCell>
+                  <TableCell className="truncate max-w-[160px]" title={row.vehicle}>
+                    {row.vehicle}
+                  </TableCell>
+                  <TableCell className="truncate max-w-[160px]" title={row.driver}>
+                    {row.driver}
+                  </TableCell>
+                  <TableCell className="truncate max-w-[280px]" title={row.note}>
+                    {row.note || "-"}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      onClick={() => handleEdit(row)}
+                      aria-label="Edit"
+                      disabled={!hasId}
+                      className="mr-1"
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="text-red-600 hover:text-red-700"
+                      onClick={() => handleDelete(row)}
+                      aria-label="Delete"
+                      disabled={!hasId}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
           </TableBody>
         </Table>
       )}
