@@ -25,7 +25,7 @@ export async function addDriver(payload: NewDriver): Promise<Driver> {
 }
 
 export async function updateDriver(id: string, patch: Partial<NewDriver>): Promise<Driver> {
-  const { data } = await http.put<ApiResponse<Driver>>(`/api/v1/drivers/${id}`, patch);
+  const { data } = await http.put<ApiResponse<Driver>>(`/api/v1/drivers/update/${id}`, patch);
   if (!data?.isSuccessful) throw new Error(data?.error?.message ?? "Failed to update driver");
   return data.data!;
 }
