@@ -31,7 +31,7 @@ export async function updateDriver(id: string, patch: Partial<NewDriver>): Promi
 }
 
 export async function deleteDriver(id: string): Promise<void> {
-  const { data } = await http.delete<ApiResponse>(`/api/v1/drivers/${id}`);
+  const { data } = await http.delete<ApiResponse>(`/api/v1/drivers/delete/${id}`);
   if (!data?.isSuccessful) throw new Error(data?.error?.message ?? "Failed to delete driver");
 }
 
