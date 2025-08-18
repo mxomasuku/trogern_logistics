@@ -264,3 +264,44 @@ export const getIncomeLogs = async (req: Request, res: Response) => {
       );
   }
 };
+
+export const getIncomeLogById = async (
+  req: Request<{ id: string }>,
+  res: Response
+) => {
+  try {
+    const { id } = req.params;
+    if (!id) {
+      return res
+        .status(400)
+        .json(failure("VALIDATION_ERROR", "id is required"));
+    }
+
+    const doc = await incomeRef.doc(id).get();
+    if (!doc.exists) {
+      return res
+        .status(404)
+        .json(failure("NOT_FOUND", "Income log not found", { id }));
+    }
+
+    const data = doc.data() as any;
+
+    const result = {
+      id: doc.id,
+      amount: Number(data?.amount ?? 0),
+      weekEndingMileage: Number(data?.weekEndingMileage ?? 0),
+      vehicle: data?.vehicle ?? "",
+      driver: data?.driver ?? "",
+      note: data?.note ?? "",
+      createdAt: data?.createdAt,
+      cashDate: data.cashDate,
+    };
+
+    return res.status(200).json(success(result));
+  } catch (error: any) {
+    console.error("Error fetching income log by id:", error);
+    return res
+      .status(500)
+      .json(failure("SERVER_ERROR", "Failed to fetch income log", error?.message));
+  }
+};

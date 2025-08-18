@@ -31,6 +31,13 @@ export async function listIncomeLogs(): Promise<IncomeLog[]> {
   if (!data?.isSuccessful) throw new Error(data?.error?.message ?? "Failed to fetch income logs");
   return data.data!;
 }
+
+export async function getIncomeLogById(incomeId: string): Promise<IncomeLog> {
+  const { data } = await http.get<ApiResponse<IncomeLog>>(`/api/v1/income/get/${incomeId}`);
+  if (!data?.isSuccessful) throw new Error(data?.error?.message ?? "Failed to fetch income logs");
+  return data.data!;
+}
+
 export async function updateIncomeLog(
   id: string,
   patch: Partial<Omit<IncomeLog, "id" | "timestamp">> & { timestamp?: string }
