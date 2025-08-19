@@ -4,6 +4,7 @@ import {
 } from "@/components/ui/table";
 import { Pencil, Trash2 } from "lucide-react";
 import type { Driver } from "@/types/types";
+import { useNavigate } from "react-router-dom";
 
 
 type DriverTableProps = {
@@ -14,6 +15,8 @@ type DriverTableProps = {
 };
 
 export function DriverTable({ drivers, onEdit, onDelete, cn }: DriverTableProps) {
+
+    const navigate = useNavigate();
   const cx = cn ?? ((...args: any[]) => args.filter(Boolean).join(" "));
 
   return (
@@ -31,7 +34,7 @@ export function DriverTable({ drivers, onEdit, onDelete, cn }: DriverTableProps)
       </TableHeader>
       <TableBody>
         {drivers.map((d) => (
-          <TableRow key={d.id}>
+          <TableRow key={d.id}   onClick={() => navigate(`/drivers/profile?id=${d.id}`)}>
             <TableCell className="font-medium">{d.name}</TableCell>
             <TableCell>{d.contact}</TableCell>
             <TableCell>{d.licenseNumber}</TableCell>

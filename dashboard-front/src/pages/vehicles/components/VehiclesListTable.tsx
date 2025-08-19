@@ -4,6 +4,7 @@ import {
 } from "@/components/ui/table";
 import { Pencil, Trash2 } from "lucide-react";
 import type { Vehicle } from "@/types/types";
+import { useNavigate } from "react-router-dom";
 
 type VehiclesTableProps = {
   vehicles: Vehicle[];
@@ -13,6 +14,8 @@ type VehiclesTableProps = {
 };
 
 export function VehiclesListTable({ vehicles, onEdit, onDelete, cn }: VehiclesTableProps) {
+ 
+ const navigate = useNavigate()
   const cx = cn ?? ((...args: any[]) => args.filter(Boolean).join(" "));
 
   return (
@@ -31,7 +34,7 @@ export function VehiclesListTable({ vehicles, onEdit, onDelete, cn }: VehiclesTa
       </TableHeader>
       <TableBody>
         {vehicles.map((vehicle) => (
-          <TableRow key={vehicle.id}>
+          <TableRow key={vehicle.id} onClick={() => navigate(`/vehicles/profile?id=${vehicle.id}`)}>
             <TableCell className="font-medium">{vehicle.plateNumber}</TableCell>
             <TableCell>{vehicle.make}</TableCell>
             <TableCell>{vehicle.model}</TableCell>
