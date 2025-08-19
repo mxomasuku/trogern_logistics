@@ -12,6 +12,8 @@ import AddDriver from "../pages/drivers/pages/AddDriver";
 import AddIncomePage from "@/pages/income/pages/AddIncomePage";
 import AddVehicle from "@/pages/vehicles/pages/AddVehicle"
 import AddServicePage from "@/pages/service/page/AddService";
+import DriverProfile from "@/pages/drivers/pages/DriverProfile";
+import VehicleProfile from "@/pages/vehicles/pages/VehicleProfile";
 
 export default function AppRoutes() {
   return (
@@ -21,10 +23,11 @@ export default function AppRoutes() {
         <Route path="home" element={<Protected><Home /></Protected>} />
         <Route path="drivers" element={<Protected><DriversPage /></Protected>} />
         <Route path="drivers/add" element={<Protected><AddDriver /></Protected>} /> 
-
+<Route path="/drivers/profile" element={<DriverProfile />} />
 
         <Route path="vehicles" element={<Protected><VehiclesPage /></Protected>}/>
               <Route path="vehicles/add" element={<Protected><AddVehicle /></Protected>}/>
+              <Route path="/vehicles/profile" element={<VehicleProfile />} />
         <Route path="service" element={<Protected><ServicePage /></Protected>} />
         <Route path="/service/add" element={<AddServicePage />} />
 <Route path="income" element={<Protected><IncomePage/></Protected>} />
