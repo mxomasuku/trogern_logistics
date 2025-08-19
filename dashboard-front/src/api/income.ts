@@ -52,3 +52,14 @@ export async function updateIncomeLog(
   return data.data!;
 }
 
+export async function getIncomeLogsForVehicle(vehicleId: string): Promise<IncomeLog[]> {
+const {data} = await http.get<ApiResponse<IncomeLog[]>>(
+  `api/v1/income/${vehicleId}`
+)
+
+if(!data?.isSuccessful) {
+throw new Error(data?.error?.message ?? "Failed to get income logs")
+}
+return data.data!
+}
+

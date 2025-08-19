@@ -89,3 +89,24 @@ export interface ServiceRecordDTO {
   }>;
   notes?: string;
 }
+
+export interface Driver {
+  name: string;
+  licenseNumber: string;
+  nationalId: string;
+  contact: string;
+  email?: string;
+  address?: string;
+  dob: string; 
+  gender: 'Male' | 'Female' | 'Other';
+  status: 'active' | 'inactive' | 'suspended';
+  experienceYears?: number;
+  assignedVehicleId: string | null;
+  nextOfKin: {
+    name: string;
+    relationship?: string;
+    phone: string;
+  };
+  emergencyContact: string;
+  isActive?: boolean; // optional toggle
+}

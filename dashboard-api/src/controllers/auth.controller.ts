@@ -1,7 +1,6 @@
 import { Request, Response } from 'express';
 import { signInWithEmailAndPassword } from '../utils/emulated-auth';
 const { admin } = require('../config/firebase');
-// src/controllers/auth.controller.ts
 
 
 export async function loginUser(req: Request, res: Response) {
