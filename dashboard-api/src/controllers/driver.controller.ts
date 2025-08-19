@@ -2,32 +2,12 @@ import { Request, Response } from 'express';
 const { db } = require('../config/firebase');
 import type { QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import { success, failure } from '../utils/apiResponse';
-
-// Firestore collection ref
+import { Driver } from '../interfaces/interfaces';
 const driversRef = db.collection('drivers');
 
-export interface Driver {
-  name: string;
-  licenseNumber: string;
-  nationalId: string;
-  contact: string;
-  email?: string;
-  address?: string;
-  dob: string; // ISO date
-  gender: 'Male' | 'Female' | 'Other';
-  status: 'active' | 'inactive' | 'suspended';
-  experienceYears?: number;
-  assignedVehicleId: string | null;
-  nextOfKin: {
-    name: string;
-    relationship?: string;
-    phone: string;
-  };
-  emergencyContact: string;
-  isActive?: boolean; // optional toggle
-}
 
-// GET /drivers
+
+
 export const getAllDrivers = async (_req: Request, res: Response) => {
   try {
     const snapshot = await driversRef.get();
@@ -45,7 +25,6 @@ export const getAllDrivers = async (_req: Request, res: Response) => {
   }
 };
 
-// GET /drivers/:id
 export const getDriverById = async (req: Request, res: Response) => {
   const { id } = req.params;
 
@@ -67,7 +46,7 @@ export const getDriverById = async (req: Request, res: Response) => {
   }
 };
 
-// POST /drivers/add
+
 export const addDriver = async (
   req: Request<{}, {}, Driver>,
   res: Response
@@ -176,7 +155,6 @@ export const addDriver = async (
 };
 
 
-// PUT /drivers/:id
 export const updateDriver = async (req: Request, res: Response) => {
   const { id } = req.params;
   const patch = { ...req.body, updatedAt: new Date().toISOString() };
@@ -192,7 +170,7 @@ export const updateDriver = async (req: Request, res: Response) => {
   }
 };
 
-// DELETE /drivers/:id
+
 export const deleteDriver = async (req: Request, res: Response) => {
   const { id } = req.params;
 
