@@ -27,7 +27,7 @@ type Props = {
   currency?: string;
 };
 
-export function IncomeList({ items, loading = false, onDelete, currency = "USD" }: Props) {
+export function IncomeList({ items, loading = false, currency = "USD" }: Props) {
   const [search, setSearch] = useState("");
   const navigate = useNavigate();
 
@@ -54,10 +54,10 @@ export function IncomeList({ items, loading = false, onDelete, currency = "USD" 
     navigate(`/income/add?id=${row.id}`);
   };
 
-  const handleDelete = (row: IncomeLog) => {
-    if (!row.id) return;
-    onDelete?.(row.id);
-  };
+  // const handleDelete = (row: IncomeLog) => {
+  //   if (!row.id) return;
+  //   onDelete?.(row.id);
+  // };
 
   return (
     <div>
