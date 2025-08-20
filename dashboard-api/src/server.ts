@@ -25,6 +25,9 @@ dotenv.config({
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+let isReady = false;
+let server: ReturnType<typeof app.listen> | undefined;
+
 // In prod behind a proxy (Cloud Run / Nginx), trust proxy so secure cookies work
 if (process.env.NODE_ENV === 'production') {
   app.set('trust proxy', 1);
@@ -70,10 +73,14 @@ app.use(verifySession);
 app.use('/api/v1/drivers', verifySessionCookie, driverRoutes);
 app.use('/api/v1/vehicles', verifySessionCookie, vehicleRoutes);
 app.use('/api/v1/income', verifySessionCookie, incomeRoutes);
-app.use('/api/v1/service', verifySessionCookie, serviceRoutes)
+app.use('/api/v1/service', verifySessionCookie, serviceRoutes);
 
-// ---- Healthcheck ----
-app.get('/ping', (_req: Request, res: Response) => res.send('pong'));
+// ---- Healthchecks (must be BEFORE 404) ----
+app.get('/healthz', (_req: Request, res: Response) => res.status(200).send('ok'));
+app.get('/readyz', (_req: Request, res: Response) => {
+  if (!isReady) return res.status(503).send('not-ready');
+  return res.status(200).send('ready');
+});
 
 // ---- 404 ----
 app.use((_req, res) => res.status(404).json({ error: 'Route not found' }));
@@ -86,8 +93,35 @@ app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
   });
 });
 
-// ---- Start ----
-app.listen(PORT, () => {
-  console.log(`🚕 Dashboard API running on http://localhost:${PORT}`);
-  console.log(`CORS allowlist: ${ORIGINS.join(', ')}`);
-});
+async function start() {
+  try {
+    // (Optional) await init dependencies here, e.g. Firestore/Redis…
+
+    server = app.listen(PORT, () => {
+      console.log(`🚕 Dashboard API running on http://localhost:${PORT}`);
+      console.log(`CORS allowlist: ${ORIGINS.join(', ')}`);
+      // Mark ready only after we’re listening and deps are ok
+      isReady = true;
+    });
+
+    const shutdown = (signal: string) => async () => {
+      console.log(`[${signal}] shutting down…`);
+      isReady = false;
+      // (Optional) await close dependencies here
+      server?.close(() => {
+        process.exit(0);
+      });
+      // safety net
+      setTimeout(() => process.exit(1), 10_000).unref();
+    };
+    process.on('SIGTERM', shutdown('SIGTERM'));
+    process.on('SIGINT', shutdown('SIGINT'));
+  } catch (error) {
+    console.error('startup error', error);
+    process.exit(1);
+  }
+}
+
+start();
+
+export default app;
