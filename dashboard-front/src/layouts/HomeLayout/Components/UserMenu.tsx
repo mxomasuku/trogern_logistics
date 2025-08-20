@@ -2,16 +2,15 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
-import { Settings, Moon, Sun, User } from "lucide-react";
-import { getInitialDark, setDark } from "@/lib/theme";
+import { Settings, User } from "lucide-react";
+import { getInitialDark } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 import { DarkModeToggle } from "./dark-mode-toggle";
 
 export default function UserMenu() {
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
-  const [isDark, setIsDark] = useState<boolean>(getInitialDark());
+  const [isDark, setDark] = useState<boolean>(getInitialDark());
   const rootRef = useRef<HTMLDivElement | null>(null);
   const btnRef = useRef<HTMLButtonElement | null>(null);
 

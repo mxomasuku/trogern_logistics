@@ -56,16 +56,16 @@ export default function IncomePage() {
   }, []);
 
   // open edit modal with row values
-  const openEdit = (row: IncomeLog) => {
-    setEditing(row);
-    setEAmount(String(row.amount ?? ""));
-    setEMileage(String(row.weekEndingMileage ?? ""));
-    setEVehicle(row.vehicle ?? "");
-    setEDriver(row.driver ?? "");
-    setECashDate(row.cashDate ? row.cashDate.slice(0, 10) : "");
-    setENote(row.note ?? "");
-    setEditOpen(true);
-  };
+  // const openEdit = (row: IncomeLog) => {
+  //   setEditing(row);
+  //   setEAmount(String(row.amount ?? ""));
+  //   setEMileage(String(row.weekEndingMileage ?? ""));
+  //   setEVehicle(row.vehicle ?? "");
+  //   setEDriver(row.driver ?? "");
+  //   setECashDate(row.cashDate ? row.cashDate.slice(0, 10) : "");
+  //   setENote(row.note ?? "");
+  //   setEditOpen(true);
+  // };
 
   const onSubmitEdit = async () => {
     if (!editing?.id) {
@@ -149,7 +149,7 @@ export default function IncomePage() {
             <IncomeList
               items={items}
               loading={loading}
-              onRowClick={openEdit}
+              // onRowClick={openEdit}
               currency="USD"
             />
           </CardContent>
