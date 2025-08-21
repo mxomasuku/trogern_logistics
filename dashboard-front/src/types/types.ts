@@ -43,6 +43,7 @@ export interface Vehicle {
   datePurchased: string;        // ISO in client
   route: RouteType;
   lastServiceDate?: string;     // ISO
+  deliveryMileage: string;
   currentMileage: number;
   createdAt?: string;
   updatedAt?: string;

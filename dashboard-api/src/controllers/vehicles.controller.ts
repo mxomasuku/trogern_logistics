@@ -189,6 +189,7 @@ const vehicleDocToJson = (doc: FirebaseFirestore.DocumentSnapshot) => {
     datePurchased: data.datePurchased,
     route: data.route,
     lastServiceDate: data.lastServiceDate,
+    deliveryMileage: data.deliveryMileage,
     currentMileage: data.currentMileage,
     createdAt: data.createdAt,
     updatedAt: data.updatedAt,
