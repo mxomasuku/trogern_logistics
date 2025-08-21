@@ -105,7 +105,6 @@ export default function VehicleProfile() {
 
     let weeklyKm = 0;
     if (sorted.length >= 2) {
-      // take last two points
       const last = sorted[sorted.length - 1].weekEndingMileage || 0;
       const prev = sorted[sorted.length - 2].weekEndingMileage || 0;
       weeklyKm = Math.max(0, Number(last) - Number(prev));
@@ -117,14 +116,21 @@ export default function VehicleProfile() {
       .filter((t) => t > 0)
       .sort((a, b) => b - a)[0];
 
+    // distance travelled since delivery
+    const distanceTravelled =
+      vehicle?.currentMileage != null && vehicle?.deliveryMileage != null
+        ? Math.max(0, Number(vehicle.currentMileage) - Number(vehicle.deliveryMileage))
+        : 0;
+
     return {
       thisMonthIncome,
       weeklyKm,
       lastServiceDate: lastService ? new Date(lastService) : null,
       serviceCount: serviceRecords.length,
       incomeCount: incomeLogs.length,
+      distanceTravelled,
     };
-  }, [incomeLogs, serviceRecords]);
+  }, [incomeLogs, serviceRecords, vehicle]);
 
   // ---------- filtered detail views ----------
   const filteredService = useMemo(() => {
@@ -215,7 +221,7 @@ export default function VehicleProfile() {
           <Kpi label="Assigned driver" value={vehicle.assignedDriver || "—"} />
           <Kpi
             label="Weekly km (est.)"
-            value={kpis.weeklyKm.toLocaleString()}
+            value={`${kpis.weeklyKm.toLocaleString()} km`}
             hint="Based on last two income logs"
           />
           <Kpi
@@ -228,7 +234,8 @@ export default function VehicleProfile() {
           />
           <Kpi label="Service records" value={kpis.serviceCount} />
           <Kpi label="Income logs" value={kpis.incomeCount} />
-          <Kpi label="Current mileage" value={vehicle.currentMileage?.toLocaleString?.() ?? "—"} />
+          <Kpi label="Current mileage" value={`${vehicle.currentMileage?.toLocaleString?.() ?? "—"} km`} />
+          <Kpi label="Distance travelled" value={`${kpis.distanceTravelled.toLocaleString()} km`} />
           <Kpi label="Route" value={vehicle.route || "—"} />
         </CardContent>
       </Card>
@@ -313,7 +320,7 @@ export default function VehicleProfile() {
                       {Number(row.amount).toLocaleString(undefined, { style: "currency", currency: "USD" })}
                     </TableCell>
                     <TableCell className="text-right">
-                      {Number(row.weekEndingMileage).toLocaleString()}
+                      {Number(row.weekEndingMileage).toLocaleString()} km
                     </TableCell>
                     <TableCell className="truncate max-w-[360px]" title={row.note}>
                       {row.note || "—"}
@@ -330,7 +337,6 @@ export default function VehicleProfile() {
 }
 
 /* ---------- small UI bits ---------- */
-
 function Kpi({ label, value, hint }: { label: string; value: React.ReactNode; hint?: string }) {
   return (
     <div className="rounded-lg border p-3">
