@@ -45,6 +45,7 @@ function toVehicle(
   const make = (dto.make || '').trim();
   const model = (dto.model || '').trim();
   const year = Number(dto.year);
+  const deliveryMileage = Number(dto.deliveryMileage)
   const currentMileage = Number(dto.currentMileage);
   const color = (dto.color ?? '').trim();
   const vin = (dto.vin ?? '').trim();
@@ -79,6 +80,7 @@ function toVehicle(
     datePurchased: datePurchased!,
     route,
     lastServiceDate,
+    deliveryMileage,
     currentMileage,
     createdAt: nowTs(),
     updatedAt: nowTs(),
@@ -150,6 +152,13 @@ function toVehicleUpdate(
     if (!Number.isFinite(currentMileage) || currentMileage < 0)
       errors.push('currentMileage (non-negative number)');
     else update.currentMileage = currentMileage;
+  }
+
+  if ('deliveryMileage' in dto) {
+    const deliveryMileage = Number(dto.deliveryMileage);
+    if(!Number.isFinite(deliveryMileage) || deliveryMileage < 0)
+      errors.push('deliveryMileage (non-negative number)');
+    else update.deliveryMileage = deliveryMileage;
   }
 
   if (errors.length) return { ok: false, errors };

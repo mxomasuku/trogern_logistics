@@ -29,6 +29,7 @@ export interface Vehicle {
   datePurchased: FirebaseFirestore.Timestamp;
   route?: RouteType;
   lastServiceDate?: FirebaseFirestore.Timestamp;
+  deliveryMileage: number;
   currentMileage: number;
 
   createdAt: FirebaseFirestore.Timestamp;
@@ -48,6 +49,7 @@ export interface VehicleCreateDTO {
   datePurchased: string;        // ISO string
   route: RouteType;
   lastServiceDate?: string;     // ISO string
+  deliveryMileage: number;
   currentMileage: number | string;
 }
 
