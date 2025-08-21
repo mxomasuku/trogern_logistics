@@ -26,7 +26,7 @@ type Action = {
 const ACTIONS: Action[] = [
   { title: "Add Driver",     description: "Create a new driver profile", icon: UserPlus,     to: "/drivers/add" },
   { title: "View Vehicle List", description: "View all vehicles",      icon: CarFront,     to: "/vehicles" },
-  { title: "Add Revenue",    description: "Record daily/weekly income",  icon: DollarSign,   to: "/income/new" },
+  { title: "Add Revenue",    description: "Record daily/weekly income",  icon: DollarSign,   to: "/income/add" },
   { title: "Log Service",    description: "Oil, filters, tires, etc.",   icon: Wrench,       to: "/service/add" },
   // { title: "Log Breakdown",  description: "Tow, faults, downtime",       icon: AlertTriangle,to: "/breakdowns/new", variant: "secondary" },
   // { title: "Log Arrest",     description: "ZRP/Zinara, fines & details", icon: ShieldAlert,  to: "/incidents/arrest/new", variant: "secondary" },
