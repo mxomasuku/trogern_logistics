@@ -10,7 +10,6 @@
     "prod": "cross-env NODE_ENV=production node dist/server.js",
     "dev": "NODE_OPTIONS='--max-http-header-size=16384' ts-node src/server.ts",
     "emulators": "firebase emulators:start --only firestore,auth,storage --import=./.emulator-data --export-on-exit",
-  
     "serve-local-dev": "npm run start export FIRESTORE_EMULATOR_HOST='127.0.0.1:8083' && export FIREBASE_AUTH_EMULATOR_HOST='127.0.0.1:9099' && export FIREBASE_STORAGE_EMULATOR_HOST='127.0.01:9199'"
   },
   "keywords": [],
