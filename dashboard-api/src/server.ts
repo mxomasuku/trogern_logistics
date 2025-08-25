@@ -36,6 +36,7 @@ if (process.env.NODE_ENV === 'production') {
 // ---- CORS (single mount; no wildcard paths) ----
 const ORIGINS = [
   'http://localhost:5173',
+   'https://localhost:5173',
   'http://127.0.0.1:5173',
   'https://trogern-logistics.web.app',
   'https://trogern-logistics.firebaseapp.com',
