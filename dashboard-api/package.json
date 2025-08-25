@@ -2,23 +2,22 @@
   "name": "dashboard-api",
   "version": "1.0.0",
   "description": "",
-  "main": "server.ts",
+  "private": true,
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "test": "jest",
-    "start": "nodemon src/server.ts",
     "build": "tsc -p tsconfig.json",
-    "gcp-build": "npm run build",   
-    "prod": "cross-env NODE_ENV=production node dist/server.js",
-    "dev": "NODE_OPTIONS='--max-http-header-size=16384' ts-node src/server.ts",
+    "gcp-build": "npm run build",
+    "start": "node dist/server.js",
+    "deploy": "bash ./scripts/deploy-api.sh",
+    "dev": "NODE_OPTIONS='--max-http-header-size=16384' nodemon --watch src --ext ts,js --exec ts-node src/server.ts",
     "set-emulators": "cross-env FIRESTORE_EMULATOR_HOST=127.0.0.1:8083 FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099",
-    "serve-local-dev": "npm run build && npm run set-emulators && npm run start",
-    "deploy": "bash ./scripts/deploy-api.sh"
+    "serve-local-dev": "npm run build && npm run set-emulators && npm run dev",
+    "prod": "cross-env NODE_ENV=production node dist/server.js"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
   "dependencies": {
-    "@types/axios": "^0.9.36",
     "axios": "^1.11.0",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
@@ -30,6 +29,7 @@
     "morgan": "^1.10.1"
   },
   "devDependencies": {
+    "@types/axios": "^0.9.36",
     "@types/cookie-parser": "^1.4.9",
     "@types/cors": "^2.8.19",
     "@types/express-rate-limit": "^5.1.3",
