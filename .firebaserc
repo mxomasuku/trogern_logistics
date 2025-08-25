@@ -1,5 +1,8 @@
 {
   "projects": {
-    "default": "trogern-logistics"
-  }
+    "default": "trogern-logistics",
+    "trogern-logistics": "trogern-logistics"
+  },
+  "targets": {},
+  "etags": {}
 }
