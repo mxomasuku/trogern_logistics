@@ -1,12 +1,15 @@
-// config.ts
-const apiBase =
-  import.meta.env.VITE_API_BASE_URL ??
-  import.meta.env.VITE_API_BASE ?? // optional fallback if you ever set this
-  '';
+// src/lib/config.ts
+export const API_BASE = (() => {
+  const raw =
+    (import.meta.env.VITE_API_BASE_URL as string | undefined) ??
+    (import.meta.env.VITE_API_BASE as string | undefined);
 
-if (!apiBase) {
-  // fail fast so you notice at build/test time
-  throw new Error('VITE_API_BASE_URL is not set');
-}
-
-export const API_BASE = String(apiBase).replace(/\/+$/, '');
+  if (!raw) {
+    // Optional: pick a safe default or loudly fail
+    console.warn(
+      'VITE_API_BASE_URL not set at build time; defaulting to window.location.origin'
+    );
+    return window.location.origin;
+  }
+  return raw.replace(/\/+$/, '');
+})();
