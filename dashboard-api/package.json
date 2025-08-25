@@ -12,6 +12,7 @@
     "gcp-build": "npm run build",
     "start": "node dist/server.js",
     "deploy": "bash ./scripts/deploy-api.sh",
+    "emulators": "firebase emulators:start --only firestore,auth,storage --import=./.emulator-data --export-on-exit",
     "dev": "NODE_OPTIONS='--max-http-header-size=16384' nodemon --watch src --ext ts,js --exec ts-node src/server.ts",
     "set-emulators": "cross-env FIRESTORE_EMULATOR_HOST=127.0.0.1:8083 FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099",
     "serve-local-dev": "npm run build && npm run set-emulators && npm run dev",
