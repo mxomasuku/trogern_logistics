@@ -48,15 +48,21 @@ export async function me(req: Request, res: Response) {
     const cookie = req.cookies?.session;
     if (!cookie) return res.status(401).json({ error: 'Unauthorized. No session cookie found.' });
 
-    const decoded = await admin.auth().verifySessionCookie(cookie, true);
-    const user = {
-      uid: decoded.uid,
-      email: decoded.email ?? null,
-      name: decoded.name ?? null,
-      picture: decoded.picture ?? null,
-    };
-    return res.status(200).json({ user });
-  } catch {
+    const checkRevoked =
+      process.env.NODE_ENV === 'production' &&
+      !process.env.FIREBASE_AUTH_EMULATOR_HOST;
+
+    const decoded = await admin.auth().verifySessionCookie(cookie, checkRevoked);
+
+    return res.status(200).json({
+      user: {
+        uid: decoded.uid,
+        email: decoded.email ?? null,
+        name: decoded.name ?? null,
+        picture: decoded.picture ?? null,
+      },
+    });
+  } catch (e) {
     return res.status(401).json({ error: 'Unauthorized or expired session' });
   }
 }
