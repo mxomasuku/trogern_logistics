@@ -47,7 +47,7 @@ export default function AddVehiclePage() {
   const [datePurchased, setDatePurchased] = useState<string>("");
   const [lastServiceDate, setLastServiceDate] = useState<string>("");
   const [currentMileage, setCurrentMileage] = useState<number>(0);
-
+const [deliveryMileage, setDeliveryMileage] = useState<number>(0)
   const [loadingPrefill, setLoadingPrefill] = useState<boolean>(!!isEdit);
   const [saving, setSaving] = useState(false);
 
@@ -87,6 +87,7 @@ export default function AddVehiclePage() {
 setDatePurchased(toDateInputValue(v.datePurchased));
 setLastServiceDate(toDateInputValue(v.lastServiceDate));
     setCurrentMileage(Number(v.currentMileage ?? 0));
+    setDeliveryMileage(Number(v.deliveryMileage ?? 0))
   };
 
   const onSave = async () => {
@@ -98,6 +99,7 @@ setLastServiceDate(toDateInputValue(v.lastServiceDate));
     if (!datePurchased) missing.push("datePurchased");
     if (!route) missing.push("route");
     if (currentMileage < 0 || Number.isNaN(currentMileage)) missing.push("currentMileage");
+    if(deliveryMileage < 0 || Number.isNaN(deliveryMileage)) missing.push("deliveryMileage"); 
     if (missing.length) {
       toast.error(`Missing/invalid: ${missing.join(", ")}`);
       return;
@@ -114,6 +116,7 @@ setLastServiceDate(toDateInputValue(v.lastServiceDate));
         vin,
         assignedDriver: assignedDriver || "",
         status,
+        deliveryMileage,
         datePurchased, // "YYYY-MM-DD"
         route,
         lastServiceDate: lastServiceDate || undefined,
