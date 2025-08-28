@@ -7,31 +7,31 @@ import type { ApiResponse, Driver } from "../types/types";
 export type NewDriver = Omit<Driver, "id" | "createdAt" | "updatedAt">;
 
 export async function getDrivers(): Promise<Driver[]> {
-  const { data } = await http.get<ApiResponse<Driver[]>>("/api/v1/drivers/get");
+  const { data } = await http.get<ApiResponse<Driver[]>>("/drivers/get");
   if (!data?.isSuccessful) throw new Error(data?.error?.message ?? "Failed to load drivers");
   return data.data!;
 }
 
 export async function getDriver(id: string): Promise<Driver> {
-  const { data } = await http.get<ApiResponse<Driver>>(`/api/v1/drivers/${id}`);
+  const { data } = await http.get<ApiResponse<Driver>>(`/drivers/${id}`);
   if (!data?.isSuccessful) throw new Error(data?.error?.message ?? "Driver not found");
   return data.data!;
 }
 
 export async function addDriver(payload: NewDriver): Promise<Driver> {
-  const { data } = await http.post<ApiResponse<Driver>>("/api/v1/drivers/add", payload);
+  const { data } = await http.post<ApiResponse<Driver>>("/drivers/add", payload);
   if (!data?.isSuccessful) throw new Error(data?.error?.message ?? "Failed to add driver");
   return data.data!;
 }
 
 export async function updateDriver(id: string, patch: Partial<NewDriver>): Promise<Driver> {
-  const { data } = await http.put<ApiResponse<Driver>>(`/api/v1/drivers/update/${id}`, patch);
+  const { data } = await http.put<ApiResponse<Driver>>(`/drivers/update/${id}`, patch);
   if (!data?.isSuccessful) throw new Error(data?.error?.message ?? "Failed to update driver");
   return data.data!;
 }
 
 export async function deleteDriver(id: string): Promise<void> {
-  const { data } = await http.delete<ApiResponse>(`/api/v1/drivers/delete/${id}`);
+  const { data } = await http.delete<ApiResponse>(`/drivers/delete/${id}`);
   if (!data?.isSuccessful) throw new Error(data?.error?.message ?? "Failed to delete driver");
 }
 
