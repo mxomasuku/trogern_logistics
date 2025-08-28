@@ -61,7 +61,9 @@ export function VehiclesListTable({ vehicles, onEdit, onDelete, cn }: VehiclesTa
               <Button
                 size="icon"
                 variant="ghost"
-                onClick={() => onEdit(vehicle)}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onEdit(vehicle)}}
                 aria-label="Edit"
               >
                 <Pencil className="h-4 w-4" />
@@ -70,7 +72,10 @@ export function VehiclesListTable({ vehicles, onEdit, onDelete, cn }: VehiclesTa
                 size="icon"
                 variant="ghost"
                 className="text-red-600 hover:text-red-700"
-                onClick={() => onDelete(vehicle.id!)}
+                  onClick={(e) => {
+                  e.stopPropagation();
+                  onDelete(vehicle.id!);
+                }}
                 aria-label="Delete"
               >
                 <Trash2 className="h-4 w-4" />
