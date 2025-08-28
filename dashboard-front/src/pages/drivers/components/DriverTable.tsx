@@ -6,7 +6,6 @@ import { Pencil, Trash2 } from "lucide-react";
 import type { Driver } from "@/types/types";
 import { useNavigate } from "react-router-dom";
 
-
 type DriverTableProps = {
   drivers: Driver[];
   onEdit: (driver: Driver) => void;
@@ -15,8 +14,7 @@ type DriverTableProps = {
 };
 
 export function DriverTable({ drivers, onEdit, onDelete, cn }: DriverTableProps) {
-
-    const navigate = useNavigate();
+  const navigate = useNavigate();
   const cx = cn ?? ((...args: any[]) => args.filter(Boolean).join(" "));
 
   return (
@@ -34,7 +32,11 @@ export function DriverTable({ drivers, onEdit, onDelete, cn }: DriverTableProps)
       </TableHeader>
       <TableBody>
         {drivers.map((d) => (
-          <TableRow key={d.id}   onClick={() => navigate(`/drivers/profile?id=${d.id}`)}>
+          <TableRow
+            key={d.id}
+            onClick={() => navigate(`/drivers/profile?id=${d.id}`)}
+            className="group cursor-pointer transition-colors hover:bg-gray-400 "
+          >
             <TableCell className="font-medium">{d.name}</TableCell>
             <TableCell>{d.contact}</TableCell>
             <TableCell>{d.licenseNumber}</TableCell>
@@ -53,15 +55,28 @@ export function DriverTable({ drivers, onEdit, onDelete, cn }: DriverTableProps)
             </TableCell>
             <TableCell>{d.assignedVehicleId || "-"}</TableCell>
             <TableCell className="text-right">
-              <Button size="icon" variant="ghost" onClick={() => onEdit(d)} aria-label="Edit">
+              <Button
+                size="icon"
+                variant="ghost"
+                aria-label="Edit"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEdit(d);
+                }}
+                title="Edit driver"
+              >
                 <Pencil className="h-4 w-4" />
               </Button>
               <Button
                 size="icon"
                 variant="ghost"
                 className="text-red-600 hover:text-red-700"
-                onClick={() => onDelete(d.id!)}
                 aria-label="Delete"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDelete(d.id!);
+                }}
+                title="Delete driver"
               >
                 <Trash2 className="h-4 w-4" />
               </Button>
