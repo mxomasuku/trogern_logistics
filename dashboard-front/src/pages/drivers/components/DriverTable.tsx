@@ -35,7 +35,7 @@ export function DriverTable({ drivers, onEdit, onDelete, cn }: DriverTableProps)
           <TableRow
             key={d.id}
             onClick={() => navigate(`/drivers/profile?id=${d.id}`)}
-            className="group cursor-pointer transition-colors hover:bg-gray-400 "
+            className="group cursor-pointer transition-colors hover:bg-gray-400"
           >
             <TableCell className="font-medium">{d.name}</TableCell>
             <TableCell>{d.contact}</TableCell>
