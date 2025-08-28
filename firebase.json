@@ -1,16 +1,16 @@
 {
-  "hosting": {
+ "hosting": {
     "public": "dashboard-front/dist",
-    "ignore": [
-      "firebase.json",
-      "**/.*",
-      "**/node_modules/**"
-    ],
+    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
     "rewrites": [
       {
-        "source": "**",
-        "destination": "/index.html"
-      }
+        "source": "/api/**",
+        "run": {
+          "serviceId": "api",        
+          "region": "us-central1"    
+        }
+      },
+      { "source": "**", "destination": "/index.html" }
     ]
   },
   "functions": [
