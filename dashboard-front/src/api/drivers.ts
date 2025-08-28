@@ -37,7 +37,7 @@ export async function deleteDriver(id: string): Promise<void> {
 
 export async function searchDriversByName(name: string): Promise<Driver[]> {
   const { data } = await http.get<{ isSuccessful: boolean; data: Driver[] }>(
-    `/api/v1/drivers/search`,
+    `/drivers/search`,
     { params: { name } }
   );
   if (!data?.isSuccessful) throw new Error("Failed to search drivers");
@@ -46,7 +46,7 @@ export async function searchDriversByName(name: string): Promise<Driver[]> {
 
 export async function getAllActiveDrivers(): Promise<Driver[]> {
   const {data} = await http.get<{isSuccessful: boolean; data: Driver[]}>(
-    `/api/v1/drivers/get-active-drivers`,
+    `/drivers/get-active-drivers`,
 
   )
   if(!data?.isSuccessful) throw new Error("Failed to get drivers")
