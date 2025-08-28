@@ -34,7 +34,7 @@ export function VehiclesListTable({ vehicles, onEdit, onDelete, cn }: VehiclesTa
       </TableHeader>
       <TableBody>
         {vehicles.map((vehicle) => (
-          <TableRow key={vehicle.id} onClick={() => navigate(`/vehicles/profile?id=${vehicle.id}`)}>
+          <TableRow key={vehicle.id} onClick={() => navigate(`/vehicles/profile?id=${vehicle.id}`)} className="cursor-pointer hover:bg-gray-400">
             <TableCell className="font-medium">{vehicle.plateNumber}</TableCell>
             <TableCell>{vehicle.make}</TableCell>
             <TableCell>{vehicle.model}</TableCell>
