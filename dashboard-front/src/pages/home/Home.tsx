@@ -51,7 +51,7 @@ export default function Home() {
         {ACTIONS.map(({ title, description, icon: Icon, to }) => (
           <Card
             key={title}
-            className="group cursor-pointer transition-colors hover:bg-accent"
+          className="group cursor-pointer transition-colors hover:bg-gray-200 dark:hover:bg-gray-700"
             onClick={() => navigate(to)}
           >
             <CardHeader className="flex flex-row items-center justify-between space-y-0">
