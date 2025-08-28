@@ -21,7 +21,7 @@ export interface Expense {
 }
 
 export async function addIncomeLog(payload: Omit<IncomeLog, "id" | "timestamp">): Promise<IncomeLog> {
-  const { data } = await http.post<ApiResponse<IncomeLog>>("/api/v1/income/add", payload);
+  const { data } = await http.post<ApiResponse<IncomeLog>>("/income/add", payload);
   if (!data?.isSuccessful) throw new Error(data?.error?.message ?? "Failed to log income");
   return data.data!;
 }
@@ -54,7 +54,7 @@ export async function updateIncomeLog(
 
 export async function getIncomeLogsForVehicle(vehicleId: string): Promise<IncomeLog[]> {
 const {data} = await http.get<ApiResponse<IncomeLog[]>>(
-  `api/v1/income/${vehicleId}`
+  `/income/${vehicleId}`
 )
 
 if(!data?.isSuccessful) {
