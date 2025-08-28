@@ -101,7 +101,7 @@ export function IncomeList({ items, loading = false, currency = "USD" }: Props) 
             {filtered.map((row) => {
               const hasId = !!row.id;
               return (
-                <TableRow key={row.id ?? `${row.createdAt}-${row.cashDate}`}>
+                <TableRow key={row.id ?? `${row.createdAt}-${row.cashDate}`} className="cursor-pointer hover:bg-gray-400">
                  <TableCell>
   {row.createdAt ? new Date(toDateInputValue(row.createdAt)).toLocaleDateString() : "-"}
 </TableCell>
