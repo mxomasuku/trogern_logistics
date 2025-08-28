@@ -25,7 +25,7 @@ export type ServiceRecordDTO = Omit<ServiceRecord, "createdAt" | "updatedAt">;
 
 export async function getServiceRecordsForVehicle(vehicleId: string): Promise<ServiceRecord[]> {
   const { data } = await http.get<ApiResponse<ServiceRecord[]>>(
-    `/api/v1/service/${vehicleId}`
+    `/service/${vehicleId}`
   );
   if (!data?.isSuccessful) throw new Error(data?.error?.message ?? "Failed to load service records");
   return data.data!;
@@ -34,7 +34,7 @@ export async function getServiceRecordsForVehicle(vehicleId: string): Promise<Se
 export async function getAllServiceRecords(): Promise<ServiceRecord[]>{
 
   const {data} = await http.get<ApiResponse<ServiceRecord[]>>(
-    "api/v1/service/get",
+    "/service/get",
   );
     if (!data?.isSuccessful) throw new Error(data?.error?.message ?? "Failed to load service records");
 
@@ -43,7 +43,7 @@ export async function getAllServiceRecords(): Promise<ServiceRecord[]>{
 
 export async function addServiceRecord( payload: ServiceRecordDTO): Promise<ServiceRecord> {
   const { data } = await http.post<ApiResponse<ServiceRecord>>(
-     "/api/v1/service/add",
+     "/service/add",
     payload
   );
   if (!data?.isSuccessful) throw new Error(data?.error?.message ?? "Failed to add service record");
@@ -55,7 +55,7 @@ export async function updateServiceRecord(
   patch: Partial<ServiceRecordDTO>
 ): Promise<ServiceRecord> {
   const { data } = await http.put<ApiResponse<ServiceRecord>>(
-    `/api/v1/service/update/${serviceId}`,
+    `/service/update/${serviceId}`,
     patch
   );
 
