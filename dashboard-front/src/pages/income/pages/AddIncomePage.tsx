@@ -81,7 +81,7 @@ export default function AddIncomePage() {
         setCashDate(toDateInputValue((existing as any).cashDate));
 
         // Keep raw values so we can resolve driverId after drivers load
-        setPrefillDriverName(existing.driver ?? "");
+        setPrefillDriverName(existing.driverName ?? "");
         setPrefillVehicle(existing.vehicle ?? "");
       } catch (e: any) {
         toast.error(e?.message ?? "Failed to load income entry");

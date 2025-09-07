@@ -40,9 +40,9 @@ export interface Vehicle {
   vin?: string;
   assignedDriver?: string | null;
   status: VehicleStatus;
-  datePurchased: string;        // ISO in client
+  datePurchased: string;       
   route: RouteType;
-  lastServiceDate?: string;     // ISO
+  lastServiceDate?: string;    
   deliveryMileage: number;
   currentMileage: number;
   createdAt?: string;

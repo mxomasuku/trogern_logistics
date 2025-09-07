@@ -1,16 +1,7 @@
 import { http } from "../lib/http-instance"
-import type { ApiResponse } from "../types/types";
+import type { ApiResponse, IncomeLog } from "../types/types";
 
-export interface IncomeLog {
-  id?: string;
-  amount: number;
-  weekEndingMileage: number;
-  vehicle: string;
-  driver: string;
-  note?: string;
-  createdAt: string;   // ISO string or Date.toISOString() from backend
-  cashDate: string;    // same as above, format from backend
-}
+
 
 export interface Expense {
   driverInvolved: string,
