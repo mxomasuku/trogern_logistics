@@ -18,7 +18,7 @@ export function StatCard({
 }) {
   return (
     <Card
-      className="cursor-pointer transition-colors hover:bg-accent"
+      className="cursor-pointer transition-colors hover:bg-gray-400"
       onClick={onClick}
       role={onClick ? "button" : undefined}
     >
