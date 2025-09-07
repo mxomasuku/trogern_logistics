@@ -67,7 +67,7 @@ export async function updateServiceRecord(
 
 export async function deleteServiceRecord( serviceId: string): Promise<void> {
   const { data } = await http.delete<ApiResponse>(
-    `/api/v1/service/delete/${serviceId}`
+    `/service/delete/${serviceId}`
   );
   if (!data?.isSuccessful) throw new Error(data?.error?.message ?? "Failed to delete service record");
 }
@@ -76,7 +76,7 @@ export async function getServiceRecordById(
   serviceId: string
 ): Promise<ServiceRecord> {
   const { data } = await http.get<ApiResponse<ServiceRecord>>(
-    `/api/v1/service/get/${serviceId}`
+    `/service/get/${serviceId}`
   );
 
   if (!data?.isSuccessful) {
