@@ -9,18 +9,18 @@ const expenseRef = db.collection('expenses');
 
 
 export const addIncomeLog = async (req: Request, res: Response) => {
-  const { amount, weekEndingMileage, note, driver, vehicle, cashDate } = req.body;
+  const { amount, weekEndingMileage, note, driverId, driverName, vehicle, cashDate } = req.body;
 
   console.log("income request body:", req.body)
 
-  if (!amount || !weekEndingMileage || !driver || !note || !vehicle || !cashDate ) {
+  if (!amount || !weekEndingMileage || !driverId || !note || !vehicle || !cashDate ) {
     return res
       .status(400)
       .json(
         failure(
           'VALIDATION_ERROR',
           'Missing required parameters',
-          { missing: ['amount', 'weekEndingMileage', 'note', 'driver', 'note', 'vehicle', 'cashDate'].filter(f => !req.body[f]) }
+          { missing: ['amount', 'weekEndingMileage', 'note', 'driverId', 'note', 'vehicle', 'cashDate'].filter(f => !req.body[f]) }
         )
       );
   }
@@ -31,7 +31,8 @@ export const addIncomeLog = async (req: Request, res: Response) => {
       amount: Number(amount),
       weekEndingMileage: Number(weekEndingMileage),
       vehicle: vehicle,
-      driver: driver,
+      driverId: driverId,
+      driverName: driverName,
       note: note || '',
       createdAt: now,
       cashDate: cashDate ,
@@ -45,7 +46,8 @@ export const addIncomeLog = async (req: Request, res: Response) => {
           amount: Number(amount),
           weekEndingMileage: Number(weekEndingMileage),
           vehicle: vehicle,
-          driver: driver,
+          driver: driverId,
+          driverName: driverName,
           note: note || '',
           createdAt: now,
           cashDate: cashDate
@@ -186,7 +188,8 @@ export const updateExpenseLog = async (req: Request, res: Response) => {
 export const getIncomeLogs = async (req: Request, res: Response) => {
   try {
     const {
-      driver,
+      driverId,
+      driverName,
       vehicle,
       orderBy: orderByRaw,
       order: orderRaw,
@@ -195,7 +198,8 @@ export const getIncomeLogs = async (req: Request, res: Response) => {
       limit: limitRaw,
       cursor,
     } = req.query as {
-      driver?: string;
+      driverId?: string;
+      driverName?: string
       vehicle?: string;
       orderBy?: "createdAt" | "cashDate";
       order?: "asc" | "desc";
@@ -215,39 +219,40 @@ export const getIncomeLogs = async (req: Request, res: Response) => {
       200
     );
 
-    let q: FirebaseFirestore.Query = incomeRef;
+    let incomeData: FirebaseFirestore.Query = incomeRef;
 
-    if (driver) q = q.where("driver", "==", driver);
-    if (vehicle) q = q.where("vehicle", "==", vehicle);
+    if (driverId) incomeData = incomeData.where("driver", "==", driverId);
+    if (vehicle) incomeData = incomeData.where("vehicle", "==", vehicle);
 
     // Range filters on the selected orderBy field (createdAt or cashDate)
     if (start) {
       const d = new Date(start);
-      if (!isNaN(d.valueOf())) q = q.where(orderBy, ">=", d);
+      if (!isNaN(d.valueOf())) incomeData = incomeData.where(orderBy, ">=", d);
     }
     if (end) {
       const d = new Date(end);
-      if (!isNaN(d.valueOf())) q = q.where(orderBy, "<=", d);
+      if (!isNaN(d.valueOf())) incomeData = incomeData.where(orderBy, "<=", d);
     }
 
-    q = q.orderBy(orderBy, order);
+    incomeData = incomeData.orderBy(orderBy, order);
 
     if (cursor) {
       const c = new Date(cursor);
-      if (!isNaN(c.valueOf())) q = q.startAfter(c);
+      if (!isNaN(c.valueOf())) incomeData = incomeData.startAfter(c);
     }
 
-    q = q.limit(limit);
+    incomeData = incomeData.limit(limit);
 
-    const snap = await q.get();
-    const items = snap.docs.map((d) => {
-      const data = d.data();
+    const snap = await incomeData.get();
+    const items = snap.docs.map((dataFetched) => {
+      const data = dataFetched.data();
       return {
-        id: d.id,
+        id: data.id,
         amount: Number(data.amount),
         weekEndingMileage: Number(data.weekEndingMileage),
         vehicle: data.vehicle,
-        driver: data.driver,
+        driverId: data.driverId,
+        driverName: data.driverName,
         note: data.note ?? "",
         createdAt: data.createdAt,
         cashDate: data.cashDate,

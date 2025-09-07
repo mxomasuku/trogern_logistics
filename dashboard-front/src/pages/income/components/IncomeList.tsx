@@ -5,18 +5,10 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Loader2, Search, Pencil } from "lucide-react";
 import { toDateInputValue } from "@/lib/utils";
+import type { IncomeLog } from "@/types/types";
 
 /** Shared shape for income rows */
-export interface IncomeLog {
-  id?: string;
-  amount: number;
-  weekEndingMileage: number;
-  vehicle: string;
-  driver: string;
-  note?: string;
-  createdAt?: string; // ISO
-  cashDate?: string;  // ISO
-}
+
 
 type Props = {
   items: IncomeLog[];
@@ -39,7 +31,7 @@ export function IncomeList({ items, loading = false, currency = "USD" }: Props) 
         x.amount,
         x.weekEndingMileage,
         x.vehicle,
-        x.driver,
+        x.driverId,
         x.note,
         x.createdAt,
         x.cashDate,
@@ -101,7 +93,7 @@ export function IncomeList({ items, loading = false, currency = "USD" }: Props) 
             {filtered.map((row) => {
               const hasId = !!row.id;
               return (
-                <TableRow key={row.id ?? `${row.createdAt}-${row.cashDate}`}>
+                <TableRow key={row.id ?? `${row.createdAt}-${row.cashDate}`} className="cursor-pointer hover:bg-gray-400">
                  <TableCell>
   {row.createdAt ? new Date(toDateInputValue(row.createdAt)).toLocaleDateString() : "-"}
 </TableCell>
@@ -117,8 +109,8 @@ export function IncomeList({ items, loading = false, currency = "USD" }: Props) 
                   <TableCell className="truncate max-w-[160px]" title={row.vehicle}>
                     {row.vehicle}
                   </TableCell>
-                  <TableCell className="truncate max-w-[160px]" title={row.driver}>
-                    {row.driver}
+                  <TableCell className="truncate max-w-[160px]" title={row.driverId}>
+                    {row.driverId}
                   </TableCell>
                   <TableCell className="truncate max-w-[280px]" title={row.note}>
                     {row.note || "-"}

@@ -130,7 +130,7 @@ export default function AddIncomePage() {
     const payload = {
       amount: amt,
       weekEndingMileage: miles,
-      driver: selectedDriver!.name,   // backend expects name; swap to id if your API expects driverId
+      driver: selectedDriver!.id,   // backend expects name; swap to id if your API expects driverId
       vehicle,                        // derived from assignedVehicleId
       cashDate,
       note: note || undefined,

@@ -49,6 +49,17 @@ export interface Vehicle {
   updatedAt?: string;
 }
 
+export interface IncomeLog {
+  id?: string;
+  amount: number;
+  weekEndingMileage: number;
+  vehicle: string;
+  driverId: string;
+  driverName: string;
+  note?: string;
+  createdAt?: string; 
+  cashDate?: string; 
+}
 
 export type VehicleStatus = "active" | "inactive" | "maintenance" | "retired";
 export type RouteType = "local" | "highway" | "mixed";
