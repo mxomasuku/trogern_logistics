@@ -4,9 +4,9 @@ import { useLocation, useNavigate } from "react-router-dom";
 
 import { getVehicle } from "@/api/vehicles";
 import { getServiceRecordsForVehicle, type ServiceRecord } from "@/api/service";
-import { getIncomeLogsForVehicle, type IncomeLog } from "@/api/income"; 
+import { getIncomeLogsForVehicle } from "@/api/income"; 
 
-import type { Vehicle } from "@/types/types";
+import type { Vehicle, IncomeLog } from "@/types/types";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -153,7 +153,7 @@ export default function VehicleProfile() {
     const q = filterText.trim().toLowerCase();
     if (!q) return incomeLogs;
     return incomeLogs.filter((r) =>
-      [r.amount, r.weekEndingMileage, r.driver, r.note, r.cashDate, r.createdAt]
+      [r.amount, r.weekEndingMileage, r.driverName, r.driverId, r.note, r.cashDate, r.createdAt]
         .filter(Boolean)
         .some((s) => String(s).toLowerCase().includes(q))
     );
@@ -315,7 +315,7 @@ export default function VehicleProfile() {
                 {filteredIncome.map((row) => (
                   <TableRow key={row.id ?? row.createdAt ?? row.cashDate}>
                     <TableCell>{fmtDate(row.cashDate ?? row.createdAt)}</TableCell>
-                    <TableCell>{row.driver || "—"}</TableCell>
+                    <TableCell>{row.driverName || "—"}</TableCell>
                     <TableCell className="text-right">
                       {Number(row.amount).toLocaleString(undefined, { style: "currency", currency: "USD" })}
                     </TableCell>

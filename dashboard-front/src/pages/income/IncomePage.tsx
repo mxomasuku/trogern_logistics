@@ -21,15 +21,9 @@ export default function IncomePage() {
   const [items, setItems] = useState<IncomeLog[]>([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
-
-  // list visibility
   const [showList, setShowList] = useState(false);
-
-  // edit modal
   const [editOpen, setEditOpen] = useState(false);
   const [editing, setEditing] = useState<IncomeLog | null>(null);
-
-  // edit form state
   const [amount, setAmount] = useState<string>("");
   const [mileage, setMileage] = useState<string>("");
   const [vehicle, setVehicle] = useState<string>("");
@@ -42,8 +36,8 @@ export default function IncomePage() {
   const load = async () => {
     setLoading(true);
     try {
-      const rows = await listIncomeLogs();
-      setItems(rows);
+      const incomeLogsResult = await listIncomeLogs();
+      setItems(incomeLogsResult);
     } catch (e: any) {
       toast.error(e?.message ?? "Failed to fetch income");
     } finally {
@@ -52,7 +46,7 @@ export default function IncomePage() {
   };
 
   useEffect(() => {
-    // Preload so list is instant when the user reveals it
+
     load();
   }, []);
 
@@ -97,7 +91,8 @@ export default function IncomePage() {
                 amount: updated.amount ?? amt,
                 weekEndingMileage: updated.weekEndingMileage ?? miles,
                 vehicle: updated.vehicle ?? vehicle,
-                driver: updated.driver ?? driver,
+                driverId: updated.driverId ?? driver,
+                driverName: updated.driverName ?? driver,
                 note: updated.note ?? note,
                 cashDate: updated.cashDate ?? cashDate,
                 createdAt: updated.createdAt ?? x.createdAt,
