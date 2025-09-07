@@ -27,7 +27,7 @@ export function ServiceRecordsTable({ records, onEdit, onDelete }: ServiceTableP
       </TableHeader>
       <TableBody>
         {records.map((record) => (
-          <TableRow key={record.id}>
+          <TableRow key={record.id} className="cursor-pointer hover:bg-gray-400">
             <TableCell>{record.date ? new Date(record.date).toLocaleDateString() : "-"}</TableCell>
             <TableCell className="font-medium">{record.vehicleId}</TableCell>
             <TableCell>{record.mechanic || "-"}</TableCell>
@@ -50,7 +50,9 @@ export function ServiceRecordsTable({ records, onEdit, onDelete }: ServiceTableP
                 size="icon"
                 variant="ghost"
                 className="text-red-600 hover:text-red-700"
-                onClick={() => onDelete(record.id!)}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onDelete(record.id!)}}
                 aria-label="Delete"
               >
                 <Trash2 className="h-4 w-4" />
