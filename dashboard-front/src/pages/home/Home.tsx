@@ -51,7 +51,7 @@ export default function Home() {
         {ACTIONS.map(({ title, description, icon: Icon, to }) => (
           <Card
             key={title}
-          className="group cursor-pointer transition-colors hover:bg-gray-200 dark:hover:bg-gray-700"
+          className="group cursor-pointer transition-colors hover:bg-gray-400"
             onClick={() => navigate(to)}
           >
             <CardHeader className="flex flex-row items-center justify-between space-y-0">
@@ -90,7 +90,7 @@ export default function Home() {
 
       {/* Optional secondary area (kept) */}
       <section className="grid gap-4 md:grid-cols-2">
-        <Card className="p-4">
+        <Card className="p-4 hover:bg-gray-400">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-sm font-medium">Today’s Ops</h2>
@@ -104,7 +104,7 @@ export default function Home() {
           </div>
         </Card>
 
-        <Card className="p-4">
+        <Card className="p-4 hover:bg-gray-400">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-sm font-medium">Recent Activity</h2>
