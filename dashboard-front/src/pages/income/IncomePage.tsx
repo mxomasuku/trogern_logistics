@@ -14,7 +14,8 @@ import {
 } from "@/components/ui/dialog";
 import { Loader2, Plus, List } from "lucide-react";
 import { toast } from "sonner";
-import { IncomeList, type IncomeLog } from "./components/IncomeList";
+import { IncomeList} from "./components/IncomeList";
+import type { IncomeLog } from "@/types/types";
 
 export default function IncomePage() {
   const [items, setItems] = useState<IncomeLog[]>([]);
@@ -29,12 +30,12 @@ export default function IncomePage() {
   const [editing, setEditing] = useState<IncomeLog | null>(null);
 
   // edit form state
-  const [eAmount, setEAmount] = useState<string>("");
-  const [eMileage, setEMileage] = useState<string>("");
-  const [eVehicle, setEVehicle] = useState<string>("");
-  const [eDriver, setEDriver] = useState<string>("");
-  const [eCashDate, setECashDate] = useState<string>("");
-  const [eNote, setENote] = useState<string>("");
+  const [amount, setAmount] = useState<string>("");
+  const [mileage, setMileage] = useState<string>("");
+  const [vehicle, setVehicle] = useState<string>("");
+  const [driver, setEDriver] = useState<string>("");
+  const [cashDate, setCashDate] = useState<string>("");
+  const [note, setNote] = useState<string>("");
 
   const [submitting, setSubmitting] = useState(false);
 
@@ -55,31 +56,21 @@ export default function IncomePage() {
     load();
   }, []);
 
-  // open edit modal with row values
-  // const openEdit = (row: IncomeLog) => {
-  //   setEditing(row);
-  //   setEAmount(String(row.amount ?? ""));
-  //   setEMileage(String(row.weekEndingMileage ?? ""));
-  //   setEVehicle(row.vehicle ?? "");
-  //   setEDriver(row.driver ?? "");
-  //   setECashDate(row.cashDate ? row.cashDate.slice(0, 10) : "");
-  //   setENote(row.note ?? "");
-  //   setEditOpen(true);
-  // };
+
 
   const onSubmitEdit = async () => {
     if (!editing?.id) {
       toast.error("Missing income id");
       return;
     }
-    const amt = Number(eAmount);
-    const miles = Number(eMileage);
+    const amt = Number(amount);
+    const miles = Number(mileage);
     const missing: string[] = [];
     if (!Number.isFinite(amt) || amt <= 0) missing.push("amount (> 0)");
     if (!Number.isFinite(miles) || miles <= 0) missing.push("weekEndingMileage (> 0)");
-    if (!eVehicle) missing.push("vehicle");
-    if (!eDriver) missing.push("driver");
-    if (!eCashDate) missing.push("cashDate (YYYY-MM-DD)");
+    if (!vehicle) missing.push("vehicle");
+    if (!driver) missing.push("driver");
+    if (!cashDate) missing.push("cashDate (YYYY-MM-DD)");
     if (missing.length) {
       toast.error(`Fix: ${missing.join(", ")}`);
       return;
@@ -90,10 +81,10 @@ export default function IncomePage() {
       const updated = await updateIncomeLog(editing.id, {
         amount: amt,
         weekEndingMileage: miles,
-        vehicle: eVehicle,
-        driver: eDriver,
-        cashDate: eCashDate,
-        note: eNote || undefined,
+        vehicle: vehicle,
+        driver: driver,
+        cashDate: cashDate,
+        note: note || undefined,
       } as any);
 
       // merge into list
@@ -105,10 +96,10 @@ export default function IncomePage() {
                 ...updated,
                 amount: updated.amount ?? amt,
                 weekEndingMileage: updated.weekEndingMileage ?? miles,
-                vehicle: updated.vehicle ?? eVehicle,
-                driver: updated.driver ?? eDriver,
-                note: updated.note ?? eNote,
-                cashDate: updated.cashDate ?? eCashDate,
+                vehicle: updated.vehicle ?? vehicle,
+                driver: updated.driver ?? driver,
+                note: updated.note ?? note,
+                cashDate: updated.cashDate ?? cashDate,
                 createdAt: updated.createdAt ?? x.createdAt,
               }
             : x
@@ -170,8 +161,8 @@ export default function IncomePage() {
               <input
                 className="w-full rounded-md border px-3 py-2"
                 type="number"
-                value={eAmount}
-                onChange={(e) => setEAmount(e.target.value)}
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
                 min={0}
                 step={0.01}
               />
@@ -181,8 +172,8 @@ export default function IncomePage() {
               <input
                 className="w-full rounded-md border px-3 py-2"
                 type="number"
-                value={eMileage}
-                onChange={(e) => setEMileage(e.target.value)}
+                value={mileage}
+                onChange={(e) => setMileage(e.target.value)}
                 min={0}
                 step={1}
               />
@@ -192,23 +183,23 @@ export default function IncomePage() {
               <input
                 className="w-full rounded-md border px-3 py-2"
                 type="date"
-                value={eCashDate}
-                onChange={(e) => setECashDate(e.target.value)}
+                value={cashDate}
+                onChange={(e) => setCashDate(e.target.value)}
               />
             </div>
             <div>
               <Label className="mb-1 inline-block">Vehicle</Label>
               <input
                 className="w-full rounded-md border px-3 py-2"
-                value={eVehicle}
-                onChange={(e) => setEVehicle(e.target.value)}
+                value={vehicle}
+                onChange={(e) => setVehicle(e.target.value)}
               />
             </div>
             <div>
               <Label className="mb-1 inline-block">Driver</Label>
               <input
                 className="w-full rounded-md border px-3 py-2"
-                value={eDriver}
+                value={driver}
                 onChange={(e) => setEDriver(e.target.value)}
               />
             </div>
@@ -216,8 +207,8 @@ export default function IncomePage() {
               <Label className="mb-1 inline-block">Note</Label>
               <input
                 className="w-full rounded-md border px-3 py-2"
-                value={eNote}
-                onChange={(e) => setENote(e.target.value)}
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
               />
             </div>
           </div>
