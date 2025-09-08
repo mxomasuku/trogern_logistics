@@ -3,6 +3,7 @@ const { db } = require('../config/firebase');
 import type { QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import { success, failure } from '../utils/apiResponse';
 import { Driver } from '../interfaces/interfaces';
+import { cascadeVehicleStatusFromDriver } from './status_sync_repo';
 const driversRef = db.collection('drivers');
 
 
@@ -160,8 +161,11 @@ export const updateDriver = async (req: Request, res: Response) => {
   const patch = { ...req.body, updatedAt: new Date().toISOString() };
 
   try {
-    await driversRef.doc(id).set(patch, { merge: true });
+    await driversRef.doc(id).set(patch, { merge: true })
+    await cascadeVehicleStatusFromDriver(id);;
     return res.status(200).json(success({ id, ...patch }));
+
+
   } catch (error: any) {
     console.error('Error updating driver:', error);
     return res

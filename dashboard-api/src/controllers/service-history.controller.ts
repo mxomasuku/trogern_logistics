@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { ServiceRecord, ServiceRecordDTO, ServiceItem } from "../interfaces/interfaces";
 const { db, admin } = require("../config/firebase");
 import { success, failure } from "../utils/apiResponse";
+import { upsertLastServiceDateIfNewer, recomputeLastServiceDateFromRecords } from "./vehicles.controller";
 
 /** Top-level collections */
 const vehiclesCollection: FirebaseFirestore.CollectionReference = db.collection("vehicles");
@@ -52,7 +53,6 @@ export const addServiceRecord = async (
   res: Response
 ) => {
   try {
-    // read from body (NOT params)
     const vehicleId = (req.body.vehicleId ?? "").trim();
 
     const serviceDate = parseDateToTimestamp(req.body.date);
@@ -78,7 +78,7 @@ export const addServiceRecord = async (
 
     const now = FirestoreTimestamp.now();
     const recordToCreate: ServiceRecord = {
-      vehicleId,                 // store as plain string
+      vehicleId,
       date: serviceDate,
       mechanic,
       condition,
@@ -92,6 +92,14 @@ export const addServiceRecord = async (
     const createdRef = await serviceRecordsCollection.add(recordToCreate);
     const snap = await createdRef.get();
     const created = snap.data() as ServiceRecord;
+
+
+    try {
+      await upsertLastServiceDateIfNewer(vehicleId, serviceDate);
+    } catch (e) {
+    
+      console.warn("upsertLastServiceDateIfNewer failed:", e);
+    }
 
     return res.status(201).json(
       success({
@@ -122,15 +130,18 @@ export const updateServiceRecord = async (
   try {
     const { serviceId } = req.params;
 
-    // 1) Load record
+ 
     const recordRef = serviceRecordsCollection.doc(serviceId);
     const recordSnapshot = await recordRef.get();
     if (!recordSnapshot.exists) {
       return res.status(404).json(failure("NOT_FOUND", "Service record not found", { serviceId }));
     }
+    const existing = recordSnapshot.data() as ServiceRecord;
+    const oldVehicleId = existing.vehicleId;
+    const oldDate = existing.date; 
 
-    // 2) Optional: if vehicleId provided in body, ensure it exists (if you allow reassignment)
-    const requestedVehicleId = (req.body as any).vehicleId;
+  
+    const requestedVehicleId = (req.body as any).vehicleId?.trim?.();
     if (requestedVehicleId) {
       const vehicleSnapshot = await vehiclesCollection.doc(requestedVehicleId).get();
       if (!vehicleSnapshot.exists) {
@@ -138,14 +149,21 @@ export const updateServiceRecord = async (
       }
     }
 
-    // 3) Validate fields
+
     const updatePayload: Partial<ServiceRecord> = { updatedAt: FirestoreTimestamp.now() };
     const fieldErrors: string[] = [];
 
+    let newDateTs: FirebaseFirestore.Timestamp | undefined;
+    let dateProvided = false;
+
     if ("date" in req.body) {
+      dateProvided = true;
       const parsed = parseDateToTimestamp(req.body.date);
       if (req.body.date && !parsed) fieldErrors.push("date (ISO)");
-      else if (parsed) updatePayload.date = parsed;
+      else if (parsed) {
+        updatePayload.date = parsed;
+        newDateTs = parsed;
+      }
     }
 
     if ("mechanic" in req.body) {
@@ -192,12 +210,33 @@ export const updateServiceRecord = async (
       return res.status(400).json(failure("VALIDATION_ERROR", "No valid fields to update"));
     }
 
-    // 4) Persist
+    // 4) Persist changes
     await recordRef.update(updatePayload);
-
     const updatedSnapshot = await recordRef.get();
     const updated = updatedSnapshot.data() as ServiceRecord;
 
+    // 5) Keep vehicle.lastServiceDate correct
+    const vehicleChanged = !!requestedVehicleId && requestedVehicleId !== oldVehicleId;
+    const dateChanged = dateProvided && newDateTs && newDateTs.toMillis() !== oldDate?.toMillis();
+
+    try {
+      if (vehicleChanged) {
+        // New vehicle may need a bump forward
+        if (updated.date) {
+          await upsertLastServiceDateIfNewer(updated.vehicleId, updated.date);
+        }
+        // Old vehicle may have lost its latest record → recompute
+        await recomputeLastServiceDateFromRecords(oldVehicleId);
+      } else if (dateChanged) {
+        // For same-vehicle date edits, recompute to handle both forward/backward moves
+        await recomputeLastServiceDateFromRecords(updated.vehicleId);
+      }
+    } catch (auxErr) {
+      console.warn("lastServiceDate maintenance failed:", auxErr);
+      // Non-fatal; do not block the main response
+    }
+
+    // 6) Respond
     return res.status(200).json(
       success({
         id: updatedSnapshot.id,

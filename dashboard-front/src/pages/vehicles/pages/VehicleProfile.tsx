@@ -58,9 +58,9 @@ export default function VehicleProfile() {
         setLoading(true);
 
         // 1) Vehicle core
-        const v = await getVehicle(vehicleId);
+        const vehicle = await getVehicle(vehicleId);
         if (cancelled) return;
-        setVehicle(v);
+        setVehicle(vehicle);
 
         // 2) Related: service & income
         const [svc, inc] = await Promise.all([

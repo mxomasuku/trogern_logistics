@@ -50,7 +50,7 @@ export interface Vehicle {
 }
 
 export interface IncomeLog {
-  id?: string;
+  id: string;
   amount: number;
   weekEndingMileage: number;
   vehicle: string;
@@ -59,6 +59,7 @@ export interface IncomeLog {
   note?: string;
   createdAt?: string; 
   cashDate?: string; 
+  updatedAt?: string
 }
 
 export type VehicleStatus = "active" | "inactive" | "maintenance" | "retired";

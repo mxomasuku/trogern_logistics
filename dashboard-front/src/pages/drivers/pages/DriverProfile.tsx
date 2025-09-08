@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { ArrowLeft, Loader2, Mail, Phone, User, Car, IdCard, MapPin, BadgeCheck, DollarSign, Activity, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
-
+import { getIncomeLogsByDriverId } from "@/api/income";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -17,20 +17,15 @@ type IncomeLog = {
   amount: number;
   weekEndingMileage: number;
   vehicle: string;
-  driver: string; // your API filters by driver name in the sample controller
+  driverId: string; 
+  driverName: string;// your API filters by driver name in the sample controller
   note?: string;
   createdAt?: string; // ISO or Timestamp string
   cashDate?: string;  // ISO (date)
 };
 
 // Replace with your actual income API util if you have one:
-async function getIncomeLogsByDriver(driverName: string, limit = 50): Promise<IncomeLog[]> {
-  // Endpoint based on the controller you wired earlier: /api/v1/income?driver=NAME&limit=...
-  const res = await fetch(`/api/v1/income?driver=${encodeURIComponent(driverName)}&limit=${limit}&orderBy=cashDate&order=desc`);
-  const json = await res.json();
-  if (!json?.isSuccessful) throw new Error(json?.error?.message ?? "Failed to fetch income logs");
-  return json.data as IncomeLog[];
-}
+
 
 // Optional: incidents — use if you have such an endpoint; otherwise this stays empty
 type DriverIncident = {
@@ -84,11 +79,21 @@ export default function DriverProfile() {
   const [driver, setDriver] = useState<Driver | null>(null);
   const [loadingDriver, setLoadingDriver] = useState<boolean>(true);
 
-  const [income, setIncome] = useState<IncomeLog[]>([]);
+
   const [loadingIncome, setLoadingIncome] = useState<boolean>(true);
 
   const [incidents, setIncidents] = useState<DriverIncident[]>([]);
   const [loadingIncidents, setLoadingIncidents] = useState<boolean>(true);
+  const [incomeLogs, setIncomeLogs] = useState<IncomeLog[]>([])
+
+
+  async function getIncomeLogsByDriver(driverId: string) {
+  const result = await getIncomeLogsByDriverId(driverId)
+  
+  setIncomeLogs(result)
+  
+
+}
 
   // Load driver record
   useEffect(() => {
@@ -127,8 +132,8 @@ export default function DriverProfile() {
       // Income
       try {
         setLoadingIncome(true);
-        const rows = await getIncomeLogsByDriver(driver.name, 100);
-        if (!cancelled) setIncome(rows);
+         getIncomeLogsByDriver(driver.id);
+     
       } catch (e: any) {
         toast.error(e?.message ?? "Failed to load income");
       } finally {
@@ -159,14 +164,14 @@ export default function DriverProfile() {
     const day30 = new Date(now);
     day30.setDate(now.getDate() - 30);
 
-    const last8 = [...income]
+    const last8 = [...incomeLogs]
       .filter(r => Number.isFinite(Number(r.weekEndingMileage)) && Number(r.weekEndingMileage) > 0)
       .slice(0, 8);
 
     const totalKm = last8.reduce((s, r) => s + Number(r.weekEndingMileage || 0), 0);
     const avgKm = last8.length ? totalKm / last8.length : 0;
 
-    const cashLast30 = income
+    const cashLast30 = incomeLogs
       .filter(r => {
         const d = toDateInputValue(r.cashDate || r.createdAt);
         return d && new Date(d) >= day30;
@@ -189,7 +194,7 @@ export default function DriverProfile() {
       incidentsYTD: ytdIncidents,
       earningsPerKm: epk,
     };
-  }, [income, incidents]);
+  }, [incomeLogs, incidents]);
 
   return (
     <div className="mx-auto max-w-6xl space-y-4">
@@ -263,19 +268,18 @@ export default function DriverProfile() {
                 />
               </div>
 
-              {/* Recent income */}
+              {/* Recent income Logs */}
               <Section title="Recent Income">
                 {loadingIncome ? (
                   <div className="flex items-center justify-center py-6 text-sm text-muted-foreground">
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading income…
                   </div>
-                ) : income.length === 0 ? (
+                ) : incomeLogs.length === 0 ? (
                   <div className="text-sm text-muted-foreground">No income logs found for this driver.</div>
                 ) : (
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Created</TableHead>
                         <TableHead>Cash date</TableHead>
                         <TableHead className="text-right">Amount</TableHead>
                         <TableHead className="text-right">Week-end km</TableHead>
@@ -284,9 +288,9 @@ export default function DriverProfile() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {income.slice(0, 12).map((row) => (
-                        <TableRow key={row.id ?? row.createdAt ?? row.cashDate}>
-                          <TableCell>{row.createdAt ? new Date(row.createdAt).toLocaleString() : "—"}</TableCell>
+                      {incomeLogs.slice(0, 12).map((row) => (
+                        <TableRow key={row.id ?? row.createdAt}>
+                       
                           <TableCell>{row.cashDate ? new Date(row.cashDate).toLocaleDateString() : "—"}</TableCell>
                           <TableCell className="text-right">
                             {Number(row.amount).toLocaleString(undefined, { style: "currency", currency: "USD" })}
