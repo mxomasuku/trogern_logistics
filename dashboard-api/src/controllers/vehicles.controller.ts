@@ -8,9 +8,11 @@ import {
 } from '../interfaces/interfaces';
 const { db, admin } = require('../config/firebase');
 import { success, failure } from '../utils/apiResponse';
+import { cascadeDriverStatusFromVehicle } from './status_sync_repo';
 
 // ---------- Firestore refs & helpers ----------
 const vehiclesCollection: FirebaseFirestore.CollectionReference = db.collection('vehicles');
+const serviceRecordsCollection: FirebaseFirestore.CollectionReference = db.collection('service-records')
 const FirestoreTimestamp = admin.firestore.Timestamp;
 
 const nowTs = () => FirestoreTimestamp.now();
@@ -21,6 +23,43 @@ const parseDateToTs = (value?: string): FirebaseFirestore.Timestamp | undefined 
   if (Number.isNaN(milliseconds)) return undefined;
   return FirestoreTimestamp.fromMillis(milliseconds);
 };
+
+
+export async function upsertLastServiceDateIfNewer(
+  vehicleId: string,
+  newDate: FirebaseFirestore.Timestamp
+): Promise<void> {
+  await vehiclesCollection.firestore.runTransaction(async (tx) => {
+    const ref = vehiclesCollection.doc(vehicleId);
+    const snap = await tx.get(ref);
+    if (!snap.exists) throw new Error("Vehicle not found");
+
+    const current = snap.get("lastServiceDate") as FirebaseFirestore.Timestamp | null | undefined;
+    const shouldUpdate = !current || (current.toMillis?.() ?? 0) < newDate.toMillis();
+
+    if (shouldUpdate) {
+      tx.update(ref, {
+        lastServiceDate: newDate,
+        updatedAt: FirestoreTimestamp.now(),
+      });
+    }
+  });
+}
+
+export async function recomputeLastServiceDateFromRecords(vehicleId: string): Promise<void> {
+  const snap = await serviceRecordsCollection
+    .where("vehicleId", "==", vehicleId)
+    .orderBy("date", "desc")
+    .limit(1)
+    .get();
+
+  const ts = snap.empty ? null : (snap.docs[0].get("date") as FirebaseFirestore.Timestamp);
+
+  await vehiclesCollection.doc(vehicleId).update({
+    lastServiceDate: ts ?? FirebaseFirestore.FieldValue.delete(),
+    updatedAt: FirestoreTimestamp.now(),
+  });
+}
 
 // utils/normalize.ts (or alongside your controller)
 export const normalizePlate = (plate?: string) =>
@@ -305,7 +344,7 @@ export const updateVehicle = async (
 
     await vehicleRef.update(parsed.value);
     const updatedSnap = await vehicleRef.get();
-
+await cascadeDriverStatusFromVehicle(vehicleId);
     return res.status(200).json(success(vehicleDocToJson(updatedSnap)));
   } catch (error: any) {
     console.error('Error updating vehicle:', error);

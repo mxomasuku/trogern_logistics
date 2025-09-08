@@ -112,3 +112,16 @@ export interface Driver {
   emergencyContact: string;
   isActive?: boolean; // optional toggle
 }
+
+export interface IncomeLog {
+  id: string;
+  amount: number;
+  weekEndingMileage: number;
+  vehicle: string;
+  driverId: string;
+  driverName: string;
+  note?: string;
+  createdAt: string; 
+  updatedAt?: string;
+  cashDate: string; 
+}

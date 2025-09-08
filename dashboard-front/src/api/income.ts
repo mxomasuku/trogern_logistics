@@ -23,12 +23,25 @@ export async function listIncomeLogs(): Promise<IncomeLog[]> {
   return data.data!;
 }
 
-export async function getIncomeLogById(incomeId: string): Promise<IncomeLog> {
-  const { data } = await http.get<ApiResponse<IncomeLog>>(`/income/get/${incomeId}`);
+export async function getIncomeLogsByDriverId(driverId: string): Promise<IncomeLog[]> {
+  const { data } = await http.get<ApiResponse<IncomeLog[]>>(`/income/get-driver-income-logs/${driverId}`);
   if (!data?.isSuccessful) throw new Error(data?.error?.message ?? "Failed to fetch income logs");
   return data.data!;
 }
 
+export async function getIncomeLogsByVehicleId(vehicleId: string): Promise<IncomeLog[]> {
+  const { data } = await http.get<ApiResponse<IncomeLog[]>>(`/income/get-vehicle-income-logs/${vehicleId}`);
+  if (!data?.isSuccessful) throw new Error(data?.error?.message ?? "Failed to fetch income logs");
+  return data.data!;
+}
+
+
+export async function getIncomeLogById(incomeId: string): Promise<IncomeLog> {
+    const { data } = await http.get<ApiResponse<IncomeLog>>(`/income/get/${incomeId}`);
+  if (!data?.isSuccessful) throw new Error(data?.error?.message ?? "Failed to fetch income log");
+  return data.data!;
+
+}
 export async function updateIncomeLog(
   id: string,
   patch: Partial<Omit<IncomeLog, "id" | "timestamp">> & { timestamp?: string }
@@ -45,7 +58,7 @@ export async function updateIncomeLog(
 
 export async function getIncomeLogsForVehicle(vehicleId: string): Promise<IncomeLog[]> {
 const {data} = await http.get<ApiResponse<IncomeLog[]>>(
-  `/income/${vehicleId}`
+  `/income/get-vehicle-income-logs/${vehicleId}`
 )
 
 if(!data?.isSuccessful) {
