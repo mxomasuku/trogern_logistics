@@ -10,7 +10,7 @@ import {
   type ServiceItem,
 } from "@/api/service";
 
-import { getAllActiveVehicles } from "@/api/vehicles";
+import { getAllActiveVehicles, getVehicles } from "@/api/vehicles";
 import type { Vehicle } from "@/types/types";
 
 import { Button } from "@/components/ui/button";
@@ -82,8 +82,8 @@ export default function AddServicePage() {
       setVehiclesLoading(true);
       setVehiclesError(null);
       try {
-        const activeVehicles = await getAllActiveVehicles();
-        setVehicles(activeVehicles);
+        const vehicles = await getVehicles();
+        setVehicles(vehicles);
       } catch (error: any) {
         const message = error?.message ?? "Failed to load vehicles";
         setVehiclesError(message);
