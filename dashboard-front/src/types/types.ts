@@ -48,9 +48,11 @@ export interface Vehicle {
   createdAt?: string;
   updatedAt?: string;
 }
+export type LedgerType = 'expense' | 'income';
 
 export interface IncomeLog {
   id: string;
+  type: LedgerType;
   amount: number;
   weekEndingMileage: number;
   vehicle: string;

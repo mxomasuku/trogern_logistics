@@ -10,7 +10,7 @@ import {
   type ServiceItem,
 } from "@/api/service";
 
-import { getAllActiveVehicles, getVehicles } from "@/api/vehicles";
+import { getVehicles } from "@/api/vehicles";
 import type { Vehicle } from "@/types/types";
 
 import { Button } from "@/components/ui/button";
