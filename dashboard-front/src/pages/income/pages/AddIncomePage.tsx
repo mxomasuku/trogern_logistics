@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { addIncomeLog, updateIncomeLog, getIncomeLogById } from "@/api/income";
 import { getAllActiveDrivers } from "@/api/drivers";
-import type { Driver } from "@/types/types";
+import type { Driver, LedgerType } from "@/types/types";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,14 +12,12 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Loader2, Save, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
-
-// if not already exported elsewhere
 import { toDateInputValue } from "@/lib/utils";
 
 export default function AddIncomePage() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
-  const editId = params.get("id"); // ← prefill when present
+  const editId = params.get("id");
   const isEdit = !!editId;
 
   // reference data
@@ -31,9 +29,10 @@ export default function AddIncomePage() {
   const [weekEndingMileage, setWeekEndingMileage] = useState("");
   const [note, setNote] = useState("");
   const [cashDate, setCashDate] = useState("");
-  const [driverId, setDriverId] = useState<string>(""); // selected radio
+  const [driverId, setDriverId] = useState<string>("");
+  const [ledgerType, setLedgerType] = useState<LedgerType>("income");
 
-  // Editing: hold raw values from the record so we can map to driverId after drivers load
+  // Editing: raw values for resolution
   const [prefillDriverName, setPrefillDriverName] = useState<string>("");
   const [prefillVehicle, setPrefillVehicle] = useState<string>("");
 
@@ -79,6 +78,7 @@ export default function AddIncomePage() {
         setWeekEndingMileage(String(existing.weekEndingMileage ?? ""));
         setNote(existing.note ?? "");
         setCashDate(toDateInputValue((existing as any).cashDate));
+        setLedgerType((existing as any).type ?? "income");
 
         // Keep raw values so we can resolve driverId after drivers load
         setPrefillDriverName(existing.driverName ?? "");
@@ -96,7 +96,7 @@ export default function AddIncomePage() {
     };
   }, [isEdit, editId, navigate]);
 
-  /* After drivers load (or when prefill values change), resolve driverId */
+  /* After drivers load, resolve driverId */
   useEffect(() => {
     if (!isEdit || loadingDrivers || drivers.length === 0) return;
 
@@ -107,9 +107,6 @@ export default function AddIncomePage() {
 
     if (match) {
       setDriverId(match.id!);
-    } else {
-      // Not found → leave unselected but keep vehicle read-only empty
-      // (You can optionally toast here)
     }
   }, [isEdit, loadingDrivers, drivers, prefillDriverName, prefillVehicle]);
 
@@ -130,11 +127,12 @@ export default function AddIncomePage() {
     const payload = {
       amount: amt,
       weekEndingMileage: miles,
-      driverId: selectedDriver!.id, 
-      driverName: selectedDriver!.name,  // backend expects name; swap to id if your API expects driverId
-      vehicle,                        // derived from assignedVehicleId
+      driverId: selectedDriver!.id,
+      driverName: selectedDriver!.name,
+      vehicle,
       cashDate,
       note: note || undefined,
+      type: ledgerType,
     } as any;
 
     setSaving(true);
@@ -187,6 +185,25 @@ export default function AddIncomePage() {
                   <Label className="mb-1 inline-block">Cash date</Label>
                   <Input type="date" value={cashDate} onChange={e => setCashDate(e.target.value)} />
                 </div>
+              </div>
+
+              {/* Entry type */}
+              <div className="space-y-2">
+                <Label className="inline-block">Entry type</Label>
+                <RadioGroup
+                  value={ledgerType}
+                  onValueChange={(v) => setLedgerType(v as LedgerType)}
+                  className="flex gap-6"
+                >
+                  <label className="inline-flex items-center gap-2 cursor-pointer">
+                    <RadioGroupItem id="type-income" value="income" />
+                    <span>Income</span>
+                  </label>
+                  <label className="inline-flex items-center gap-2 cursor-pointer">
+                    <RadioGroupItem id="type-expense" value="expense" />
+                    <span>Expense</span>
+                  </label>
+                </RadioGroup>
               </div>
 
               {/* Drivers radio list */}
