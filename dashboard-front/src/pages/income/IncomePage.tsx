@@ -14,14 +14,16 @@ import {
 } from "@/components/ui/dialog";
 import { Loader2, Plus, List } from "lucide-react";
 import { toast } from "sonner";
-import { IncomeList} from "./components/IncomeList";
-import type { IncomeLog } from "@/types/types";
+import { IncomeList } from "./components/IncomeList";
+import type { IncomeLog, LedgerType } from "@/types/types";
 
 export default function IncomePage() {
   const [items, setItems] = useState<IncomeLog[]>([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
   const [showList, setShowList] = useState(false);
+
+  // Edit modal state
   const [editOpen, setEditOpen] = useState(false);
   const [editing, setEditing] = useState<IncomeLog | null>(null);
   const [amount, setAmount] = useState<string>("");
@@ -30,6 +32,7 @@ export default function IncomePage() {
   const [driver, setEDriver] = useState<string>("");
   const [cashDate, setCashDate] = useState<string>("");
   const [note, setNote] = useState<string>("");
+  const [entryType, setEntryType] = useState<LedgerType>("income");
 
   const [submitting, setSubmitting] = useState(false);
 
@@ -46,11 +49,21 @@ export default function IncomePage() {
   };
 
   useEffect(() => {
-
     load();
   }, []);
 
-
+  function openEdit(row: IncomeLog) {
+    setEditing(row);
+    setAmount(String(row.amount ?? ""));
+    setMileage(String(row.weekEndingMileage ?? ""));
+    setVehicle(row.vehicle ?? "");
+    // Keep your existing freeform driver input behavior
+    setEDriver(row.driverName || row.driverId || "");
+    setCashDate(row.cashDate ?? "");
+    setNote(row.note ?? "");
+    setEntryType(row.type ?? "income");
+    setEditOpen(true);
+  }
 
   const onSubmitEdit = async () => {
     if (!editing?.id) {
@@ -75,10 +88,13 @@ export default function IncomePage() {
       const updated = await updateIncomeLog(editing.id, {
         amount: amt,
         weekEndingMileage: miles,
-        vehicle: vehicle,
-        driver: driver,
-        cashDate: cashDate,
+        vehicle,
+        // Keeping parity with your previous API usage; add both to be safe
+        driverName: driver,
+        driverId: driver,
+        cashDate,
         note: note || undefined,
+        type: entryType,
       } as any);
 
       // merge into list
@@ -95,6 +111,7 @@ export default function IncomePage() {
                 driverName: updated.driverName ?? driver,
                 note: updated.note ?? note,
                 cashDate: updated.cashDate ?? cashDate,
+                type: updated.type ?? entryType,
                 createdAt: updated.createdAt ?? x.createdAt,
               }
             : x
@@ -135,7 +152,7 @@ export default function IncomePage() {
             <IncomeList
               items={items}
               loading={loading}
-              // onRowClick={openEdit}
+              onRowClick={openEdit}   // <-- enable editing
               currency="USD"
             />
           </CardContent>
@@ -162,6 +179,7 @@ export default function IncomePage() {
                 step={0.01}
               />
             </div>
+
             <div>
               <Label className="mb-1 inline-block">Week-ending mileage</Label>
               <input
@@ -173,6 +191,7 @@ export default function IncomePage() {
                 step={1}
               />
             </div>
+
             <div>
               <Label className="mb-1 inline-block">Cash date</Label>
               <input
@@ -182,6 +201,7 @@ export default function IncomePage() {
                 onChange={(e) => setCashDate(e.target.value)}
               />
             </div>
+
             <div>
               <Label className="mb-1 inline-block">Vehicle</Label>
               <input
@@ -190,6 +210,7 @@ export default function IncomePage() {
                 onChange={(e) => setVehicle(e.target.value)}
               />
             </div>
+
             <div>
               <Label className="mb-1 inline-block">Driver</Label>
               <input
@@ -198,6 +219,34 @@ export default function IncomePage() {
                 onChange={(e) => setEDriver(e.target.value)}
               />
             </div>
+
+            {/* Entry type */}
+            <div>
+              <Label className="mb-1 inline-block">Entry type</Label>
+              <div className="flex gap-4 items-center">
+                <label className="inline-flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="entryType"
+                    value="income"
+                    checked={entryType === "income"}
+                    onChange={() => setEntryType("income")}
+                  />
+                  <span>Income</span>
+                </label>
+                <label className="inline-flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="entryType"
+                    value="expense"
+                    checked={entryType === "expense"}
+                    onChange={() => setEntryType("expense")}
+                  />
+                  <span>Expense</span>
+                </label>
+              </div>
+            </div>
+
             <div className="md:col-span-3">
               <Label className="mb-1 inline-block">Note</Label>
               <input
