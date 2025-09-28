@@ -15,6 +15,7 @@ export interface ApiError {
 
 export type VehicleStatus = 'active' | 'inactive' | 'maintenance' | 'retired';
 export type RouteType = 'local' | 'highway' | 'mixed';
+export type LedgerType = 'expense' | 'income';
 
 export interface Vehicle {
   plateNumber: string;
@@ -116,6 +117,7 @@ export interface Driver {
 export interface IncomeLog {
   id: string;
   amount: number;
+  type: LedgerType;
   weekEndingMileage: number;
   vehicle: string;
   driverId: string;
