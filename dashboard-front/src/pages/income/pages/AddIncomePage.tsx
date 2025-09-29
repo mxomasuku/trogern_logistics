@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { addIncomeLog, updateIncomeLog, getIncomeLogById } from "@/api/income";
-import { getAllActiveDrivers, getDrivers} from "@/api/drivers";
+import {getDrivers} from "@/api/drivers";
 import type { Driver, LedgerType } from "@/types/types";
 
 import { Button } from "@/components/ui/button";
