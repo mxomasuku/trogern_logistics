@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { addIncomeLog, updateIncomeLog, getIncomeLogById } from "@/api/income";
-import {getDrivers} from "@/api/drivers";
+import { getDrivers } from "@/api/drivers";
 import type { Driver, LedgerType } from "@/types/types";
 
 import { Button } from "@/components/ui/button";
@@ -24,7 +24,7 @@ export default function AddIncomePage() {
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [loadingDrivers, setLoadingDrivers] = useState(true);
 
-  // form
+  // form state
   const [amount, setAmount] = useState("");
   const [weekEndingMileage, setWeekEndingMileage] = useState("");
   const [note, setNote] = useState("");
@@ -32,17 +32,22 @@ export default function AddIncomePage() {
   const [driverId, setDriverId] = useState<string>("");
   const [ledgerType, setLedgerType] = useState<LedgerType>("income");
 
-  // Editing: raw values for resolution
+  // editing prefill helpers
   const [prefillDriverName, setPrefillDriverName] = useState<string>("");
   const [prefillVehicle, setPrefillVehicle] = useState<string>("");
 
+  // selected driver
   const selectedDriver = useMemo(
     () => drivers.find((d) => d.id === driverId),
     [drivers, driverId]
   );
 
-  // Vehicle is auto-derived from selected driver
-  const vehicle = selectedDriver?.assignedVehicleId ?? "";
+  // vehicle handling:
+  // - if driver has assignedVehicleId, auto-fill and lock
+  // - else use prefillVehicle and allow manual editing
+  const vehicle =
+    selectedDriver?.assignedVehicleId ??
+    prefillVehicle; // use manual if no assignedVehicleId
 
   const [saving, setSaving] = useState(false);
   const [loadingPrefill, setLoadingPrefill] = useState<boolean>(isEdit);
@@ -73,14 +78,12 @@ export default function AddIncomePage() {
         const existing = await getIncomeLogById(editId!);
         if (cancelled) return;
 
-        // Fill simple fields first
         setAmount(String(existing.amount ?? ""));
         setWeekEndingMileage(String(existing.weekEndingMileage ?? ""));
         setNote(existing.note ?? "");
         setCashDate(toDateInputValue((existing as any).cashDate));
         setLedgerType((existing as any).type ?? "income");
 
-        // Keep raw values so we can resolve driverId after drivers load
         setPrefillDriverName(existing.driverName ?? "");
         setPrefillVehicle(existing.vehicle ?? "");
       } catch (e: any) {
@@ -102,8 +105,14 @@ export default function AddIncomePage() {
 
     // Prefer name match, fallback to vehicle match
     let match =
-      drivers.find((d) => d.name?.toLowerCase() === prefillDriverName.toLowerCase()) ||
-      drivers.find((d) => (d.assignedVehicleId || "").toLowerCase() === prefillVehicle.toLowerCase());
+      drivers.find(
+        (d) => d.name?.toLowerCase() === prefillDriverName.toLowerCase()
+      ) ||
+      drivers.find(
+        (d) =>
+          (d.assignedVehicleId || "").toLowerCase() ===
+          prefillVehicle.toLowerCase()
+      );
 
     if (match) {
       setDriverId(match.id!);
@@ -115,9 +124,10 @@ export default function AddIncomePage() {
     const miles = Number(weekEndingMileage);
     const missing: string[] = [];
     if (!Number.isFinite(amt) || amt <= 0) missing.push("amount (> 0)");
-    if (!Number.isFinite(miles) || miles <= 0) missing.push("weekEndingMileage (> 0)");
+    if (!Number.isFinite(miles) || miles <= 0)
+      missing.push("weekEndingMileage (> 0)");
     if (!driverId) missing.push("driver");
-    if (!vehicle) missing.push("vehicle (assigned to driver)");
+    if (!vehicle) missing.push("vehicle (assigned or manual)");
     if (!cashDate) missing.push("cashDate");
     if (missing.length) {
       toast.error(`Fix: ${missing.join(", ")}`);
@@ -127,8 +137,8 @@ export default function AddIncomePage() {
     const payload = {
       amount: amt,
       weekEndingMileage: miles,
-      driverId: selectedDriver!.id,
-      driverName: selectedDriver!.name,
+      driverId: selectedDriver?.id || driverId,
+      driverName: selectedDriver?.name || prefillDriverName,
       vehicle,
       cashDate,
       note: note || undefined,
@@ -146,7 +156,9 @@ export default function AddIncomePage() {
       }
       navigate("/income");
     } catch (e: any) {
-      toast.error(e?.message ?? (isEdit ? "Failed to update income" : "Failed to add income"));
+      toast.error(
+        e?.message ?? (isEdit ? "Failed to update income" : "Failed to add income")
+      );
     } finally {
       setSaving(false);
     }
@@ -165,7 +177,7 @@ export default function AddIncomePage() {
           <CardTitle>{isEdit ? "Edit Income" : "Add Income"}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
-          {(loadingPrefill && isEdit) ? (
+          {loadingPrefill && isEdit ? (
             <div className="flex items-center text-sm text-muted-foreground">
               <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading entry…
             </div>
@@ -175,15 +187,30 @@ export default function AddIncomePage() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <Label className="mb-1 inline-block">Amount</Label>
-                  <Input type="number" value={amount} onChange={e => setAmount(e.target.value)} min={0} step={0.01} />
+                  <Input
+                    type="number"
+                    value={amount}
+                    onChange={(e) => setAmount(e.target.value)}
+                    min={0}
+                    step={0.01}
+                  />
                 </div>
                 <div>
                   <Label className="mb-1 inline-block">Week-ending mileage</Label>
-                  <Input type="number" value={weekEndingMileage} onChange={e => setWeekEndingMileage(e.target.value)} min={0} />
+                  <Input
+                    type="number"
+                    value={weekEndingMileage}
+                    onChange={(e) => setWeekEndingMileage(e.target.value)}
+                    min={0}
+                  />
                 </div>
                 <div>
                   <Label className="mb-1 inline-block">Cash date</Label>
-                  <Input type="date" value={cashDate} onChange={e => setCashDate(e.target.value)} />
+                  <Input
+                    type="date"
+                    value={cashDate}
+                    onChange={(e) => setCashDate(e.target.value)}
+                  />
                 </div>
               </div>
 
@@ -214,16 +241,25 @@ export default function AddIncomePage() {
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading drivers…
                   </div>
                 ) : drivers.length === 0 ? (
-                  <div className="text-sm text-muted-foreground">No active drivers found.</div>
+                  <div className="text-sm text-muted-foreground">
+                    No active drivers found.
+                  </div>
                 ) : (
-                  <RadioGroup value={driverId} onValueChange={setDriverId} className="grid gap-2">
+                  <RadioGroup
+                    value={driverId}
+                    onValueChange={setDriverId}
+                    className="grid gap-2"
+                  >
                     {drivers.map((driver) => (
                       <label
                         key={driver.id}
                         className="flex items-center justify-between rounded-md border p-3 cursor-pointer hover:bg-accent/40"
                       >
                         <div className="flex items-center gap-3">
-                          <RadioGroupItem value={driver.id!} id={`driver-${driver.id}`} />
+                          <RadioGroupItem
+                            value={driver.id!}
+                            id={`driver-${driver.id}`}
+                          />
                           <div>
                             <div className="font-medium">{driver.name}</div>
                             <div className="text-xs text-muted-foreground">
@@ -237,20 +273,38 @@ export default function AddIncomePage() {
                 )}
               </div>
 
-              {/* Auto vehicle (read-only) + optional note */}
+              {/* Auto / manual vehicle + optional note */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label className="mb-1 inline-block">Vehicle (auto)</Label>
-                  <Input value={vehicle} readOnly />
+                  <Label className="mb-1 inline-block">
+                    Vehicle{" "}
+                    {selectedDriver?.assignedVehicleId
+                      ? "(auto)"
+                      : "(manual)"}
+                  </Label>
+                  <Input
+                    value={vehicle}
+                    onChange={(e) => setPrefillVehicle(e.target.value)}
+                    readOnly={!!selectedDriver?.assignedVehicleId}
+                    placeholder={
+                      selectedDriver?.assignedVehicleId
+                        ? ""
+                        : "Enter vehicle manually"
+                    }
+                  />
                 </div>
                 <div>
                   <Label className="mb-1 inline-block">Note (optional)</Label>
-                  <Input value={note} onChange={e => setNote(e.target.value)} />
+                  <Input value={note} onChange={(e) => setNote(e.target.value)} />
                 </div>
               </div>
 
               <div className="flex justify-end gap-2">
-                <Button variant="ghost" onClick={() => navigate("/income")} disabled={saving}>
+                <Button
+                  variant="ghost"
+                  onClick={() => navigate("/income")}
+                  disabled={saving}
+                >
                   Cancel
                 </Button>
                 <Button onClick={onSave} disabled={saving || loadingDrivers}>
