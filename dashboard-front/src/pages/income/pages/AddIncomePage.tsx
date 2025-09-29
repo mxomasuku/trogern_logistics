@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { addIncomeLog, updateIncomeLog, getIncomeLogById } from "@/api/income";
-import { getAllActiveDrivers } from "@/api/drivers";
+import { getAllActiveDrivers, getDrivers} from "@/api/drivers";
 import type { Driver, LedgerType } from "@/types/types";
 
 import { Button } from "@/components/ui/button";
@@ -52,7 +52,7 @@ export default function AddIncomePage() {
     (async () => {
       try {
         setLoadingDrivers(true);
-        const list = await getAllActiveDrivers();
+        const list = await getDrivers();
         setDrivers(list);
       } catch (e: any) {
         toast.error(e?.message ?? "Failed to load drivers");
