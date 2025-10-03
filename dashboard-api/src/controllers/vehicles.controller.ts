@@ -86,6 +86,7 @@ function toVehicle(
   const year = Number(dto.year);
   const deliveryMileage = Number(dto.deliveryMileage)
   const currentMileage = Number(dto.currentMileage);
+  const price = Number(dto.price);
   const color = (dto.color ?? '').trim();
   const vin = (dto.vin ?? '').trim();
   const assignedDriver = dto.assignedDriver ?? null;
@@ -98,6 +99,7 @@ function toVehicle(
   if (!make) errors.push('make');
   if (!model) errors.push('model');
   if (!Number.isFinite(year) || String(year).length !== 4) errors.push('year (4-digit number)');
+  if (!Number.isFinite(price) || price < 0) errors.push('price (non negative number)');
   if (!Number.isFinite(currentMileage) || currentMileage < 0)
     errors.push('currentMileage (non-negative number)');
   if (!dto.datePurchased || !datePurchased) errors.push('datePurchased (ISO date)');
@@ -114,6 +116,7 @@ function toVehicle(
     year,
     color,
     vin,
+    price,
     assignedDriver,
     status,
     datePurchased: datePurchased!,
@@ -167,6 +170,8 @@ function toVehicleUpdate(
     if (!isVehicleStatus(status)) errors.push("status (one of: 'active'|'inactive'|'maintenance'|'retired')");
     else update.status = status;
   }
+  
+  
 
   if ('route' in dto) {
     const route = dto.route;
@@ -200,6 +205,13 @@ function toVehicleUpdate(
     else update.deliveryMileage = deliveryMileage;
   }
 
+  if('price' in dto) {
+    const price = Number(dto.price);
+    if(!Number.isFinite(price) || price < 0)
+      errors.push('price (non-negative number)');
+    else update.price = price
+  }
+
   if (errors.length) return { ok: false, errors };
   if (Object.keys(update).length === 0) return { ok: false, errors: ['No valid fields to update'] };
 
@@ -221,6 +233,7 @@ const vehicleDocToJson = (doc: FirebaseFirestore.DocumentSnapshot) => {
     make: data.make,
     model: data.model,
     year: data.year,
+    price: data.price,
     color: data.color ?? '',
     vin: data.vin ?? '',
     assignedDriver: data.assignedDriver ?? null,
