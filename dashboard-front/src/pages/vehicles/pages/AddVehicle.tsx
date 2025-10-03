@@ -4,7 +4,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import {
   addVehicle,
   updateVehicle,
-  getVehicle, // make sure this exists in your API wrapper
+  getVehicle,
 } from "@/api/vehicles";
 import type {
   Vehicle,
@@ -23,7 +23,28 @@ import {
 } from "@/components/ui/select";
 import { ArrowLeft, Loader2, Save } from "lucide-react";
 import { toast } from "sonner";
-import { toDateInputValue } from "@/lib/utils";
+
+/** Firestore ts -> input date ("YYYY-MM-DD") */
+type FsTs = { _seconds: number; _nanoseconds?: number } | null | undefined;
+function fsTsToDateInput(ts?: FsTs): string {
+  if (!ts || typeof ts._seconds !== "number") return "";
+  const nanos = typeof ts._nanoseconds === "number" ? ts._nanoseconds : 0;
+  const d = new Date(ts._seconds * 1000 + Math.floor(nanos / 1e6));
+  if (!Number.isFinite(d.getTime())) return "";
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+/** input date ("YYYY-MM-DD") -> ISO string */
+function dateInputToISO(input: string): string {
+  // Interprets as local midnight for that date; backend stores ISO
+  const ms = Date.parse(input);
+  if (!Number.isFinite(ms)) throw new Error(`Invalid date: ${input}`);
+  return new Date(ms).toISOString();
+}
+
 const STATUS_OPTS: VehicleStatus[] = ["active", "inactive", "maintenance", "retired"];
 const ROUTE_OPTS: RouteType[] = ["local", "highway", "mixed"];
 
@@ -31,7 +52,7 @@ export default function AddVehiclePage() {
   const navigate = useNavigate();
   const { search } = useLocation();
   const params = useMemo(() => new URLSearchParams(search), [search]);
-  const editId = params.get("id"); // ← same pattern as drivers/service
+  const editId = params.get("id");
   const isEdit = !!editId;
 
   // form state
@@ -41,13 +62,14 @@ export default function AddVehiclePage() {
   const [year, setYear] = useState<number>(new Date().getFullYear());
   const [color, setColor] = useState("");
   const [vin, setVin] = useState("");
+  const [price, setPrice] = useState<number>(0); // PRICE FIELD
   const [assignedDriver, setAssignedDriver] = useState("");
   const [status, setStatus] = useState<VehicleStatus>("active");
   const [route, setRoute] = useState<RouteType>("local");
-  const [datePurchased, setDatePurchased] = useState<string>("");
-  const [lastServiceDate, setLastServiceDate] = useState<string>("");
+  const [datePurchased, setDatePurchased] = useState<string>("");     // "YYYY-MM-DD"
+  const [lastServiceDate, setLastServiceDate] = useState<string>(""); // "YYYY-MM-DD"
   const [currentMileage, setCurrentMileage] = useState<number>(0);
-const [deliveryMileage, setDeliveryMileage] = useState<number>(0)
+  const [deliveryMileage, setDeliveryMileage] = useState<number>(0);
   const [loadingPrefill, setLoadingPrefill] = useState<boolean>(!!isEdit);
   const [saving, setSaving] = useState(false);
 
@@ -80,14 +102,17 @@ const [deliveryMileage, setDeliveryMileage] = useState<number>(0)
     setYear(v.year ?? new Date().getFullYear());
     setColor(v.color ?? "");
     setVin(v.vin ?? "");
+    setPrice(Number((v as any).price ?? 0));
     setAssignedDriver((v.assignedDriver as any) ?? "");
     setStatus((v.status as VehicleStatus) ?? "active");
     setRoute((v.route as RouteType) ?? "local");
-    // ensure "YYYY-MM-DD" for date inputs
-setDatePurchased(toDateInputValue(v.datePurchased));
-setLastServiceDate(toDateInputValue(v.lastServiceDate));
+
+    // Backend returns Firestore-like timestamps on Vehicle; map -> date inputs
+    setDatePurchased(fsTsToDateInput(v.datePurchased as any));
+    setLastServiceDate(fsTsToDateInput(v.lastServiceDate as any));
+
     setCurrentMileage(Number(v.currentMileage ?? 0));
-    setDeliveryMileage(Number(v.deliveryMileage ?? 0))
+    setDeliveryMileage(Number(v.deliveryMileage ?? 0));
   };
 
   const onSave = async () => {
@@ -99,7 +124,15 @@ setLastServiceDate(toDateInputValue(v.lastServiceDate));
     if (!datePurchased) missing.push("datePurchased");
     if (!route) missing.push("route");
     if (currentMileage < 0 || Number.isNaN(currentMileage)) missing.push("currentMileage");
-    if(deliveryMileage < 0 || Number.isNaN(deliveryMileage)) missing.push("deliveryMileage"); 
+    if (deliveryMileage < 0 || Number.isNaN(deliveryMileage)) missing.push("deliveryMileage");
+    if (price < 0 || Number.isNaN(price)) missing.push("price");
+
+    // Validate date strings early (and ensure they can become ISO)
+    try { dateInputToISO(datePurchased); } catch { missing.push("datePurchased (invalid)"); }
+    if (lastServiceDate) {
+      try { dateInputToISO(lastServiceDate); } catch { missing.push("lastServiceDate (invalid)"); }
+    }
+
     if (missing.length) {
       toast.error(`Missing/invalid: ${missing.join(", ")}`);
       return;
@@ -111,16 +144,17 @@ setLastServiceDate(toDateInputValue(v.lastServiceDate));
         plateNumber,
         make,
         model,
-        year: Number(year),
+        year: Number(year), // DTO allows string|number; we send number
         color,
         vin,
+        price,
         assignedDriver: assignedDriver || "",
         status,
-        deliveryMileage,
-        datePurchased, // "YYYY-MM-DD"
+        deliveryMileage: Number(deliveryMileage || 0),
+        datePurchased: dateInputToISO(datePurchased), // <-- ISO string
         route,
-        lastServiceDate: lastServiceDate || undefined,
-        currentMileage: Number(currentMileage || 0),
+        lastServiceDate: lastServiceDate ? dateInputToISO(lastServiceDate) : undefined, // <-- ISO string
+        currentMileage: Number(currentMileage || 0), // DTO allows string|number; we send number
       };
 
       if (isEdit) {
@@ -166,6 +200,10 @@ setLastServiceDate(toDateInputValue(v.lastServiceDate));
                 <NumberField label="Year" value={year} onChange={setYear} min={1900} max={2999} required />
                 <TextField label="Color" value={color} onChange={setColor} />
                 <TextField label="VIN" value={vin} onChange={setVin} />
+
+                {/* PRICE INPUT FIELD */}
+                <NumberField label="Price (USD)" value={price} onChange={setPrice} min={0} />
+
                 <TextField
                   label="Assigned driver"
                   value={assignedDriver}
@@ -187,6 +225,7 @@ setLastServiceDate(toDateInputValue(v.lastServiceDate));
                 <TextField label="Date purchased" type="date" value={datePurchased} onChange={setDatePurchased} required />
                 <TextField label="Last service date" type="date" value={lastServiceDate} onChange={setLastServiceDate} />
                 <NumberField label="Current mileage" value={currentMileage} onChange={setCurrentMileage} min={0} required />
+                <NumberField label="Delivery mileage" value={deliveryMileage} onChange={setDeliveryMileage} min={0} required />
               </Grid>
 
               <div className="flex justify-end gap-2">
@@ -194,7 +233,15 @@ setLastServiceDate(toDateInputValue(v.lastServiceDate));
                   Cancel
                 </Button>
                 <Button onClick={onSave} disabled={saving}>
-                  {saving ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving…</> : <><Save className="mr-2 h-4 w-4" /> Save</>}
+                  {saving ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving…
+                    </>
+                  ) : (
+                    <>
+                      <Save className="mr-2 h-4 w-4" /> Save
+                    </>
+                  )}
                 </Button>
               </div>
             </>

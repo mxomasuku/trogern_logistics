@@ -3,7 +3,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { Pencil, Trash2 } from "lucide-react";
-import type { ServiceRecord } from "@/api/service";
+import type { ServiceRecord } from "@/types/types";
 
 type ServiceTableProps = {
   records: (ServiceRecord & { id: string })[];

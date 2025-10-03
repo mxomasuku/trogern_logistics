@@ -38,16 +38,19 @@ export interface Vehicle {
   year: number;
   color?: string;
   vin?: string;
+  price: number;
   assignedDriver?: string | null;
   status: VehicleStatus;
-  datePurchased: string;       
+  datePurchased: { _seconds: number; _nanoseconds: number },       
   route: RouteType;
-  lastServiceDate?: string;    
+  lastServiceDate?: { _seconds: number; _nanoseconds: number },  
   deliveryMileage: number;
   currentMileage: number;
   createdAt?: string;
   updatedAt?: string;
 }
+export type ServiceRecordDTO = Omit<ServiceRecord, "createdAt" | "updatedAt">;
+
 export type LedgerType = 'expense' | 'income';
 
 export interface IncomeLog {
@@ -68,5 +71,41 @@ export type VehicleStatus = "active" | "inactive" | "maintenance" | "retired";
 export type RouteType = "local" | "highway" | "mixed";
 
 
-export type VehicleCreateDTO = Omit<Vehicle, "id" | "createdAt" | "updatedAt">;
+export interface VehicleCreateDTO {
+  plateNumber: string;
+  make: string;
+  model: string;
+  year: number | string;
+  color?: string;
+  price: number;
+  vin?: string;
+  assignedDriver?: string | null;
+  status?: VehicleStatus;
+  datePurchased: string;        // ISO string
+  route: RouteType;
+  lastServiceDate?: string;     // ISO string
+  deliveryMileage: number;
+  currentMileage: number | string;
+}
+
 export type VehicleUpdateDTO = Partial<VehicleCreateDTO>;
+
+export interface ServiceItem {
+  name: string;
+  unit: string;
+  cost: number;
+  quantity: number;
+}
+
+export interface ServiceRecord {
+  id?: string;
+  date: string; // ISO in client
+  mechanic: string;
+  condition: string;
+  cost: number;
+  itemsChanged: ServiceItem[];
+  notes?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  vehicleId: string
+}
