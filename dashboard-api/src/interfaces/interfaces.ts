@@ -26,7 +26,7 @@ export interface Vehicle {
   vin: string;
   assignedDriver?: string | null;
   status: VehicleStatus;
-
+  price: number;
   datePurchased: FirebaseFirestore.Timestamp;
   route?: RouteType;
   lastServiceDate?: FirebaseFirestore.Timestamp;
@@ -44,6 +44,7 @@ export interface VehicleCreateDTO {
   model: string;
   year: number | string;
   color?: string;
+  price: number;
   vin?: string;
   assignedDriver?: string | null;
   status?: VehicleStatus;
