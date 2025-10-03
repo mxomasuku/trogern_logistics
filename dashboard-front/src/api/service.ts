@@ -1,27 +1,9 @@
 import { http } from "../lib/http-instance"
 import type { ApiResponse } from "../types/types";
+import type { ServiceRecord, ServiceRecordDTO } from "../types/types";
 
-export interface ServiceItem {
-  name: string;
-  unit: string;
-  cost: number;
-  quantity: number;
-}
 
-export interface ServiceRecord {
-  id?: string;
-  date: string; // ISO in client
-  mechanic: string;
-  condition: string;
-  cost: number;
-  itemsChanged: ServiceItem[];
-  notes?: string;
-  createdAt?: string;
-  updatedAt?: string;
-  vehicleId: string
-}
 
-export type ServiceRecordDTO = Omit<ServiceRecord, "createdAt" | "updatedAt">;
 
 export async function getServiceRecordsForVehicle(vehicleId: string): Promise<ServiceRecord[]> {
   const { data } = await http.get<ApiResponse<ServiceRecord[]>>(

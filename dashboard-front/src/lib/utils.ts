@@ -61,3 +61,12 @@ export function toDateInputValue(value: unknown): string {
   }
   return "";
 }
+
+
+export function fmtDate(value?: string | number | Date | null): string {
+  if (!value) return "-";
+  const d = typeof value === "string" || typeof value === "number" ? new Date(value) : value;
+  const t = d?.getTime?.();
+  if (!t || Number.isNaN(t)) return "-";
+  return d.toLocaleDateString();
+}

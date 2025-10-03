@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { getAllServiceRecords, deleteServiceRecord, type ServiceRecord } from "@/api/service";
+import { getAllServiceRecords, deleteServiceRecord, } from "@/api/service";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -11,7 +11,7 @@ import {
 import { Loader2, Plus, Search } from "lucide-react";
 import { toast } from "sonner";
 import { ServiceRecordsTable } from "./components/ServiceRecordsTable";
-
+import type { ServiceRecord } from "@/types/types";
 export default function ServicePage() {
   const [records, setRecords] = useState<(ServiceRecord & { id: string })[]>([]);
   const [loading, setLoading] = useState(true);
@@ -43,7 +43,7 @@ export default function ServicePage() {
         r.condition,
         r.notes,
         String(r.cost),
-        ...(r.itemsChanged || []).flatMap((i) => [i.name, i.unit, String(i.cost), String(i.quantity)]),
+        ...(r.itemsChanged || []).flatMap((i: any) => [i.name, i.unit, String(i.cost), String(i.quantity)]),
       ]
         .filter(Boolean)
         .some((v) => String(v).toLowerCase().includes(q))

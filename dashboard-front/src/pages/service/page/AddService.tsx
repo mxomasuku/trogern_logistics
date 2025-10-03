@@ -6,12 +6,12 @@ import {
   addServiceRecord,
   updateServiceRecord,
   getServiceRecordById,
-  type ServiceRecordDTO,
-  type ServiceItem,
+ 
+ 
 } from "@/api/service";
 
 import { getVehicles } from "@/api/vehicles";
-import type { Vehicle } from "@/types/types";
+import type { Vehicle, ServiceItem, ServiceRecordDTO } from "@/types/types";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
