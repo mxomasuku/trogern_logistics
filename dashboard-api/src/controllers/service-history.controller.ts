@@ -3,7 +3,7 @@ import { ServiceRecord, ServiceRecordDTO, ServiceItem } from "../interfaces/inte
 const { db, admin } = require("../config/firebase");
 import { success, failure } from "../utils/apiResponse";
 import { upsertLastServiceDateIfNewer, recomputeLastServiceDateFromRecords } from "./vehicles.controller";
-import {upsertExpenseForService} from "../utils/service-utils";
+import { upsertExpenseForService } from "../utils/service-utils";
 
 /** Top-level collections */
 const vehiclesCollection: FirebaseFirestore.CollectionReference = db.collection("vehicles");
@@ -42,13 +42,7 @@ const normalizeItems = (raw: ServiceRecordDTO["itemsChanged"]) => {
   return { items, errors };
 };
 
-
-
-
-
-
-
-
+/** CREATE */
 export const addServiceRecord = async (
   req: Request<{}, {}, ServiceRecordDTO>,
   res: Response
@@ -93,9 +87,19 @@ export const addServiceRecord = async (
       updatedAt: now,
     };
 
-    const createdRef = await serviceRecordsCollection.add(recordToCreate);
+    // Create a doc ref first so we can use its ID as serviceId
+    const createdRef = serviceRecordsCollection.doc();
+    const serviceId = createdRef.id;
+
+    // Persist with both serviceId and id fields for easy querying (not in TS interface but OK in Firestore)
+    await createdRef.set({
+      ...recordToCreate,
+      serviceId,  // canonical internal link
+      id: serviceId, // convenience mirror for clients
+    } as any);
+
     const snap = await createdRef.get();
-    const created = snap.data() as ServiceRecord;
+    const created = snap.data() as ServiceRecord & { serviceId?: string; id?: string };
 
     // Maintain vehicle.lastServiceDate
     try {
@@ -104,10 +108,10 @@ export const addServiceRecord = async (
       console.warn("upsertLastServiceDateIfNewer failed:", e);
     }
 
-    // 🔻 NEW: upsert corresponding expense into income
+    // Upsert corresponding EXPENSE income row for this service
     try {
       await upsertExpenseForService({
-        serviceId: snap.id,
+        serviceId,
         vehicleId,
         cost: totalCost,
         serviceMileage,
@@ -123,7 +127,7 @@ export const addServiceRecord = async (
 
     return res.status(201).json(
       success({
-        id: snap.id,
+        id: serviceId, // always return id
         vehicleId: created.vehicleId,
         date: created.date.toDate().toISOString(),
         serviceMileage: created.serviceMileage,
@@ -144,6 +148,7 @@ export const addServiceRecord = async (
   }
 };
 
+/** UPDATE */
 export const updateServiceRecord = async (
   req: Request<{ serviceId: string }, {}, Partial<ServiceRecordDTO> & { vehicleId?: string }>,
   res: Response
@@ -156,7 +161,7 @@ export const updateServiceRecord = async (
     if (!recordSnapshot.exists) {
       return res.status(404).json(failure("NOT_FOUND", "Service record not found", { serviceId }));
     }
-    const existing = recordSnapshot.data() as ServiceRecord;
+    const existing = recordSnapshot.data() as ServiceRecord & { serviceId?: string; id?: string };
     const oldVehicleId = existing.vehicleId;
     const oldDate = existing.date;
 
@@ -168,7 +173,9 @@ export const updateServiceRecord = async (
       }
     }
 
-    const updatePayload: Partial<ServiceRecord> = { updatedAt: FirestoreTimestamp.now() };
+    const updatePayload: Partial<ServiceRecord> & { serviceId?: string; id?: string } = {
+      updatedAt: FirestoreTimestamp.now(),
+    };
     const fieldErrors: string[] = [];
 
     let newDateTs: FirebaseFirestore.Timestamp | undefined;
@@ -202,7 +209,7 @@ export const updateServiceRecord = async (
       else updatePayload.cost = totalCost;
     }
 
-    // ✅ FIXED: read serviceMileage from req.body.serviceMileage (not cost)
+    // Read serviceMileage from req.body.serviceMileage (not cost)
     if ("serviceMileage" in req.body) {
       const serviceMileage = Number(req.body.serviceMileage);
       if (!Number.isFinite(serviceMileage) || serviceMileage < 0) {
@@ -227,6 +234,10 @@ export const updateServiceRecord = async (
       updatePayload.vehicleId = requestedVehicleId;
     }
 
+    // Backfill IDs on old docs that don't have them yet
+    if (!existing.serviceId) (updatePayload as any).serviceId = serviceId;
+    if (!existing.id) (updatePayload as any).id = serviceId;
+
     if (fieldErrors.length) {
       return res
         .status(400)
@@ -239,9 +250,9 @@ export const updateServiceRecord = async (
     }
 
     // Persist changes
-    await recordRef.update(updatePayload);
+    await recordRef.update(updatePayload as any);
     const updatedSnapshot = await recordRef.get();
-    const updated = updatedSnapshot.data() as ServiceRecord;
+    const updated = updatedSnapshot.data() as ServiceRecord & { serviceId?: string; id?: string };
 
     // Maintain lastServiceDate
     const vehicleChanged = !!requestedVehicleId && requestedVehicleId !== oldVehicleId;
@@ -260,7 +271,7 @@ export const updateServiceRecord = async (
       console.warn("lastServiceDate maintenance failed:", auxErr);
     }
 
-    // 🔻 NEW: upsert corresponding expense into income for this service
+    // Upsert corresponding expense for this service
     try {
       await upsertExpenseForService({
         serviceId,
@@ -279,7 +290,7 @@ export const updateServiceRecord = async (
 
     return res.status(200).json(
       success({
-        id: updatedSnapshot.id,
+        id: updatedSnapshot.id, // always return doc id
         vehicleId: updated.vehicleId,
         date: updated.date.toDate().toISOString(),
         mechanic: updated.mechanic,
@@ -300,7 +311,7 @@ export const updateServiceRecord = async (
   }
 };
 
-
+/** LIST BY VEHICLE */
 export const getServiceRecordsForVehicle = async (
   req: Request<{ vehicleId: string }>,
   res: Response
@@ -320,9 +331,10 @@ export const getServiceRecordsForVehicle = async (
       .get();
 
     const records = snapshot.docs.map((doc) => {
-      const record = doc.data() as ServiceRecord;
+      const record = doc.data() as ServiceRecord & { serviceId?: string; id?: string };
       return {
-        id: doc.id,
+        id: doc.id, // doc id
+        serviceId: record.serviceId ?? doc.id, // also expose canonical serviceId
         vehicleId: record.vehicleId,
         date: record.date.toDate().toISOString(),
         mechanic: record.mechanic,
@@ -345,15 +357,16 @@ export const getServiceRecordsForVehicle = async (
   }
 };
 
-
+/** LIST ALL */
 export const getAllServiceRecords = async (_req: Request, res: Response) => {
   try {
     const snapshot = await serviceRecordsCollection.orderBy("date", "desc").get();
 
     const records = snapshot.docs.map((doc) => {
-      const record = doc.data() as ServiceRecord;
+      const record = doc.data() as ServiceRecord & { serviceId?: string; id?: string };
       return {
         id: doc.id,
+        serviceId: record.serviceId ?? doc.id,
         vehicleId: record.vehicleId,
         date: record.date.toDate().toISOString(),
         mechanic: record.mechanic,
@@ -376,7 +389,7 @@ export const getAllServiceRecords = async (_req: Request, res: Response) => {
   }
 };
 
-
+/** DELETE */
 export const deleteServiceRecord = async (
   req: Request<{ serviceId: string }>,
   res: Response
@@ -402,10 +415,11 @@ export const deleteServiceRecord = async (
   }
 };
 
+/** GET BY ID */
 export const getServiceRecordById = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-
+console.log("id on request", id)
     if (!id) {
       return res
         .status(400)
@@ -422,9 +436,26 @@ export const getServiceRecordById = async (req: Request, res: Response) => {
       );
     }
 
+    const data = doc.data() as ServiceRecord & { serviceId?: string; id?: string };
+
     return res
       .status(200)
-      .json(success({ id: doc.id, ...doc.data() }));
+      .json(
+        success({
+          id: doc.id,
+          serviceId: data.serviceId ?? doc.id,
+          vehicleId: data.vehicleId,
+          date: data.date.toDate().toISOString(),
+          mechanic: data.mechanic,
+          condition: data.condition,
+          cost: data.cost,
+          serviceMileage: data.serviceMileage,
+          itemsChanged: data.itemsChanged,
+          notes: data.notes,
+          createdAt: data.createdAt?.toDate().toISOString(),
+          updatedAt: data.updatedAt?.toDate().toISOString(),
+        })
+      );
   } catch (error: any) {
     console.error("Error fetching service record by ID:", error);
     return res.status(500).json(
