@@ -69,7 +69,8 @@ export interface ServiceRecord {
   vehicleId: string
   date: FirebaseFirestore.Timestamp;  // when serviced
   mechanic: string;
-  cost: number;                       // total cost for this service
+  cost: number;    
+  serviceMileage: number;                   // total cost for this service
   condition: string;                  // e.g. "good", "requires attention"
   itemsChanged: ServiceItem[];        // line items
   notes: string | null;
@@ -81,7 +82,8 @@ export interface ServiceRecord {
 // DTO for incoming payload (dates as strings)
 export interface ServiceRecordDTO {
   date: string;  
-  vehicleId: string             // ISO date string
+  vehicleId: string  
+  serviceMileage: number           // ISO date string
   mechanic: string;
   cost: number | string;
   condition: string;
@@ -127,4 +129,25 @@ export interface IncomeLog {
   createdAt: string; 
   updatedAt?: string;
   cashDate: string; 
+}
+
+interface VehicleTargets {
+  vehicleId: string;
+  period: "weekly" | "monthly" | "daily";
+  currency: "USD";
+  grossRevenue: number; //derived from the total income logs.
+  netOpProfit: number;    
+  km: number;
+  fuelEconomyKmPerL?: number; // or lPer100Km
+  downtimeHoursMax?: number;  // maximum time a vehicle is allowed to sit per month
+  maintenanceBudgetPerMonth?: number; // period budget per month
+  maintenanceBudgetPerKm?: number
+  depreciationMethod: "SL" | "UOP" | "DDB";  // see §3
+  depreciationUsefulLifeMonths?: number;
+  resellValue?: number;
+  disposalMaxKm?: number;
+  disposalMaxMonths?: number;
+  rpkMinusCpkFloor?: number;  // minimum acceptable margin per km
+  validFrom: string;          // ISO
+  validTo?: string;           // ISO
 }

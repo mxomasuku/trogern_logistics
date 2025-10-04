@@ -7,7 +7,7 @@ import { IncomeLog } from '../interfaces/interfaces';
 const incomeRef = db.collection('income');
 const vehiclesRef = db.collection('vehicles');
 
-const expenseRef = db.collection('expenses');
+
 
 /**
  * Update a vehicle's currentMileage if the provided mileage is higher.
