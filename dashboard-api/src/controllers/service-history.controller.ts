@@ -3,6 +3,7 @@ import { ServiceRecord, ServiceRecordDTO, ServiceItem } from "../interfaces/inte
 const { db, admin } = require("../config/firebase");
 import { success, failure } from "../utils/apiResponse";
 import { upsertLastServiceDateIfNewer, recomputeLastServiceDateFromRecords } from "./vehicles.controller";
+import {upsertExpenseForService} from "../utils/service-utils";
 
 /** Top-level collections */
 const vehiclesCollection: FirebaseFirestore.CollectionReference = db.collection("vehicles");
@@ -59,11 +60,13 @@ export const addServiceRecord = async (
     const mechanic = (req.body.mechanic || "").trim();
     const condition = (req.body.condition || "").trim();
     const totalCost = Number(req.body.cost);
+    const serviceMileage = Number(req.body.serviceMileage);
     const { items, errors: itemErrors } = normalizeItems(req.body.itemsChanged);
 
     const fieldErrors: string[] = [];
     if (!vehicleId) fieldErrors.push("vehicleId");
     if (!serviceDate) fieldErrors.push("date (ISO)");
+    if (!serviceMileage && serviceMileage !== 0) fieldErrors.push("service mileage");
     if (!mechanic) fieldErrors.push("mechanic");
     if (!condition) fieldErrors.push("condition");
     if (!Number.isFinite(totalCost) || totalCost < 0) fieldErrors.push("cost (>=0)");
@@ -80,6 +83,7 @@ export const addServiceRecord = async (
     const recordToCreate: ServiceRecord = {
       vehicleId,
       date: serviceDate,
+      serviceMileage,
       mechanic,
       condition,
       cost: totalCost,
@@ -93,12 +97,28 @@ export const addServiceRecord = async (
     const snap = await createdRef.get();
     const created = snap.data() as ServiceRecord;
 
-
+    // Maintain vehicle.lastServiceDate
     try {
       await upsertLastServiceDateIfNewer(vehicleId, serviceDate);
     } catch (e) {
-    
       console.warn("upsertLastServiceDateIfNewer failed:", e);
+    }
+
+    // 🔻 NEW: upsert corresponding expense into income
+    try {
+      await upsertExpenseForService({
+        serviceId: snap.id,
+        vehicleId,
+        cost: totalCost,
+        serviceMileage,
+        serviceDate,
+        mechanic,
+        condition,
+        itemsChanged: items as any,
+        notes: created.notes ?? null,
+      });
+    } catch (e) {
+      console.warn("upsertExpenseForService (create) failed:", e);
     }
 
     return res.status(201).json(
@@ -106,6 +126,7 @@ export const addServiceRecord = async (
         id: snap.id,
         vehicleId: created.vehicleId,
         date: created.date.toDate().toISOString(),
+        serviceMileage: created.serviceMileage,
         mechanic: created.mechanic,
         condition: created.condition,
         cost: created.cost,
@@ -130,7 +151,6 @@ export const updateServiceRecord = async (
   try {
     const { serviceId } = req.params;
 
- 
     const recordRef = serviceRecordsCollection.doc(serviceId);
     const recordSnapshot = await recordRef.get();
     if (!recordSnapshot.exists) {
@@ -138,9 +158,8 @@ export const updateServiceRecord = async (
     }
     const existing = recordSnapshot.data() as ServiceRecord;
     const oldVehicleId = existing.vehicleId;
-    const oldDate = existing.date; 
+    const oldDate = existing.date;
 
-  
     const requestedVehicleId = (req.body as any).vehicleId?.trim?.();
     if (requestedVehicleId) {
       const vehicleSnapshot = await vehiclesCollection.doc(requestedVehicleId).get();
@@ -148,7 +167,6 @@ export const updateServiceRecord = async (
         return res.status(404).json(failure("NOT_FOUND", "Vehicle not found", { vehicleId: requestedVehicleId }));
       }
     }
-
 
     const updatePayload: Partial<ServiceRecord> = { updatedAt: FirestoreTimestamp.now() };
     const fieldErrors: string[] = [];
@@ -158,7 +176,7 @@ export const updateServiceRecord = async (
 
     if ("date" in req.body) {
       dateProvided = true;
-      const parsed = parseDateToTimestamp(req.body.date);
+      const parsed = parseDateToTimestamp(req.body.date as any);
       if (req.body.date && !parsed) fieldErrors.push("date (ISO)");
       else if (parsed) {
         updatePayload.date = parsed;
@@ -182,6 +200,16 @@ export const updateServiceRecord = async (
       const totalCost = Number(req.body.cost);
       if (!Number.isFinite(totalCost) || totalCost < 0) fieldErrors.push("cost (>=0)");
       else updatePayload.cost = totalCost;
+    }
+
+    // ✅ FIXED: read serviceMileage from req.body.serviceMileage (not cost)
+    if ("serviceMileage" in req.body) {
+      const serviceMileage = Number(req.body.serviceMileage);
+      if (!Number.isFinite(serviceMileage) || serviceMileage < 0) {
+        fieldErrors.push("serviceMileage (>=0)");
+      } else {
+        updatePayload.serviceMileage = serviceMileage;
+      }
     }
 
     if ("itemsChanged" in req.body) {
@@ -210,33 +238,45 @@ export const updateServiceRecord = async (
       return res.status(400).json(failure("VALIDATION_ERROR", "No valid fields to update"));
     }
 
-    // 4) Persist changes
+    // Persist changes
     await recordRef.update(updatePayload);
     const updatedSnapshot = await recordRef.get();
     const updated = updatedSnapshot.data() as ServiceRecord;
 
-    // 5) Keep vehicle.lastServiceDate correct
+    // Maintain lastServiceDate
     const vehicleChanged = !!requestedVehicleId && requestedVehicleId !== oldVehicleId;
     const dateChanged = dateProvided && newDateTs && newDateTs.toMillis() !== oldDate?.toMillis();
 
     try {
       if (vehicleChanged) {
-        // New vehicle may need a bump forward
         if (updated.date) {
           await upsertLastServiceDateIfNewer(updated.vehicleId, updated.date);
         }
-        // Old vehicle may have lost its latest record → recompute
         await recomputeLastServiceDateFromRecords(oldVehicleId);
       } else if (dateChanged) {
-        // For same-vehicle date edits, recompute to handle both forward/backward moves
         await recomputeLastServiceDateFromRecords(updated.vehicleId);
       }
     } catch (auxErr) {
       console.warn("lastServiceDate maintenance failed:", auxErr);
-      // Non-fatal; do not block the main response
     }
 
-    // 6) Respond
+    // 🔻 NEW: upsert corresponding expense into income for this service
+    try {
+      await upsertExpenseForService({
+        serviceId,
+        vehicleId: updated.vehicleId,
+        cost: updated.cost,
+        serviceMileage: updated.serviceMileage,
+        serviceDate: updated.date,
+        mechanic: updated.mechanic,
+        condition: updated.condition,
+        itemsChanged: updated.itemsChanged as any,
+        notes: updated.notes ?? null,
+      });
+    } catch (e) {
+      console.warn("upsertExpenseForService (update) failed:", e);
+    }
+
     return res.status(200).json(
       success({
         id: updatedSnapshot.id,
@@ -245,6 +285,7 @@ export const updateServiceRecord = async (
         mechanic: updated.mechanic,
         condition: updated.condition,
         cost: updated.cost,
+        serviceMileage: updated.serviceMileage,
         itemsChanged: updated.itemsChanged,
         notes: updated.notes,
         createdAt: updated.createdAt?.toDate().toISOString(),
@@ -287,6 +328,7 @@ export const getServiceRecordsForVehicle = async (
         mechanic: record.mechanic,
         condition: record.condition,
         cost: record.cost,
+        serviceMileage: record.serviceMileage,
         itemsChanged: record.itemsChanged,
         notes: record.notes,
         createdAt: record.createdAt?.toDate().toISOString(),
@@ -317,6 +359,7 @@ export const getAllServiceRecords = async (_req: Request, res: Response) => {
         mechanic: record.mechanic,
         condition: record.condition,
         cost: record.cost,
+        serviceMileage: record.serviceMileage,
         itemsChanged: record.itemsChanged,
         notes: record.notes,
         createdAt: record.createdAt?.toDate().toISOString(),

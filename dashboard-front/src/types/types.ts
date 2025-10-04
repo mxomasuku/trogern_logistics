@@ -103,6 +103,7 @@ export interface ServiceRecord {
   mechanic: string;
   condition: string;
   cost: number;
+  serviceMileage: number;
   itemsChanged: ServiceItem[];
   notes?: string;
   createdAt?: string;

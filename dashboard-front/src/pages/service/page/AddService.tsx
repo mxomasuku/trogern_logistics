@@ -6,8 +6,6 @@ import {
   addServiceRecord,
   updateServiceRecord,
   getServiceRecordById,
- 
- 
 } from "@/api/service";
 
 import { getVehicles } from "@/api/vehicles";
@@ -24,14 +22,6 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
-// utils/dates.ts
-
-/**
- * Normalize many possible date shapes (Firestore Timestamp, proto Timestamp,
- * Date, ISO string, epoch) into an <input type="date"> value: "YYYY-MM-DD".
- */
-
-
 /* Presets */
 const CATEGORY_PRESETS: Record<
   "tyres" | "engineOil" | "brakes" | "suspension" | "airFilter" | "atf" | "other",
@@ -46,13 +36,10 @@ const CATEGORY_PRESETS: Record<
   other: (p = {}) => ({ name: "Other Repair", unit: "job", quantity: 1, cost: 0, ...p }),
 };
 
-
-
-
 export default function AddServicePage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const editId = searchParams.get("id"); // ← SAME PATTERN AS DRIVERS
+  const editId = searchParams.get("id");
 
   /* Vehicles */
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
@@ -65,6 +52,7 @@ export default function AddServicePage() {
   const [mechanicName, setMechanicName] = useState<string>("");
   const [vehicleCondition, setVehicleCondition] = useState<string>("");
   const [serviceNotes, setServiceNotes] = useState<string>("");
+  const [serviceMileage, setServiceMileage] = useState<string>("");
 
   /* Items */
   const [serviceItems, setServiceItems] = useState<ServiceItem[]>([]);
@@ -95,35 +83,36 @@ export default function AddServicePage() {
   }, []);
 
   /* Prefill if editing */
-useEffect(() => {
-  if (!editId) return;
+  useEffect(() => {
+    if (!editId) return;
 
-  let didCancel = false;
+    let didCancel = false;
 
-  (async () => {
-    try {
-      setPrefilling(true);
-      const existingRecord = await getServiceRecordById(editId);
-      if (didCancel) return;
+    (async () => {
+      try {
+        setPrefilling(true);
+        const existingRecord = await getServiceRecordById(editId);
+        if (didCancel) return;
 
-      setSelectedVehicleId(existingRecord.vehicleId ?? "");
-      setServiceDate(toDateInputValue((existingRecord as any).date));
-      setMechanicName(existingRecord.mechanic ?? "");
-      setVehicleCondition(existingRecord.condition ?? "");
-      setServiceNotes(existingRecord.notes ?? "");
-      setServiceItems(existingRecord.itemsChanged ?? []);
-    } catch (error: any) {
-      console.error("Prefill failed:", error);
-      toast.error(error?.message ?? "Could not load this record. You can still create a new one.");
-    } finally {
-      if (!didCancel) setPrefilling(false);
-    }
-  })();
+        setSelectedVehicleId(existingRecord.vehicleId ?? "");
+        setServiceDate(toDateInputValue((existingRecord as any).date));
+        setMechanicName(existingRecord.mechanic ?? "");
+        setVehicleCondition(existingRecord.condition ?? "");
+        setServiceNotes(existingRecord.notes ?? "");
+        setServiceMileage(String(existingRecord.serviceMileage ?? ""));
+        setServiceItems(existingRecord.itemsChanged ?? []);
+      } catch (error: any) {
+        console.error("Prefill failed:", error);
+        toast.error(error?.message ?? "Could not load this record. You can still create a new one.");
+      } finally {
+        if (!didCancel) setPrefilling(false);
+      }
+    })();
 
-  return () => {
-    didCancel = true;
-  };
-}, [editId]);
+    return () => {
+      didCancel = true;
+    };
+  }, [editId]);
 
   /* Item helpers */
   const addPresetItem = (category: keyof typeof CATEGORY_PRESETS) =>
@@ -140,6 +129,7 @@ useEffect(() => {
     const missingFields: string[] = [];
     if (!selectedVehicleId) missingFields.push("vehicle");
     if (!serviceDate) missingFields.push("date");
+    if (!serviceMileage) missingFields.push("service mileage");
     if (!serviceItems.length) missingFields.push("at least 1 item");
     if (missingFields.length) {
       toast.error(`Missing/invalid: ${missingFields.join(", ")}`);
@@ -149,6 +139,7 @@ useEffect(() => {
     const payload: ServiceRecordDTO = {
       date: serviceDate,
       mechanic: mechanicName || "",
+      serviceMileage: Number(serviceMileage), // numeric for DTO
       vehicleId: selectedVehicleId,
       condition: vehicleCondition || "",
       cost: Number(serviceTotal),
@@ -208,7 +199,7 @@ useEffect(() => {
               ) : (
                 <ul className="divide-y">
                   {vehicles.map((vehicle) => {
-                    const vehicleKey = vehicle.id ?? vehicle.plateNumber; // tolerate either
+                    const vehicleKey = (vehicle as any).id ?? vehicle.plateNumber; // tolerate either
                     const selected = selectedVehicleId === vehicleKey;
                     return (
                       <li key={vehicleKey} className="flex items-center gap-3 p-3 hover:bg-accent/40">
@@ -263,6 +254,16 @@ useEffect(() => {
                 <Field label="Mechanic" value={mechanicName} onChange={setMechanicName} />
                 <Field label="Condition" value={vehicleCondition} onChange={setVehicleCondition} />
                 <Field label="Notes" value={serviceNotes} onChange={setServiceNotes} placeholder="optional" />
+
+                {/* NEW: Service Mileage */}
+                <Field
+                  label="Service Mileage (km)"
+                  type="number"
+                  value={serviceMileage}
+                  onChange={setServiceMileage}
+                  placeholder="e.g. 182340"
+                  required
+                />
               </div>
 
               {/* Category buttons */}
@@ -419,7 +420,13 @@ function Field({
         {label}
         {required && <span className="text-red-600"> *</span>}
       </Label>
-      <Input type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className="h-10" />
+      <Input
+        type={type}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        className="h-10"
+      />
     </div>
   );
 }
