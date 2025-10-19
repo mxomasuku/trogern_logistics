@@ -9,6 +9,7 @@ import {
 const { db, admin } = require('../config/firebase');
 import { success, failure } from '../utils/apiResponse';
 import { cascadeDriverStatusFromVehicle } from './status_sync_repo';
+import { assignDriverToVehicleOnAdd } from './status_sync_repo';
 
 // ---------- Firestore refs & helpers ----------
 const vehiclesCollection: FirebaseFirestore.CollectionReference = db.collection('vehicles');
@@ -89,7 +90,8 @@ function toVehicle(
   const price = Number(dto.price);
   const color = (dto.color ?? '').trim();
   const vin = (dto.vin ?? '').trim();
-  const assignedDriver = dto.assignedDriver ?? null;
+  const assignedDriverId = dto.assignedDriverId ?? null;
+  const assignedDriverName = dto.assignedDriverName ?? null;
   const status = dto.status ?? 'active';
   const route = dto.route;
   const datePurchased = parseDateToTs(dto.datePurchased);
@@ -117,7 +119,8 @@ function toVehicle(
     color,
     vin,
     price,
-    assignedDriver,
+    assignedDriverId,
+    assignedDriverName,
     status,
     datePurchased: datePurchased!,
     route,
@@ -163,7 +166,8 @@ function toVehicleUpdate(
 
   if ('color' in dto) update.color = (dto.color ?? '').trim();
   if ('vin' in dto) update.vin = (dto.vin ?? '').trim();
-  if ('assignedDriver' in dto) update.assignedDriver = dto.assignedDriver ?? null;
+  if ('assignedDriverId' in dto) update.assignedDriverId = dto.assignedDriverId ?? null;
+  if ('assignedDriverName' in dto) update.assignedDriverName = dto.assignedDriverName ?? null;
 
   if ('status' in dto) {
     const status = dto.status;
@@ -236,7 +240,8 @@ const vehicleDocToJson = (doc: FirebaseFirestore.DocumentSnapshot) => {
     price: data.price,
     color: data.color ?? '',
     vin: data.vin ?? '',
-    assignedDriver: data.assignedDriver ?? null,
+    assignedDriverId: data.assignedDriverId ?? null,
+    assignedDriverName: data.assignedDriverName ?? null,
     status: data.status ?? 'active',
     datePurchased: data.datePurchased,
     route: data.route,
@@ -293,14 +298,21 @@ export const addVehicle = async (req: Request<{}, {}, VehicleCreateDTO>, res: Re
   }
 
   try {
-    const { plateNumber, ...rest } = result.value;
+    const {
+      plateNumber,
+      currentMileage = 0,
+      assignedDriverId: rawAssignedDriverId, // optional
+      ...rest
+    } = result.value;
 
     // Normalize (strip spaces + uppercase) and use as docId
     const plateId = normalizePlate(plateNumber);
     if (!plateId) {
       return res
         .status(400)
-        .json(failure("VALIDATION_ERROR", "Invalid plate number", { fields: { plateNumber: "required" } }));
+        .json(
+          failure("VALIDATION_ERROR", "Invalid plate number", { fields: { plateNumber: "required" } })
+        );
     }
 
     const docRef = vehiclesCollection.doc(plateId);
@@ -318,19 +330,40 @@ export const addVehicle = async (req: Request<{}, {}, VehicleCreateDTO>, res: Re
     // Save canonical plate + (optional) original for audit
     const payload = {
       ...rest,
-      plateNumber: plateId,          // canonical (no spaces, uppercase)
-      plateOriginal: plateNumber,    // optional: what user typed
+      plateNumber: plateId,       // canonical
+      plateOriginal: plateNumber, // audit
+      currentMileage: Number(currentMileage || 0),
       createdAt: now,
       updatedAt: now,
     };
 
+    // Create vehicle first
     await docRef.set(payload);
     const createdSnap = await docRef.get();
+
+    // ── Driver assignment (optional) ─────────────────────────────────────────────
+    const assignedDriverId = (rawAssignedDriverId ?? "").toString().trim();
+    if (assignedDriverId) {
+      const assign = await assignDriverToVehicleOnAdd(
+        plateId,
+        assignedDriverId,
+        Number(currentMileage || 0)
+      );
+      if (!assign.ok) {
+        // If driver assignment fails, keep the vehicle but surface the driver error.
+        // You can also choose to roll back the vehicle creation if that’s your policy.
+        return res
+          .status(assign.http)
+          .json(failure(assign.code, assign.message, { plateNumber: plateId }));
+      }
+    }
 
     return res.status(201).json(success(vehicleDocToJson(createdSnap)));
   } catch (error: any) {
     console.error("Error adding vehicle:", error);
-    return res.status(500).json(failure("SERVER_ERROR", "Failed to add vehicle", error.message));
+    return res
+      .status(500)
+      .json(failure("SERVER_ERROR", "Failed to add vehicle", error?.message ?? String(error)));
   }
 };
 
