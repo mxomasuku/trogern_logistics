@@ -53,3 +53,13 @@ export async function getAllActiveDrivers(): Promise<Driver[]> {
 
     return data.data;
 }
+
+export async function getAllInactiveDrivers(): Promise<Driver[]> {
+  const {data} = await http.get<{isSuccessful: boolean; data: Driver[]}>(
+    `/drivers/get-inactive-drivers`,
+
+  )
+  if(!data?.isSuccessful) throw new Error("Failed to get drivers")
+
+    return data.data;
+}

@@ -237,7 +237,7 @@ export default function VehicleProfile() {
           <CardTitle>Overview</CardTitle>
         </CardHeader>
         <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <Kpi label="Assigned driver" value={vehicle.assignedDriver || "—"} />
+          <Kpi label="Assigned driver" value={vehicle.assignedDriverId || "—"} />
           <Kpi label="Route" value={vehicle.route || "—"} />
 
           <Kpi

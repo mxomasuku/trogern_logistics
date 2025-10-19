@@ -24,7 +24,8 @@ export interface Vehicle {
   year: number;
   color: string;
   vin: string;
-  assignedDriver?: string | null;
+  assignedDriverId: string | null;
+  assignedDriverName: string | null;
   status: VehicleStatus;
   price: number;
   datePurchased: FirebaseFirestore.Timestamp;
@@ -43,10 +44,11 @@ export interface VehicleCreateDTO {
   make: string;
   model: string;
   year: number | string;
-  color?: string;
+  color: string;
   price: number;
-  vin?: string;
-  assignedDriver?: string | null;
+  vin: string;
+  assignedDriverId: string | null;
+  assignedDriverName: string | null;
   status?: VehicleStatus;
   datePurchased: string;        // ISO string
   route: RouteType;
@@ -101,6 +103,8 @@ export interface Driver {
   licenseNumber: string;
   nationalId: string;
   contact: string;
+  mileageOnStart: number | null;
+  mileageOnEnd: number | null;
   email?: string;
   address?: string;
   dob: string; 

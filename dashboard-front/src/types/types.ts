@@ -39,7 +39,8 @@ export interface Vehicle {
   color?: string;
   vin?: string;
   price: number;
-  assignedDriver?: string | null;
+  assignedDriverId?: string | null;
+  assignedDriverName?: string | null;
   status: VehicleStatus;
   datePurchased: { _seconds: number; _nanoseconds: number },       
   route: RouteType;

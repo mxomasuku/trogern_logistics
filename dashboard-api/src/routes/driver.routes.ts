@@ -6,7 +6,8 @@ import {
   updateDriver,
   deleteDriver,
   searchDrivers,
-  getAllActiveDrivers
+  getAllActiveDrivers,
+  getAllInactiveDrivers
 } from '../controllers/driver.controller';
 
 const router = Router();
@@ -18,6 +19,7 @@ router.post('/add', addDriver);
 router.put('/update/:id', updateDriver);
 router.delete('/delete/:id', deleteDriver);
 router.get("/get-active-drivers", getAllActiveDrivers);
+router.get("/get-inactive-drivers", getAllInactiveDrivers);
 
 
 export default router;

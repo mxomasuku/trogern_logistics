@@ -2,7 +2,7 @@
 const { db } = require('../config/firebase');
 import { Timestamp as FirestoreTimestamp } from 'firebase-admin/firestore';
 import { Driver, Vehicle } from '../interfaces/interfaces';
-
+const driversRef = db.collection('drivers');
 const vehiclesCollection: FirebaseFirestore.CollectionReference = db.collection('vehicles');
 const driversCollection: FirebaseFirestore.CollectionReference = db.collection('drivers');
 
@@ -56,14 +56,13 @@ export async function clearVehicleDriverAssignment(vehicleId: string): Promise<v
   };
 
   const driverId: string | undefined =
-    (vehicle as Vehicle).assignedDriver || undefined;
+    (vehicle as Vehicle).assignedDriverId || undefined;
 
   const batch = db.batch();
 
   // Vehicle: null assignment if not already null
   batch.update(vehicleRef, {
     assignedDriverId: null,
-    assignedDriver: null,
     updatedAt: FirestoreTimestamp.now(),
   });
 
@@ -71,7 +70,6 @@ export async function clearVehicleDriverAssignment(vehicleId: string): Promise<v
     const driverRef = driversCollection.doc(driverId);
     batch.update(driverRef, {
       assignedVehicleId: null,
-      assignedVehicle: null,
       updatedAt: FirestoreTimestamp.now(),
     });
   }
@@ -97,7 +95,6 @@ export async function clearDriverVehicleAssignment(driverId: string): Promise<vo
   
   batch.update(driverRef, {
     assignedVehicleId: null,
-    assignedVehicle: null,
     updatedAt: FirestoreTimestamp.now(),
   });
 
@@ -105,7 +102,6 @@ export async function clearDriverVehicleAssignment(driverId: string): Promise<vo
     const vehicleRef = vehiclesCollection.doc(vehicleId);
     batch.update(vehicleRef, {
       assignedDriverId: null,
-      assignedDriver: null,
       updatedAt: FirestoreTimestamp.now(),
     });
   }
@@ -155,48 +151,111 @@ export async function cascadeVehicleStatusFromDriver(driverId: string): Promise<
   }
 }
 
-/* ----------------------------------------------------------------------------
- * VEHICLE → DRIVER cascade
- *  - Map driver status from vehicle status.
- *  - If vehicle is not 'active', clear assignments both ways.
- * ------------------------------------------------------------------------- */
-export async function cascadeDriverStatusFromVehicle(vehicleId: string): Promise<void> {
-  const vSnap = await vehiclesCollection.doc(vehicleId).get();
-  if (!vSnap.exists) return;
+const getDocInTx = async (
+  tx: FirebaseFirestore.Transaction,
+  ref: FirebaseFirestore.DocumentReference
+): Promise<FirebaseFirestore.DocumentSnapshot> => {
+  // Admin SDK Transaction#get only returns DocumentSnapshot,
+  // but we cast anyway to disambiguate if web types sneak in.
+  return (tx.get(ref) as unknown) as Promise<FirebaseFirestore.DocumentSnapshot>;
+};
 
-  const v = vSnap.data() as {
-    status?: string | null;
-    assignedDriverId?: string | null;
-    assignedDriver?: string | null; // if you stored name instead of id, adapt lookup
-  };
-  const vehicleStatus = normVehicleStatus(v.status);
-  if (!vehicleStatus) return;
+export async function cascadeDriverStatusFromVehicle(vehicleId: string) {
+  await db.runTransaction(async (tx: FirebaseFirestore.Transaction) => {
+    const vRef = vehiclesCollection.doc(vehicleId);
+    const vSnap = await getDocInTx(tx, vRef);               // ✅ always a DocumentSnapshot
+    if (!vSnap.exists) return;
 
-  // Prefer an ID field; fall back to name only if that’s your current schema
-  const driverId: string | undefined =
-    (v as any).assignedDriverId || (v as any).assignedDriver || undefined;
+    const v = vSnap.data() as Vehicle;
+    const driverId = (v as any).assignedDriver as string | null;
 
-  // If vehicle is not active → clear assignments both ways (idempotent)
-  if (vehicleStatus !== 'active' && driverId) {
-    await clearVehicleDriverAssignment(vehicleId);
-  }
+    if (!driverId) return; // nothing to sync
 
-  // If we still have a driver (e.g., someone changed status before clearing), map & update driver status.
-  if (!driverId) return;
+    const dRef = driversRef.doc(driverId);
+    const dSnap = await getDocInTx(tx, dRef);               // ✅ always a DocumentSnapshot
+    if (!dSnap.exists) return;
 
-  const mappedDriverStatus = VEHICLE_TO_DRIVER[vehicleStatus];
+    const d = dSnap.data() as Driver;
+    const driverPatch: Partial<Driver> & { updatedAt: string } = {
+      updatedAt: new Date().toISOString(),
+      assignedVehicleId: vehicleId,
+    };
 
-  const dRef = driversCollection.doc(driverId);
-  const dSnap = await dRef.get();
-  if (!dSnap.exists) return;
+    // Seed mileageOnStart if missing/zeroish
+    const needsStartStamp =
+      d.mileageOnStart === undefined ||
+      d.mileageOnStart === null ||
+      (typeof d.mileageOnStart === "number" && d.mileageOnStart <= 0);
 
-  const d = dSnap.data() as { status?: string | null };
-  const current = normDriverStatus(d.status);
+    if (needsStartStamp) {
+      driverPatch.mileageOnStart = (v as any).currentMileage ?? 0;
+    }
 
-  if (current !== mappedDriverStatus) {
-    await dRef.update({
-      status: mappedDriverStatus,
-      updatedAt: FirestoreTimestamp.now(),
+    // Reflect vehicle status onto driver + mileageOnEnd
+    if ((v as any).status === "inactive") {
+      driverPatch.status = "inactive" as any; // tighten if you have VehicleStatus/Driver.status types
+      if (d.mileageOnEnd === undefined || d.mileageOnEnd === null) {
+        driverPatch.mileageOnEnd = (v as any).currentMileage ?? null;
+      }
+    } else {
+      if (d.status !== "active") driverPatch.status = "active";
+      driverPatch.mileageOnEnd = null;
+    }
+
+    tx.update(dRef, driverPatch);
+  });
+}
+
+
+type AssignDriverResult =
+  | { ok: true }
+  | { ok: false; http: number; code: string; message: string };
+
+export async function assignDriverToVehicleOnAdd(
+  vehiclePlateId: string,
+  driverId: string,
+  mileageOnStart: number
+): Promise<AssignDriverResult> {
+  const now = new Date().toISOString();
+  const driverRef = driversCollection.doc(driverId);
+
+  try {
+    await db.runTransaction(async (tx: FirebaseFirestore.Transaction) => {
+      const dSnap = await tx.get(driverRef);
+      if (!dSnap.exists) {
+        throw { http: 404, code: "DRIVER_NOT_FOUND", message: "Driver not found" };
+      }
+
+      const d = dSnap.data() as any;
+
+  
+      if (d?.assignedVehicleId && d.assignedVehicleId !== vehiclePlateId) {
+        throw {
+          http: 409,
+          code: "DRIVER_ALREADY_ASSIGNED",
+          message: `Driver is already assigned to vehicle "${d.assignedVehicleId}"`,
+        };
+      }
+
+      tx.update(driverRef, {
+        assignedVehicleId: vehiclePlateId,
+        status: "active",
+        mileageOnStart: Number(mileageOnStart || 0),
+        updatedAt: now,
+      });
     });
+
+    return { ok: true };
+  } catch (err: any) {
+    if (err?.http && err?.code) {
+      return { ok: false, http: err.http, code: err.code, message: err.message };
+    }
+    // Unexpected error
+    return {
+      ok: false,
+      http: 500,
+      code: "DRIVER_ASSIGNMENT_FAILED",
+      message: err?.message ?? "Failed to assign driver",
+    };
   }
 }

@@ -47,7 +47,7 @@ export default function VehiclesPage() {
         v.model,
         v.color,
         v.vin,
-        v.assignedDriver,
+        v.assignedDriverId,
         v.status,
         v.route,
       ]
