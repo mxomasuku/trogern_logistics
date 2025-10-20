@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 import { DateTime } from "luxon";
 const { db } = require("../config/firebase");
 import { success, failure } from "../utils/apiResponse";
-import { IncomeLog } from "../interfaces/interfaces";
+import { IncomeLog, DriverKpiResult} from "../interfaces/interfaces";
 
 const incomeCol = db.collection("income");
 const driversCol = db.collection("drivers");
@@ -180,32 +180,32 @@ export async function getDriverKpis(req: Request, res: Response) {
         : 0;
 
     // ── Response
-    return res.status(200).json(
-      success({
-        vehicleId: VEHICLE_ID,
-        totalNet,
-        totalIncomeGross,
-        totalExpenseGross,
-        net30d,
-        income30dGross,
-        expense30dGross,
-        earningsPerKmTotal,
-        earningsPerKm30d,
-        avgWeeklyKmLast8,
-        avgWeeklyNetLast8,
-        mileageOnStart,
-        latestMileage,
-        coveredKmSinceStart,
-        incomePerKmSinceStartNet,
-        incomePerKmSinceStartIncomeOnly,
-        meta: {
-          logsCount: logs.length,
-          logs30Count: logs30.length,
-          kmAll,
-          km30,
-        },
-      })
-    );
+ const result: DriverKpiResult = {
+  vehicleId: VEHICLE_ID,
+  totalNet,
+  totalIncomeGross,
+  totalExpenseGross,
+  net30d,
+  income30dGross,
+  expense30dGross,
+  earningsPerKmTotal,
+  earningsPerKm30d,
+  avgWeeklyKmLast8,
+  avgWeeklyNetLast8,
+  mileageOnStart,
+  latestMileage,
+  coveredKmSinceStart,
+  incomePerKmSinceStartNet,
+  incomePerKmSinceStartIncomeOnly,
+  meta: {
+    logsCount: logs.length,
+    logs30Count: logs30.length,
+    kmAll,
+    km30,
+  },
+};
+
+return res.status(200).json(success(result));
   } catch (e: any) {
     console.error("Error computing driver KPIs:", e);
     return res
