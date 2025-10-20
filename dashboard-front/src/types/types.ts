@@ -56,17 +56,18 @@ export type LedgerType = 'expense' | 'income';
 
 export interface IncomeLog {
   id: string;
-  type: LedgerType;
   amount: number;
+  type: LedgerType;
   weekEndingMileage: number;
   vehicle: string;
   driverId: string;
   driverName: string;
   note?: string;
-  createdAt?: string; 
-  cashDate?: string; 
-  updatedAt?: string
+  createdAt: { _seconds: number; _nanoseconds: number }, 
+  updatedAt?: { _seconds: number; _nanoseconds: number }, 
+  cashDate: { _seconds: number; _nanoseconds: number }, 
 }
+
 
 export type VehicleStatus = "active" | "inactive" | "maintenance" | "retired";
 export type RouteType = "local" | "highway" | "mixed";

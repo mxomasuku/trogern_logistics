@@ -10,15 +10,16 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Loader2, Search, Pencil } from "lucide-react";
-import { toDateInputValue } from "@/lib/utils";
 import type { IncomeLog } from "@/types/types";
-
-/**
- * Shared shape for income rows
- * Green = Income | Red = Expense
- */
+import { toJsDate, fmtDate } from "@/lib/utils"; 
 
 type Props = {
   items: IncomeLog[];
@@ -27,7 +28,12 @@ type Props = {
   onRowClick?: (row: IncomeLog) => void;
 };
 
-export function IncomeList({ items, loading = false, currency = "USD" }: Props) {
+export function IncomeList({
+  items,
+  loading = false,
+  currency = "USD",
+  onRowClick,
+}: Props) {
   const [search, setSearch] = useState("");
   const [filterType, setFilterType] = useState<"all" | "income" | "expense">("all");
   const navigate = useNavigate();
@@ -42,26 +48,35 @@ export function IncomeList({ items, loading = false, currency = "USD" }: Props) 
 
     if (!q) return result;
 
-    return result.filter((x) =>
-      [
+    return result.filter((x) => {
+      const created = toJsDate((x as any).createdAt);
+      const cash = toJsDate((x as any).cashDate);
+      const dateStrings = [
+        created?.toLocaleDateString?.(),
+        cash?.toLocaleDateString?.(),
+        created?.toISOString?.(),
+        cash?.toISOString?.(),
+      ].filter(Boolean) as string[];
+
+      return [
         x.amount,
         x.weekEndingMileage,
         x.vehicle,
         x.driverName,
         x.driverId,
         x.note,
-        x.createdAt,
-        x.cashDate,
+        ...dateStrings,
       ]
         .filter(Boolean)
-        .some((v) => String(v).toLowerCase().includes(q))
-    );
+        .some((v) => String(v).toLowerCase().includes(q));
+    });
   }, [items, search, filterType]);
 
   const handleEdit = (row: IncomeLog) => {
     if (!row.id) return;
     navigate(`/income/add?id=${row.id}`);
   };
+
 
   return (
     <div>
@@ -117,21 +132,17 @@ export function IncomeList({ items, loading = false, currency = "USD" }: Props) 
               const isExpense = row.type === "expense";
               const amountColor = isExpense ? "text-red-600" : "text-green-600";
 
+              const createdDate = toJsDate((row as any).createdAt);
+              const cashDate = toJsDate((row as any).cashDate);
+
               return (
                 <TableRow
                   key={row.id}
                   className="cursor-pointer hover:bg-muted"
+                  onClick={() => onRowClick?.(row)}
                 >
-                  <TableCell>
-                    {row.createdAt
-                      ? new Date(toDateInputValue(row.createdAt)).toLocaleDateString()
-                      : "-"}
-                  </TableCell>
-                  <TableCell>
-                    {row.cashDate
-                      ? new Date(row.cashDate).toLocaleDateString()
-                      : "-"}
-                  </TableCell>
+                  <TableCell>{fmtDate(createdDate)}</TableCell>
+                  <TableCell>{fmtDate(cashDate)}</TableCell>
                   <TableCell className={`text-right font-semibold ${amountColor}`}>
                     {Number(row.amount).toLocaleString(undefined, {
                       style: "currency",

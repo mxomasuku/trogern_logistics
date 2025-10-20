@@ -220,9 +220,9 @@ export default function AddServicePage() {
                             <span className="ml-2 text-muted-foreground">
                               {vehicle.make} {vehicle.model} {vehicle.year ? `(${vehicle.year})` : ""}
                             </span>
-                            {vehicle.assignedDriver ? (
+                            {vehicle.assignedDriverId ? (
                               <span className="ml-2 text-xs text-muted-foreground">
-                                • Driver: {vehicle.assignedDriver}
+                                • Driver: {vehicle.assignedDriverId}
                               </span>
                             ) : null}
                           </div>

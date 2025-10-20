@@ -8,23 +8,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
-import type { Driver } from "@/types/types";
+import type { Driver, IncomeLog } from "@/types/types";
 import { getDrivers } from "@/api/drivers";
+import DriverIncomeLogs from "../components/DriverIncomeLogs";
 
-// If you already have a “getIncomeLogs” client util, import it instead:
-type IncomeLog = {
-  id?: string;
-  amount: number;
-  weekEndingMileage: number;
-  vehicle: string;
-  driverId: string; 
-  driverName: string;// your API filters by driver name in the sample controller
-  note?: string;
-  createdAt?: string; // ISO or Timestamp string
-  cashDate?: string;  // ISO (date)
-};
 
-// Replace with your actual income API util if you have one:
 
 
 // Optional: incidents — use if you have such an endpoint; otherwise this stays empty
@@ -269,41 +257,15 @@ export default function DriverProfile() {
               </div>
 
               {/* Recent income Logs */}
-              <Section title="Recent Income">
-                {loadingIncome ? (
-                  <div className="flex items-center justify-center py-6 text-sm text-muted-foreground">
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading income…
-                  </div>
-                ) : incomeLogs.length === 0 ? (
-                  <div className="text-sm text-muted-foreground">No income logs found for this driver.</div>
-                ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Cash date</TableHead>
-                        <TableHead className="text-right">Amount</TableHead>
-                        <TableHead className="text-right">Week-end km</TableHead>
-                        <TableHead>Vehicle</TableHead>
-                        <TableHead>Note</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {incomeLogs.slice(0, 12).map((row) => (
-                        <TableRow key={row.id ?? row.createdAt}>
-                       
-                          <TableCell>{row.cashDate ? new Date(row.cashDate).toLocaleDateString() : "—"}</TableCell>
-                          <TableCell className="text-right">
-                            {Number(row.amount).toLocaleString(undefined, { style: "currency", currency: "USD" })}
-                          </TableCell>
-                          <TableCell className="text-right">{Number(row.weekEndingMileage).toLocaleString()}</TableCell>
-                          <TableCell className="truncate max-w-[160px]" title={row.vehicle}>{row.vehicle}</TableCell>
-                          <TableCell className="truncate max-w-[240px]" title={row.note}>{row.note || "—"}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                )}
-              </Section>
+           <Section title="">
+  {loadingIncome ? (
+    <div className="flex items-center justify-center py-6 text-sm text-muted-foreground">
+      <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading income…
+    </div>
+  ) : (
+    <DriverIncomeLogs incomeLogs={incomeLogs} />
+  )}
+</Section>
 
               {/* Incidents */}
               <Section title="Incidents">
