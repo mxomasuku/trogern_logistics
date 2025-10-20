@@ -256,7 +256,7 @@ export default function VehicleProfile() {
           <Kpi
             label="Last service"
             value={
-              // Prefer the vehicle field; fall back to derived from records
+              
               fmtDate(lastServiceFromVehicle || kpis.lastServiceDerivedDate)
             }
           />
