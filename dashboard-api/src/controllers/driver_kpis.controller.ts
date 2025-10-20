@@ -1,38 +1,135 @@
+// src/controllers/drivers-kpi.controller.ts
 import { Request, Response } from "express";
 import { DateTime } from "luxon";
-const { db } = require("../config/firebase");
+const { admin, db } = require('../config/firebase');
 import { success, failure } from "../utils/apiResponse";
-import { IncomeLog, DriverKpiResult} from "../interfaces/interfaces";
+import { signedAmount, tsToDateTime } from "../utils/kpi-utils";
+import type { DriverKpiResult, IncomeLog } from "../interfaces/interfaces";
 
-const incomeCol = db.collection("income");
+/* ──────────────────────────── COLLECTION REFS ──────────────────────────── */
 const driversCol = db.collection("drivers");
+const incomeCol = db.collection("income");
 
-// ────────────────────────────────────────────────────────────────
-// Helpers
-// ────────────────────────────────────────────────────────────────
+/* ──────────────────────────── KPI HELPERS ──────────────────────────── */
 
-/** Convert Firestore Timestamp → Luxon DateTime in Africa/Harare zone */
-function tsToDateTime(ts?: FirebaseFirestore.Timestamp, zone = "Africa/Harare"): DateTime | undefined {
-  if (!ts) return undefined;
-  try {
-    return DateTime.fromJSDate(ts.toDate(), { zone });
-  } catch {
-    return undefined;
-  }
+/** Get logs for a specific driver + vehicle */
+async function fetchLogsForDriverVehicle(driverId: string, vehicleId: string) {
+  const logsSnap = await incomeCol
+    .where("driverId", "==", driverId)
+    .where("vehicle", "==", vehicleId)
+    .orderBy("cashDate", "desc")
+    .limit(400)
+    .get();
+
+  return logsSnap.docs.map((d: any) => d.data() as IncomeLog);
 }
 
-/** Signed amount helper (expense → negative, income → positive) */
-function signedAmount(log: IncomeLog): number {
-  const raw = Number(log.amount || 0);
-  if (!Number.isFinite(raw)) return 0;
-  return (log.type || "income").toLowerCase() === "expense"
-    ? -Math.abs(raw)
-    : Math.abs(raw);
+/** Split logs into last 30 days */
+function filterLogsLast30Days(logs: IncomeLog[], zone: string, day30: DateTime) {
+  return logs.filter((log) => {
+    const dt = tsToDateTime(log.cashDate, zone);
+    return dt ? dt >= day30 : false;
+  });
 }
 
-// ────────────────────────────────────────────────────────────────
-// Controller
-// ────────────────────────────────────────────────────────────────
+/** Compute total, income, expense, and net for given logs */
+function computeGrossAndNet(logs: IncomeLog[]) {
+  let totalIncomeGross = 0;
+  let totalExpenseGross = 0;
+  let totalNet = 0;
+
+  logs.forEach((r) => {
+    const amt = Number(r.amount || 0);
+    const type = (r.type || "income").toLowerCase();
+    if (type === "income") totalIncomeGross += Math.abs(amt);
+    else if (type === "expense") totalExpenseGross += Math.abs(amt);
+    totalNet += signedAmount(r);
+  });
+
+  return { totalIncomeGross, totalExpenseGross, totalNet };
+}
+
+/** Compute distance totals */
+function computeDistanceTotals(logs: IncomeLog[], logs30: IncomeLog[]) {
+  const kmAll = logs.reduce((s, r) => {
+    const km = Number(r.weekEndingMileage || 0);
+    return Number.isFinite(km) && km > 0 ? s + km : s;
+  }, 0);
+
+  const km30 = logs30.reduce((s, r) => {
+    const km = Number(r.weekEndingMileage || 0);
+    return Number.isFinite(km) && km > 0 ? s + km : s;
+  }, 0);
+
+  return { kmAll, km30 };
+}
+
+/** Compute efficiency (earnings per km) */
+function computeEarningsEfficiency(totalNet: number, net30d: number, kmAll: number, km30: number) {
+  const earningsPerKmTotal = kmAll > 0 ? totalNet / kmAll : 0;
+  const earningsPerKm30d = km30 > 0 ? net30d / km30 : 0;
+  return { earningsPerKmTotal, earningsPerKm30d };
+}
+
+/** Compute mileage-based values */
+function computeMileageStats(logs: IncomeLog[], mileageOnStart: number) {
+  const latestMileageLog = logs.find(
+    (r) => Number.isFinite(Number(r.weekEndingMileage)) && Number(r.weekEndingMileage) > 0
+  );
+  const latestMileage = Number(latestMileageLog?.weekEndingMileage ?? 0);
+  const coveredKmSinceStart =
+    mileageOnStart > 0 && latestMileage > 0 ? Math.max(0, latestMileage - mileageOnStart) : 0;
+
+  return { latestMileage, coveredKmSinceStart };
+}
+
+/** Compute income per km ratios */
+function computeIncomePerKmRatios(
+  coveredKmSinceStart: number,
+  totalNet: number,
+  totalIncomeGross: number
+) {
+  const incomePerKmSinceStartNet =
+    coveredKmSinceStart > 0 ? totalNet / coveredKmSinceStart : 0;
+  const incomePerKmSinceStartIncomeOnly =
+    coveredKmSinceStart > 0 ? totalIncomeGross / coveredKmSinceStart : 0;
+
+  return { incomePerKmSinceStartNet, incomePerKmSinceStartIncomeOnly };
+}
+
+/**
+ * Calculate average distance per week (new method):
+ * Iterate logs, take (weekEndingMileage - mileageOnStart) diffs,
+ * sum diffs / number of logs (up to 8).
+ */
+function calculateAvgDistancePerWeek(logs: IncomeLog[], mileageOnStart: number): number {
+  const valid = logs
+    .filter((r) => Number.isFinite(Number(r.weekEndingMileage)) && Number(r.weekEndingMileage) > mileageOnStart)
+    .slice(0, 8);
+
+  if (valid.length === 0) return 0;
+
+  let totalDiff = 0;
+  valid.forEach((log) => {
+    const km = Number(log.weekEndingMileage || 0);
+    totalDiff += Math.max(0, km - mileageOnStart);
+  });
+
+  return Math.round(totalDiff / valid.length);
+}
+
+/** Calculate average weekly net */
+function calculateAvgWeeklyNet(logs: IncomeLog[]) {
+  const valid = logs
+    .filter((r) => Number.isFinite(Number(r.weekEndingMileage)) && Number(r.weekEndingMileage) > 0)
+    .slice(0, 8);
+
+  if (valid.length === 0) return 0;
+  const totalNet = valid.reduce((s, r) => s + signedAmount(r), 0);
+  return totalNet / valid.length;
+}
+
+/* ──────────────────────────── MAIN CONTROLLER ──────────────────────────── */
 
 export async function getDriverKpis(req: Request, res: Response) {
   try {
@@ -67,145 +164,55 @@ export async function getDriverKpis(req: Request, res: Response) {
       Number(driver?.mileageOnStartByVehicle?.[VEHICLE_ID]) ||
       Number(driver?.mileageOnStart ?? 0);
 
-    // ── Fetch logs for this driver & vehicle
-    const logsSnap = (await incomeCol
-      .where("driverId", "==", driverId)
-      .where("vehicle", "==", VEHICLE_ID)
-      .orderBy("cashDate", "desc")
-      .limit(400)
-      .get()) as FirebaseFirestore.QuerySnapshot<IncomeLog>;
+    // ── Fetch logs
+    const logs = await fetchLogsForDriverVehicle(driverId, VEHICLE_ID);
+    const logs30 = filterLogsLast30Days(logs, zone, day30);
 
-    const logs = logsSnap.docs.map(
-      (d: FirebaseFirestore.QueryDocumentSnapshot<IncomeLog>) => d.data()
+    // ── KPI Calculations
+    const { totalIncomeGross, totalExpenseGross, totalNet } = computeGrossAndNet(logs);
+    const { totalIncomeGross: income30dGross, totalExpenseGross: expense30dGross, totalNet: net30d } =
+      computeGrossAndNet(logs30);
+    const { kmAll, km30 } = computeDistanceTotals(logs, logs30);
+    const { earningsPerKmTotal, earningsPerKm30d } = computeEarningsEfficiency(
+      totalNet,
+      net30d,
+      kmAll,
+      km30
     );
+    const { latestMileage, coveredKmSinceStart } = computeMileageStats(logs, mileageOnStart);
+    const { incomePerKmSinceStartNet, incomePerKmSinceStartIncomeOnly } =
+      computeIncomePerKmRatios(coveredKmSinceStart, totalNet, totalIncomeGross);
 
-    // ── Split by time window
-    const logs30 = logs.filter((log) => {
-      const dt = tsToDateTime(log.cashDate, zone);
-      return dt ? dt >= day30 : false;
-    });
+    const avgWeeklyKmLast8 = calculateAvgDistancePerWeek(logs, mileageOnStart);
+    const avgWeeklyNetLast8 = calculateAvgWeeklyNet(logs);
 
-    // ── Metrics
-    const last8 = logs
-      .filter(
-        (r) =>
-          Number.isFinite(Number(r.weekEndingMileage)) &&
-          Number(r.weekEndingMileage) > 0
-      )
-      .slice(0, 8);
+    // ── Response object
+    const result: DriverKpiResult = {
+      vehicleId: VEHICLE_ID,
+      totalNet,
+      totalIncomeGross,
+      totalExpenseGross,
+      net30d,
+      income30dGross,
+      expense30dGross,
+      earningsPerKmTotal,
+      earningsPerKm30d,
+      avgWeeklyKmLast8,
+      avgWeeklyNetLast8,
+      mileageOnStart,
+      latestMileage,
+      coveredKmSinceStart,
+      incomePerKmSinceStartNet,
+      incomePerKmSinceStartIncomeOnly,
+      meta: {
+        logsCount: logs.length,
+        logs30Count: logs30.length,
+        kmAll,
+        km30,
+      },
+    };
 
-    const totalKmLast8 = last8.reduce(
-      (s, r) => s + Number(r.weekEndingMileage || 0),
-      0
-    );
-    const avgWeeklyKmLast8 = last8.length
-      ? Math.round(totalKmLast8 / last8.length)
-      : 0;
-    const avgWeeklyNetLast8 = last8.length
-      ? last8.reduce((s, r) => s + signedAmount(r), 0) / last8.length
-      : 0;
-
-    const totalIncomeGross = logs.reduce(
-      (s, r) =>
-        s +
-        ((r.type || "income").toLowerCase() === "income"
-          ? Math.abs(Number(r.amount || 0))
-          : 0),
-      0
-    );
-
-    const totalExpenseGross = logs.reduce(
-      (s, r) =>
-        s +
-        ((r.type || "income").toLowerCase() === "expense"
-          ? Math.abs(Number(r.amount || 0))
-          : 0),
-      0
-    );
-
-    const totalNet = logs.reduce((s, r) => s + signedAmount(r), 0);
-
-    const income30dGross = logs30.reduce(
-      (s, r) =>
-        s +
-        ((r.type || "income").toLowerCase() === "income"
-          ? Math.abs(Number(r.amount || 0))
-          : 0),
-      0
-    );
-
-    const expense30dGross = logs30.reduce(
-      (s, r) =>
-        s +
-        ((r.type || "income").toLowerCase() === "expense"
-          ? Math.abs(Number(r.amount || 0))
-          : 0),
-      0
-    );
-
-    const net30d = logs30.reduce((s, r) => s + signedAmount(r), 0);
-
-    // ── Distance / Efficiency
-    const kmAll = logs.reduce((s, r) => {
-      const km = Number(r.weekEndingMileage || 0);
-      return Number.isFinite(km) && km > 0 ? s + km : s;
-    }, 0);
-
-    const km30 = logs30.reduce((s, r) => {
-      const km = Number(r.weekEndingMileage || 0);
-      return Number.isFinite(km) && km > 0 ? s + km : s;
-    }, 0);
-
-    const earningsPerKmTotal = kmAll > 0 ? totalNet / kmAll : 0;
-    const earningsPerKm30d = km30 > 0 ? net30d / km30 : 0;
-
-    // ── Mileage since assignment
-    const latestMileageLog = logs.find(
-      (r) =>
-        Number.isFinite(Number(r.weekEndingMileage)) &&
-        Number(r.weekEndingMileage) > 0
-    );
-    const latestMileage = Number(latestMileageLog?.weekEndingMileage ?? 0);
-
-    const coveredKmSinceStart =
-      mileageOnStart > 0 && latestMileage > 0
-        ? Math.max(0, latestMileage - mileageOnStart)
-        : 0;
-
-    const incomePerKmSinceStartNet =
-      coveredKmSinceStart > 0 ? totalNet / coveredKmSinceStart : 0;
-    const incomePerKmSinceStartIncomeOnly =
-      coveredKmSinceStart > 0
-        ? totalIncomeGross / coveredKmSinceStart
-        : 0;
-
-    // ── Response
- const result: DriverKpiResult = {
-  vehicleId: VEHICLE_ID,
-  totalNet,
-  totalIncomeGross,
-  totalExpenseGross,
-  net30d,
-  income30dGross,
-  expense30dGross,
-  earningsPerKmTotal,
-  earningsPerKm30d,
-  avgWeeklyKmLast8,
-  avgWeeklyNetLast8,
-  mileageOnStart,
-  latestMileage,
-  coveredKmSinceStart,
-  incomePerKmSinceStartNet,
-  incomePerKmSinceStartIncomeOnly,
-  meta: {
-    logsCount: logs.length,
-    logs30Count: logs30.length,
-    kmAll,
-    km30,
-  },
-};
-
-return res.status(200).json(success(result));
+    return res.status(200).json(success(result));
   } catch (e: any) {
     console.error("Error computing driver KPIs:", e);
     return res
