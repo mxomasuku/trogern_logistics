@@ -12,7 +12,7 @@ import AddDriver from "../pages/drivers/pages/AddDriver";
 import AddIncomePage from "@/pages/income/pages/AddIncomePage";
 import AddVehicle from "@/pages/vehicles/pages/AddVehicle"
 import AddServicePage from "@/pages/service/page/AddService";
-import DriverProfile from "@/pages/drivers/pages/DriverProfile";
+import DriverProfile from "@/pages/drivers/pages/driver_profile/DriverProfile";
 import VehicleProfile from "@/pages/vehicles/pages/VehicleProfile";
 
 export default function AppRoutes() {
