@@ -130,12 +130,12 @@ export interface IncomeLog {
   driverId: string;
   driverName: string;
   note?: string;
-  createdAt: string; 
-  updatedAt?: string;
-  cashDate: string; 
+  createdAt: FirebaseFirestore.Timestamp; 
+  updatedAt?: FirebaseFirestore.Timestamp;
+  cashDate: FirebaseFirestore.Timestamp;
 }
 
-interface VehicleTargets {
+export interface VehicleTargets {
   vehicleId: string;
   period: "weekly" | "monthly" | "daily";
   currency: "USD";
@@ -154,4 +154,12 @@ interface VehicleTargets {
   rpkMinusCpkFloor?: number;  // minimum acceptable margin per km
   validFrom: string;          // ISO
   validTo?: string;           // ISO
+}
+
+
+export type DriverKpis = {
+  avgWeeklyKm: number;      // rounded
+  cash30d: number;          // USD total last 30 days
+  incidentsYTD: number;     // integer
+  earningsPerKm: number;    // last 8 logs, amount / km
 }

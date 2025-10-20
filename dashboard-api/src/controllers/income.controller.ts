@@ -1,18 +1,65 @@
-// controllers/income.ts (or wherever this file lives)
-import { Response, Request, Router } from 'express';
-const { db } = require('../config/firebase');
-import { success, failure } from '../utils/apiResponse';
-import { IncomeLog } from '../interfaces/interfaces';
+import { Response, Request } from "express";
+import { DateTime } from "luxon";
+const { db, admin } = require("../config/firebase");
+import { success, failure } from "../utils/apiResponse";
+import { IncomeLog, LedgerType } from "../interfaces/interfaces";
 
-const incomeRef = db.collection('income');
-const vehiclesRef = db.collection('vehicles');
+const incomeRef = db.collection("income");
+const vehiclesRef = db.collection("vehicles");
 
+// ────────────────────────────────────────────────────────────────
+// Helpers
+// ────────────────────────────────────────────────────────────────
 
+function toFsTimestampAtLocalMidnight(
+  value: any,
+  zone = "Africa/Harare"
+): FirebaseFirestore.Timestamp | undefined {
+  try {
+    if (!value) return undefined;
 
-/**
- * Update a vehicle's currentMileage if the provided mileage is higher.
- * Safe/idempotent; logs and returns silently on any read/update error.
- */
+    // Already a Firestore Timestamp
+    if (typeof value?.toDate === "function" || typeof value?.seconds === "number") {
+      const d: Date = value.toDate ? value.toDate() : new Date(value.seconds * 1000);
+      const iso = DateTime.fromJSDate(d, { zone }).startOf("day");
+      return admin.firestore.Timestamp.fromDate(iso.toJSDate());
+    }
+
+    // String or ISO string
+    if (typeof value === "string") {
+      if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+        const dt = DateTime.fromISO(value, { zone }).startOf("day");
+        return admin.firestore.Timestamp.fromDate(dt.toJSDate());
+      }
+      const parsed = Date.parse(value);
+      if (!Number.isNaN(parsed)) {
+        const dt = DateTime.fromMillis(parsed, { zone }).startOf("day");
+        return admin.firestore.Timestamp.fromDate(dt.toJSDate());
+      }
+      return undefined;
+    }
+
+    if (value instanceof Date) {
+      const dt = DateTime.fromJSDate(value, { zone }).startOf("day");
+      return admin.firestore.Timestamp.fromDate(dt.toJSDate());
+    }
+
+    if (typeof value === "number" && Number.isFinite(value)) {
+      const dt = DateTime.fromMillis(value, { zone }).startOf("day");
+      return admin.firestore.Timestamp.fromDate(dt.toJSDate());
+    }
+  } catch {}
+  return undefined;
+}
+
+function mustParseCashDateToTimestamp(input: any, fieldName = "cashDate") {
+  const ts = toFsTimestampAtLocalMidnight(input);
+  if (!ts) {
+    throw new Error(`Invalid ${fieldName}. Expect "YYYY-MM-DD" or a valid date.`);
+  }
+  return ts;
+}
+
 async function upsertVehicleMileageIfHigher(vehicleId: string, newMileage: number): Promise<void> {
   try {
     if (!vehicleId || !Number.isFinite(newMileage)) return;
@@ -21,228 +68,198 @@ async function upsertVehicleMileageIfHigher(vehicleId: string, newMileage: numbe
     const vSnap = await vRef.get();
     if (!vSnap.exists) return;
 
-    const vData = vSnap.data() as { currentMileage?: number } | undefined;
-    const current = Number(vData?.currentMileage ?? 0);
+    const vData = (vSnap.data() || {}) as { currentMileage?: number };
+    const current = Number(vData.currentMileage ?? 0);
 
     if (newMileage > current) {
       await vRef.update({
         currentMileage: newMileage,
-        updatedAt: new Date(),
+        updatedAt: admin.firestore.Timestamp.now(),
       });
     }
   } catch (err) {
-    console.warn('upsertVehicleMileageIfHigher() failed:', err);
+    console.warn("upsertVehicleMileageIfHigher() failed:", err);
   }
 }
 
+// ────────────────────────────────────────────────────────────────
+// Controllers
+// ────────────────────────────────────────────────────────────────
+
 export const addIncomeLog = async (req: Request, res: Response) => {
-  const { amount,type, weekEndingMileage, note, driverId, driverName, vehicle, cashDate } = req.body;
+  const { amount, type, weekEndingMileage, note, driverId, driverName, vehicle, cashDate } = req.body;
 
+  if (!amount || !weekEndingMileage || !type || !driverId || !driverName || !vehicle || !cashDate) {
+    return res.status(400).json(
+      failure("VALIDATION_ERROR", "Missing required parameters", {
+        missing: ["amount", "type", "weekEndingMileage", "driverId", "driverName", "vehicle", "cashDate"].filter(
+          (field) => !req.body[field]
+        ),
+      })
+    );
+  }
 
-  if (!amount || !weekEndingMileage || !type || !driverId || !driverName || !vehicle || !cashDate ) {
-    return res
-      .status(400)
-      .json(
-        failure(
-          'VALIDATION_ERROR',
-          'Missing required parameters',
-          { missing: ['amount', 'type', 'weekEndingMileage',  'driverId', 'driverName', 'note', 'vehicle', 'cashDate'].filter(field => !req.body[field]) }
-        )
-      );
+  // Validate type
+  const ledgerType = String(type).toLowerCase() as LedgerType;
+  if (ledgerType !== "income" && ledgerType !== "expense") {
+    return res.status(400).json(failure("VALIDATION_ERROR", "Invalid ledger type"));
   }
 
   try {
-    const now = new Date();
-    const result = await incomeRef.add({
+    const createdAt = admin.firestore.Timestamp.now();
+    const cashDateTs = mustParseCashDateToTimestamp(cashDate, "cashDate");
+
+    const payload: Omit<IncomeLog, "id"> = {
       amount: Number(amount),
       weekEndingMileage: Number(weekEndingMileage),
-      vehicle: vehicle,
-      driverId: driverId,
-      type: type,
-      driverName: driverName,
-      note: note || '',
-      createdAt: now,
-      cashDate: cashDate ,
-    });
+      vehicle: String(vehicle),
+      driverId: String(driverId),
+      type: ledgerType,
+      driverName: String(driverName),
+      note: note || "",
+      createdAt,
+      updatedAt: createdAt,
+      cashDate: cashDateTs,
+    };
 
-    // Best-effort: bump vehicle mileage if this log's mileage is higher
+    const result = await incomeRef.add(payload);
     await upsertVehicleMileageIfHigher(String(vehicle), Number(weekEndingMileage));
 
-    return res
-      .status(201)
-      .json(
-        success({
-          id: result.id,
-          amount: Number(amount),
-          type: type,
-          weekEndingMileage: Number(weekEndingMileage),
-          vehicle: vehicle,
-          driverId: driverId,
-          driverName: driverName,
-          note: note || '',
-          createdAt: now,
-          cashDate: cashDate
-        })
-      );
+    return res.status(201).json(success({ id: result.id, ...payload }));
   } catch (error: any) {
-    console.error('Error adding income log:', error);
-    return res
-      .status(500)
-      .json(failure('SERVER_ERROR', 'Failed to log income', error.message));
+    console.error("Error adding income log:", error);
+    return res.status(500).json(failure("SERVER_ERROR", "Failed to log income", error.message));
   }
 };
 
-
-
-
 export const updateIncomeLog = async (req: Request, res: Response) => {
   const { id } = req.params;
-  const { amount, type, weekEndingMileage, note, driverId, vehicleId, driverName } = req.body;
+  const { amount, type, weekEndingMileage, note, driverId, driverName, vehicle, cashDate } = req.body;
 
   if (!id) {
-    return res.status(400).json(failure('VALIDATION_ERROR', 'Missing income id'));
+    return res.status(400).json(failure("VALIDATION_ERROR", "Missing income id"));
   }
-  const patch: Record<string, any> = {};
-  if (amount !== undefined) patch.amount = Number(amount);
-  if(type !== undefined) patch.type = String(type);
-  if (weekEndingMileage !== undefined) patch.weekEndingMileage = Number(weekEndingMileage);
-  if  (driverId !== undefined) patch.driverId = String(driverId);
-  if(vehicleId !== undefined) patch.vehicleId = String(vehicleId)
-  if (driverName !== undefined) patch.driverName = String(driverName)
-  if (note !== undefined) patch.note = note || '';
-  patch.updatedAt = new Date();
 
-  if (Object.keys(patch).length === 1) { 
-    return res.status(400).json(failure('VALIDATION_ERROR', 'No updatable fields provided'));
+  const patch: Partial<IncomeLog> & { updatedAt?: FirebaseFirestore.Timestamp } = {};
+
+  if (amount !== undefined) patch.amount = Number(amount);
+  if (type !== undefined) {
+    const ledgerType = String(type).toLowerCase() as LedgerType;
+    if (ledgerType !== "income" && ledgerType !== "expense") {
+      return res.status(400).json(failure("VALIDATION_ERROR", "Invalid ledger type"));
+    }
+    patch.type = ledgerType;
+  }
+  if (weekEndingMileage !== undefined) patch.weekEndingMileage = Number(weekEndingMileage);
+  if (driverId !== undefined) patch.driverId = String(driverId);
+  if (driverName !== undefined) patch.driverName = String(driverName);
+  if (vehicle !== undefined) patch.vehicle = String(vehicle);
+  if (note !== undefined) patch.note = note || "";
+
+  if (cashDate !== undefined) {
+    const cdTs = mustParseCashDateToTimestamp(cashDate, "cashDate");
+    patch.cashDate = cdTs;
+  }
+
+  patch.updatedAt = admin.firestore.Timestamp.now();
+
+  if (Object.keys(patch).length === 1) {
+    return res.status(400).json(failure("VALIDATION_ERROR", "No updatable fields provided"));
   }
 
   try {
     const docRef = incomeRef.doc(id);
     const doc = await docRef.get();
     if (!doc.exists) {
-      return res.status(404).json(failure('NOT_FOUND', 'Income log not found'));
+      return res.status(404).json(failure("NOT_FOUND", "Income log not found"));
     }
+
     await docRef.update(patch);
-    const updated = (await docRef.get()).data();
-        await upsertVehicleMileageIfHigher(String(vehicleId), Number(weekEndingMileage));
+    const updated = (await docRef.get()).data() as IncomeLog | undefined;
+
+    if (patch.weekEndingMileage !== undefined) {
+      const effVehicle = patch.vehicle ?? updated?.vehicle;
+      await upsertVehicleMileageIfHigher(String(effVehicle), Number(patch.weekEndingMileage));
+    }
+
     return res.status(200).json(success({ id, ...updated }));
   } catch (error: any) {
-    console.error('Error updating income log:', error);
-    return res.status(500).json(failure('SERVER_ERROR', 'Failed to update income log', error.message));
+    console.error("Error updating income log:", error);
+    return res.status(500).json(failure("SERVER_ERROR", "Failed to update income log", error.message));
   }
 };
-
-
 
 export const getIncomeLogs = async (req: Request, res: Response) => {
   try {
     const {
       driverId,
-      driverName,
       vehicle,
       orderBy: orderByRaw,
       order: orderRaw,
       start,
       end,
       limit: limitRaw,
-      cursor,
     } = req.query as {
       driverId?: string;
-      driverName?: string
       vehicle?: string;
       orderBy?: "createdAt" | "cashDate";
       order?: "asc" | "desc";
       start?: string;
       end?: string;
       limit?: string;
-      cursor?: string;
     };
 
-    const orderBy: "createdAt" | "cashDate" =
-      orderByRaw === "cashDate" ? "cashDate" : "createdAt";
-
+    const orderBy: "createdAt" | "cashDate" = orderByRaw === "cashDate" ? "cashDate" : "createdAt";
     const order: "asc" | "desc" = orderRaw === "asc" ? "asc" : "desc";
+    const limit = Math.min(Math.max(parseInt(limitRaw || "50", 10) || 50, 1), 200);
 
-    const limit = Math.min(
-      Math.max(parseInt(limitRaw || "50", 10) || 50, 1),
-      200
-    );
+    let q: FirebaseFirestore.Query = incomeRef;
 
-    let incomeData: FirebaseFirestore.Query = incomeRef;
-
-    if (driverId) incomeData = incomeData.where("driverId", "==", driverId);
-    if (vehicle) incomeData = incomeData.where("vehicle", "==", vehicle);
+    if (driverId) q = q.where("driverId", "==", driverId);
+    if (vehicle) q = q.where("vehicle", "==", vehicle);
 
     if (start) {
-      const d = new Date(start);
-      if (!isNaN(d.valueOf())) incomeData = incomeData.where(orderBy, ">=", d);
+      const ts = toFsTimestampAtLocalMidnight(start);
+      if (ts) q = q.where(orderBy, ">=", ts);
     }
     if (end) {
-      const d = new Date(end);
-      if (!isNaN(d.valueOf())) incomeData = incomeData.where(orderBy, "<=", d);
+      const ts = toFsTimestampAtLocalMidnight(end);
+      if (ts) q = q.where(orderBy, "<=", ts);
     }
 
-    incomeData = incomeData.orderBy(orderBy, order);
+    q = q.orderBy(orderBy, order).limit(limit);
 
-    if (cursor) {
-      const c = new Date(cursor);
-      if (!isNaN(c.valueOf())) incomeData = incomeData.startAfter(c);
-    }
-
-    incomeData = incomeData.limit(limit);
-
-    const snap = await incomeData.get();
-    const items = snap.docs.map((dataFetched) => {
-      const data = dataFetched.data();
-      return {
-        id: data.id,
-        amount: Number(data.amount),
-        weekEndingMileage: Number(data.weekEndingMileage),
-        vehicle: data.vehicle,
-        driverId: data.driverId,
-        type: data.type,
-        driverName: data.driverName,
-        note: data.note ?? "",
-        createdAt: data.createdAt,
-        cashDate: data.cashDate,
-      };
+    const snap = await q.get();
+    const items = snap.docs.map((doc) => {
+      const data = doc.data() as IncomeLog;
+      return { ...data };
     });
 
     return res.status(200).json(success(items));
   } catch (error: any) {
     console.error("Error fetching income logs:", error);
-    return res
-      .status(500)
-      .json(
-        failure("SERVER_ERROR", "Failed to fetch income logs", error.message)
-      );
+    return res.status(500).json(failure("SERVER_ERROR", "Failed to fetch income logs", error.message));
   }
 };
 
-export const getIncomeLogById = async (
-  req: Request<{ id: string }>,
-  res: Response
-) => {
+// ────────────────────────────────────────────────────────────────
+// Single / Filtered Fetch Controllers
+// ────────────────────────────────────────────────────────────────
+
+export const getIncomeLogById = async (req: Request<{ id: string }>, res: Response) => {
   try {
     const { id } = req.params;
     if (!id) {
-      return res
-        .status(400)
-        .json(failure("VALIDATION_ERROR", "id is required"));
+      return res.status(400).json(failure("VALIDATION_ERROR", "id is required"));
     }
 
     const doc = await incomeRef.doc(id).get();
     if (!doc.exists) {
-      return res
-        .status(404)
-        .json(failure("NOT_FOUND", "Income log not found", { id }));
+      return res.status(404).json(failure("NOT_FOUND", "Income log not found", { id }));
     }
 
     const data = doc.data() as IncomeLog;
-
-
-
-    return res.status(200).json(success(data));
+    return res.status(200).json(success({ ...data }));
   } catch (error: any) {
     console.error("Error fetching income log by id:", error);
     return res
@@ -251,76 +268,58 @@ export const getIncomeLogById = async (
   }
 };
 
-export const getIncomeLogsByDriverId = async (
-  req: Request<{ driverId: string }>,
-  res: Response
-) => {
+export const getIncomeLogsByDriverId = async (req: Request<{ driverId: string }>, res: Response) => {
   try {
     const { driverId } = req.params;
     if (!driverId) {
-      return res
-        .status(400)
-        .json(failure("VALIDATION_ERROR", "driverId is required"));
+      return res.status(400).json(failure("VALIDATION_ERROR", "driverId is required"));
     }
 
-
     const snapshot = await incomeRef.where("driverId", "==", driverId).get();
-
     if (snapshot.empty) {
       return res
         .status(404)
         .json(failure("NOT_FOUND", "No income logs for this driver", { driverId }));
     }
-const items: IncomeLog[] = snapshot.docs.map((doc: FirebaseFirestore.QueryDocumentSnapshot) => doc.data() as IncomeLog);
+
+    const items: IncomeLog[] = snapshot.docs.map((doc: FirebaseFirestore.QueryDocumentSnapshot<IncomeLog>) => ({
+ 
+      ...(doc.data() as IncomeLog),
+    }));
 
     return res.status(200).json(success(items));
   } catch (error: any) {
     console.error("Error fetching income logs by driverId:", error);
     return res
       .status(500)
-      .json(
-        failure(
-          "SERVER_ERROR",
-          "Failed to fetch income logs",
-          error?.message
-        )
-      );
+      .json(failure("SERVER_ERROR", "Failed to fetch income logs", error?.message));
   }
 };
 
-export const getIncomeLogsByVehicleId = async (
-  req: Request<{ vehicle: string }>,
-  res: Response
-) => {
+export const getIncomeLogsByVehicleId = async (req: Request<{ vehicle: string }>, res: Response) => {
   try {
     const { vehicle } = req.params;
     if (!vehicle) {
-      return res
-        .status(400)
-        .json(failure("VALIDATION_ERROR", "vehicle is required"));
+      return res.status(400).json(failure("VALIDATION_ERROR", "vehicle is required"));
     }
 
-
     const snapshot = await incomeRef.where("vehicle", "==", vehicle).get();
-
     if (snapshot.empty) {
       return res
         .status(404)
         .json(failure("NOT_FOUND", "No income logs for this vehicle", { vehicle }));
     }
-const items: IncomeLog[] = snapshot.docs.map((doc: FirebaseFirestore.QueryDocumentSnapshot) => doc.data() as IncomeLog);
+
+    const items: IncomeLog[] = snapshot.docs.map((doc: FirebaseFirestore.QueryDocumentSnapshot<IncomeLog>) => ({
+
+      ...(doc.data() as IncomeLog),
+    }));
 
     return res.status(200).json(success(items));
   } catch (error: any) {
     console.error("Error fetching income logs by vehicle:", error);
     return res
       .status(500)
-      .json(
-        failure(
-          "SERVER_ERROR",
-          "Failed to fetch income logs",
-          error?.message
-        )
-      );
+      .json(failure("SERVER_ERROR", "Failed to fetch income logs", error?.message));
   }
 };
