@@ -16,6 +16,7 @@ import { Loader2, Plus, List } from "lucide-react";
 import { toast } from "sonner";
 import { IncomeList } from "./components/IncomeList";
 import type { IncomeLog, LedgerType } from "@/types/types";
+import { toDateInputValue } from "@/lib/utils"; // IMPORTANT: converts TS/Date/ISO/number -> "YYYY-MM-DD"
 
 export default function IncomePage() {
   const [items, setItems] = useState<IncomeLog[]>([]);
@@ -30,7 +31,7 @@ export default function IncomePage() {
   const [mileage, setMileage] = useState<string>("");
   const [vehicle, setVehicle] = useState<string>("");
   const [driver, setEDriver] = useState<string>("");
-  const [cashDate, setCashDate] = useState<string>("");
+  const [cashDate, setCashDate] = useState<string>(""); // holds "YYYY-MM-DD" for <input type="date" />
   const [note, setNote] = useState<string>("");
   const [entryType, setEntryType] = useState<LedgerType>("income");
 
@@ -57,11 +58,18 @@ export default function IncomePage() {
     setAmount(String(row.amount ?? ""));
     setMileage(String(row.weekEndingMileage ?? ""));
     setVehicle(row.vehicle ?? "");
-    // Keep your existing freeform driver input behavior
     setEDriver(row.driverName || row.driverId || "");
-    setCashDate(row.cashDate ?? "");
+
+    // 🔧 Convert Firestore TS (or any date-like) -> "YYYY-MM-DD" for the date input
+    // Prefer cashDate, fallback to createdAt if missing
+    const cashYMD =
+      toDateInputValue((row as any).cashDate) ||
+      toDateInputValue((row as any).createdAt) ||
+      "";
+    setCashDate(cashYMD);
+
     setNote(row.note ?? "");
-    setEntryType(row.type ?? "income");
+    setEntryType((row.type as LedgerType) ?? "income");
     setEditOpen(true);
   }
 
@@ -85,19 +93,20 @@ export default function IncomePage() {
 
     setSubmitting(true);
     try {
+      // Send cashDate as "YYYY-MM-DD" — backend converts to Firestore Timestamp
       const updated = await updateIncomeLog(editing.id, {
         amount: amt,
         weekEndingMileage: miles,
         vehicle,
-        // Keeping parity with your previous API usage; add both to be safe
         driverName: driver,
         driverId: driver,
-        cashDate,
+        cashDate, // string "YYYY-MM-DD"
         note: note || undefined,
         type: entryType,
       } as any);
 
-      // merge into list
+      // Merge into list.
+      // updated.cashDate should be a Firestore Timestamp (or you may echo the string; both are handled safely)
       setItems((prev) =>
         prev.map((x) =>
           x.id === editing.id
@@ -110,9 +119,10 @@ export default function IncomePage() {
                 driverId: updated.driverId ?? driver,
                 driverName: updated.driverName ?? driver,
                 note: updated.note ?? note,
-                cashDate: updated.cashDate ?? cashDate,
-                type: updated.type ?? entryType,
-                createdAt: updated.createdAt ?? x.createdAt,
+                // if backend returned TS use that, else keep prior or the string (downstream renderers handle it)
+                cashDate: (updated as any)?.cashDate ?? x.cashDate ?? cashDate,
+                type: (updated.type as LedgerType) ?? entryType,
+                createdAt: (updated as any)?.createdAt ?? x.createdAt,
               }
             : x
         )
@@ -152,7 +162,7 @@ export default function IncomePage() {
             <IncomeList
               items={items}
               loading={loading}
-              onRowClick={openEdit}   // <-- enable editing
+              onRowClick={openEdit}
               currency="USD"
             />
           </CardContent>
@@ -197,7 +207,7 @@ export default function IncomePage() {
               <input
                 className="w-full rounded-md border px-3 py-2"
                 type="date"
-                value={cashDate}
+                value={cashDate} // "YYYY-MM-DD"
                 onChange={(e) => setCashDate(e.target.value)}
               />
             </div>

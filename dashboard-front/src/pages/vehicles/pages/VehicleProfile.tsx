@@ -5,29 +5,19 @@ import { getVehicle } from "@/api/vehicles";
 import { getServiceRecordsForVehicle } from "@/api/service";
 import { getIncomeLogsForVehicle } from "@/api/income";
 
-import type { Vehicle, IncomeLog } from "@/types/types";
+import type { Vehicle, IncomeLog, ServiceRecord } from "@/types/types";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import VehicleServiceLogs from "../components/VehicleServiceLogs";
-
-
-import { ArrowLeft, Loader2 } from "lucide-react";
-import type { ServiceRecord } from "@/types/types";
-import { toast } from "sonner";
 import VehicleIncomeLogs from "../components/VehicleIncomeLogs";
 
-/** --- Firestore Timestamp helper --- */
-type FsTs = { _seconds: number; _nanoseconds?: number } | null | undefined;
+import { ArrowLeft, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
-function fsTsToDate(ts: FsTs): Date | null {
-  if (!ts || typeof ts._seconds !== "number") return null;
-  // _nanoseconds can be undefined; floor to ms
-  const ms = ts._seconds * 1000 + Math.floor((ts._nanoseconds ?? 0) / 1e6);
-  const d = new Date(ms);
-  return Number.isNaN(d.getTime()) ? null : d;
-}
+// shared utils
+import { toJsDate, fmtDate } from "@/lib/utils";
 
 /** Helper: read ?id=... */
 function useQueryId() {
@@ -35,20 +25,13 @@ function useQueryId() {
   return useMemo(() => new URLSearchParams(search).get("id") ?? "", [search]);
 }
 
-/** Basic date display helper (keeps your UI consistent) */
-function fmtDate(d: Date | null): string {
-  if (!d) return "—";
-  const t = d.getTime?.();
-  if (!t || Number.isNaN(t)) return "—";
-  return d.toLocaleDateString();
-}
+
 
 export default function VehicleProfile() {
   const navigate = useNavigate();
   const vehicleId = useQueryId();
 
   const [vehicle, setVehicle] = useState<Vehicle | null>(null);
-
   const [serviceRecords, setServiceRecords] = useState<(ServiceRecord & { id: string })[]>([]);
   const [incomeLogs, setIncomeLogs] = useState<IncomeLog[]>([]);
 
@@ -104,18 +87,22 @@ export default function VehicleProfile() {
     // income total (this month) for this vehicle
     const now = new Date();
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
     const thisMonthIncome = incomeLogs
-      .filter((r) => r.cashDate && new Date(r.cashDate) >= monthStart)
+      .filter((r) => {
+        const d = toJsDate((r as any).cashDate) ?? toJsDate((r as any).createdAt);
+        return !!d && d >= monthStart;
+      })
       .reduce((sum, r) => sum + Number(r.amount || 0), 0);
 
     // mileage: crude weekly km estimate based on last two logs
     const sorted = [...incomeLogs]
       .filter((r) => r.weekEndingMileage != null)
-      .sort(
-        (a, b) =>
-          new Date(a.cashDate ?? a.createdAt ?? 0).getTime() -
-          new Date(b.cashDate ?? b.createdAt ?? 0).getTime(),
-      );
+      .sort((a, b) => {
+        const da = toJsDate((a as any).cashDate) ?? toJsDate((a as any).createdAt);
+        const db = toJsDate((b as any).cashDate) ?? toJsDate((b as any).createdAt);
+        return (da?.getTime() ?? 0) - (db?.getTime() ?? 0);
+      });
 
     let weeklyKm = 0;
     if (sorted.length >= 2) {
@@ -124,7 +111,7 @@ export default function VehicleProfile() {
       weeklyKm = Math.max(0, last - prev);
     }
 
-    // last service date derived from records (fallback)
+    // last service date derived from records (fallback if vehicle.lastServiceDate missing)
     const lastServiceDerived = serviceRecords
       .map((r) => (r.date ? new Date(r.date).getTime() : 0))
       .filter((t) => t > 0)
@@ -166,11 +153,28 @@ export default function VehicleProfile() {
   const filteredIncome: IncomeLog[] = useMemo(() => {
     const q = filterText.trim().toLowerCase();
     if (!q) return incomeLogs;
-    return incomeLogs.filter((r) =>
-      [r.amount, r.weekEndingMileage, r.driverName, r.driverId, r.note, r.cashDate, r.createdAt]
+
+    return incomeLogs.filter((r) => {
+      const dCash = toJsDate((r as any).cashDate);
+      const dCreated = toJsDate((r as any).createdAt);
+      const dateStrs = [
+        dCash?.toLocaleDateString?.(),
+        dCreated?.toLocaleDateString?.(),
+        dCash?.toISOString?.(),
+        dCreated?.toISOString?.(),
+      ].filter(Boolean) as string[];
+
+      return [
+        r.amount,
+        r.weekEndingMileage,
+        r.driverName,
+        r.driverId,
+        r.note,
+        ...dateStrs,
+      ]
         .filter(Boolean)
-        .some((s) => String(s).toLowerCase().includes(q)),
-    );
+        .some((s) => String(s).toLowerCase().includes(q));
+    });
   }, [incomeLogs, filterText]);
 
   // ---------- UI ----------
@@ -206,10 +210,9 @@ export default function VehicleProfile() {
     );
   }
 
-  // Convert Firestore timestamps from the vehicle
-  const purchasedDate = fsTsToDate(vehicle.datePurchased);
-  const lastServiceFromVehicle = fsTsToDate(vehicle.lastServiceDate);
-
+  // Convert Firestore timestamps from the vehicle using shared util
+  const purchasedDate = toJsDate((vehicle as any).datePurchased) ?? null;
+  const lastServiceFromVehicle = toJsDate((vehicle as any).lastServiceDate) ?? null;
 
   return (
     <div className="mx-auto max-w-6xl space-y-4">
@@ -237,13 +240,10 @@ export default function VehicleProfile() {
           <CardTitle>Overview</CardTitle>
         </CardHeader>
         <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <Kpi label="Assigned driver" value={vehicle.assignedDriverId || "—"} />
+          <Kpi label="Assigned driver" value={vehicle.assignedDriverName || "—"} />
           <Kpi label="Route" value={vehicle.route || "—"} />
 
-          <Kpi
-            label="Purchased"
-            value={fmtDate(purchasedDate)}
-          />
+          <Kpi label="Purchased" value={fmtDate(purchasedDate)} />
           <Kpi
             label="Purchase price"
             value={
@@ -255,10 +255,7 @@ export default function VehicleProfile() {
 
           <Kpi
             label="Last service"
-            value={
-              
-              fmtDate(lastServiceFromVehicle || kpis.lastServiceDerivedDate)
-            }
+            value={fmtDate(lastServiceFromVehicle || kpis.lastServiceDerivedDate)}
           />
 
           <Kpi
@@ -289,7 +286,7 @@ export default function VehicleProfile() {
       </div>
 
       {/* Service Records */}
-   <VehicleServiceLogs filteredService={filteredService}/>
+      <VehicleServiceLogs filteredService={filteredService} />
 
       {/* Income Logs */}
       <VehicleIncomeLogs filteredIncome={filteredIncome} />

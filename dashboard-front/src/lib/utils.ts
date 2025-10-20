@@ -70,3 +70,27 @@ export function fmtDate(value?: string | number | Date | null): string {
   if (!t || Number.isNaN(t)) return "-";
   return d.toLocaleDateString();
 }
+
+
+export function toJsDate(
+  value?: { _seconds: number; _nanoseconds?: number } | Date | string
+): Date | undefined {
+  if (!value) return undefined;
+
+  // Firestore Timestamp (serialized)
+  if (typeof (value as any)._seconds === "number") {
+    const seconds = (value as any)._seconds;
+    return new Date(seconds * 1000);
+  }
+
+  // Direct Date
+  if (value instanceof Date) return value;
+
+  // ISO string
+  if (typeof value === "string") {
+    const parsed = new Date(value);
+    if (!Number.isNaN(parsed.valueOf())) return parsed;
+  }
+
+  return undefined;
+}
