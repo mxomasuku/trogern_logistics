@@ -14,6 +14,7 @@ import AddVehicle from "@/pages/vehicles/pages/AddVehicle"
 import AddServicePage from "@/pages/service/page/AddService";
 import DriverProfile from "@/pages/drivers/pages/driver_profile/DriverProfile";
 import VehicleProfile from "@/pages/vehicles/pages/VehicleProfile";
+import  ServiceRecordsPage  from "@/pages/service/page/ServiceRecordsPage";
 
 export default function AppRoutes() {
   return (
@@ -30,6 +31,7 @@ export default function AppRoutes() {
               <Route path="/vehicles/profile" element={<VehicleProfile />} />
         <Route path="service" element={<Protected><ServicePage /></Protected>} />
         <Route path="/service/add" element={<AddServicePage />} />
+        <Route path="/service/records" element={<ServiceRecordsPage/>} />
 <Route path="income" element={<Protected><IncomePage/></Protected>} />
 <Route path="income/add" element={<Protected><AddIncomePage/></Protected>} />
       </Route>

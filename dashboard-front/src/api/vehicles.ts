@@ -1,5 +1,5 @@
 import { http } from "../lib/http-instance"
-import type { ApiResponse, Vehicle, VehicleCreateDTO, VehicleKpiResponse, VehicleUpdateDTO } from "../types/types";
+import type { ApiResponse, Vehicle, VehicleCreateDTO, VehicleUpdateDTO } from "../types/types";
 
 
 

@@ -94,3 +94,17 @@ export function toJsDate(
 
   return undefined;
 }
+
+
+export function tsLikeToDate(ts?: any): Date | undefined {
+  if (!ts) return undefined;
+  if (ts instanceof Date) return ts;
+  if (typeof ts === "string") return new Date(ts);
+  if (typeof ts._seconds === "number") {
+    const ms = ts._seconds * 1000 + Math.floor((ts._nanoseconds || 0) / 1_000_000);
+    return new Date(ms);
+  }
+  // Firestore Timestamp (if your fetch layer ever returns it directly)
+  if (typeof ts.toDate === "function") return ts.toDate();
+  return undefined;
+}
