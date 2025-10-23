@@ -8,6 +8,7 @@ import {
   getAllActiveVehicles
 
 } from '../controllers/vehicles.controller';
+import { getVehicleKpis } from '../controllers/vehicle_kpis.controller';
 
 const router = Router();
 
@@ -18,6 +19,7 @@ router.post('/add-vehicle', addVehicle);
 router.put('/update/:id', updateVehicle);
 router.delete('/delete/:id', deleteVehicle);
 router.get('/:id', getVehicle);
+router.get('/get-vehicle-kpis/:id', getVehicleKpis)
 
 
 

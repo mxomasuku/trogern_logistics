@@ -1,5 +1,5 @@
 import { http } from "../lib/http-instance"
-import type { ApiResponse, DriverKpiResult } from "../types/types";
+import type { ApiResponse, DriverKpiResult, VehicleKpiResponse } from "../types/types";
 
 export async function getDriverKpis(driverId: String, vehicleId: String): Promise<DriverKpiResult> {
 
@@ -8,3 +8,18 @@ export async function getDriverKpis(driverId: String, vehicleId: String): Promis
         return data.data! 
 
 }
+
+
+export async function getVehicleKpis(id: string): Promise<VehicleKpiResponse> {
+  const { data } = await http.get<ApiResponse<VehicleKpiResponse>>(
+    `vehicles/get-vehicle-kpis/${id}`
+  );
+
+  if (!data?.isSuccessful) {
+    throw new Error(data?.error?.message ?? "Failed to get vehicle KPI");
+  }
+
+
+  return data.data!;
+}
+
