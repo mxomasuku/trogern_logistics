@@ -90,62 +90,75 @@ export interface VehicleCreateDTO {
 }
 
 export type VehicleUpdateDTO = Partial<VehicleCreateDTO>;
+// src/interfaces/interfaces.ts
 
-/* ---------- Stored/returned item ---------- */
+export type ServiceItemKind = "consumable" | "labour" | "license" | "other";
+
+
 export interface ServiceItem {
+  kind: ServiceItemKind;                       // ✅ store for easy querying
   name: string;
-  cost: number;
-  date: { _seconds: number; _nanoseconds: number },                 // Firestore
   value: string;
+  unit: string;
+  quantity: number;
+  cost: number;
+
+  // core service context
+  date: { _seconds: number; _nanoseconds: number }, 
   vehicleMileage: number;
-  serviceDueMileage: number;
-  serviceDueDate: { _seconds: number; _nanoseconds: number },        // Firestore
+
+  // derived only when lifespan present; absent for labour/etc.
   expectedLifespanMileage?: number;
   expectedLifespanDays?: number;
-  quantity: number;
-  unit: string;
+  serviceDueMileage?: number;
+  serviceDueDate?: { _seconds: number; _nanoseconds: number }, 
 }
 
-/* ---------- Catalog prime ---------- */
-export interface ServiceItemPrime  {
-  expectedLifespanMileage: number;
-  expectedLifespanDays: number;
+// Catalog (primes you create once)
+export interface ServiceItemPrime {
+  kind: ServiceItemKind;                       
   name: string;
+  value: string;                         
+  expectedLifespanMileage: number | null;
+  expectedLifespanDays: number | null;
+}
+
+export interface ServiceItemDTO {
+  name: string;
+  cost: number;
+  date: string;             // ISO string (not used when embedded in ServiceRecordDTO.itemsChanged)
   value: string;
+  vehicleMileage: number;   // per unit
+  quantity: number | string;
+  unit: string;
 }
 
-/* ---------- Minimal input line for create/update ---------- */
-export type ServiceLineItemInput = {
-  name: string;
-  unit: string;
-  cost: number | string;
-  quantity: number | string;
-};
-
-/* ---------- Record returned from API ---------- */
 export interface ServiceRecord {
   vehicleId: string;
-  date: { _seconds: number; _nanoseconds: number },  
+  date: { _seconds: number; _nanoseconds: number },       // when serviced
   mechanic: string;
   cost: number;
-  serviceMileage: number;
-  condition: string;
-  itemsChanged: ServiceItem[];          // full derived items (from subcollection)
+  serviceMileage: number;                  // odometer at service time                     // e.g. "good", "requires attention"
+  itemsChanged: ServiceItem[];             // not embedded (kept for backward compat), we store in subcollection
   notes: string | null;
-  createdAt?: { _seconds: number; _nanoseconds: number },  
-  updatedAt?:{ _seconds: number; _nanoseconds: number },  
+  createdAt?: { _seconds: number; _nanoseconds: number }, 
+  updatedAt?: { _seconds: number; _nanoseconds: number }, 
 }
 
-/* ---------- DTO used to CREATE/UPDATE ---------- */
+// DTO from client (dates as strings)
 export interface ServiceRecordDTO {
-  date: string;                         // ISO (from <input type="date">)
+  date: string;                // ISO
   vehicleId: string;
-  serviceMileage: number | string;
+  serviceMileage: number;
   mechanic: string;
   cost: number | string;
-  condition: string;
-  itemsChanged: ServiceLineItemInput[]; // <-- minimal input lines ✅
-  notes?: string | null;
+  itemsChanged: Array<{
+    name: string;
+    cost: number | string;
+    quantity: number | string;
+    unit: string;
+  }>;
+  notes?: string;
 }
 
 export type DriverKpis = {

@@ -56,7 +56,7 @@ export default function ServiceRecordsPage() {
       [
         r.vehicleId,
         r.mechanic,
-        r.condition,
+  
         r.notes,
         String(r.cost),
         ...(r.itemsChanged || []).flatMap((i: any) => [
@@ -145,7 +145,7 @@ export default function ServiceRecordsPage() {
                       {record.vehicleId}
                     </TableCell>
                     <TableCell>{record.mechanic || "-"}</TableCell>
-                    <TableCell>{record.condition || "-"}</TableCell>
+                 
                     <TableCell>
                       {typeof record.cost === "number"
                         ? record.cost.toFixed(2)
