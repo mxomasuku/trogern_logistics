@@ -1,5 +1,5 @@
 import { http } from "../lib/http-instance"
-import type { ApiResponse } from "../types/types";
+import type { ApiResponse, ServiceItemPrime } from "../types/types";
 import type { ServiceRecord, ServiceRecordDTO } from "../types/types";
 
 
@@ -66,4 +66,28 @@ export async function getServiceRecordById(
   }
 
   return data.data!;
+}
+
+export async function addServiceItem( payload: ServiceItemPrime): Promise<void> {
+  const { data } = await http.post<ApiResponse>(
+     "/service/add-service-item",
+    payload
+  );
+  if (!data?.isSuccessful) throw new Error(data?.error?.message ?? "Failed to add service item");
+}
+export async function getServiceItems(): Promise<ServiceItemPrime[]>{
+
+  const {data} = await http.get<ApiResponse<ServiceItemPrime[]>>(
+    "/service/service-items-get",
+  );
+    if (!data?.isSuccessful) throw new Error(data?.error?.message ?? "Failed to load service items");
+
+  return data.data!
+}
+
+export async function deleteServiceItem( serviceItemId: string): Promise<void> {
+  const { data } = await http.delete<ApiResponse>(
+    `/service/delete-service-item/${serviceItemId}`
+  );
+  if (!data?.isSuccessful) throw new Error(data?.error?.message ?? "Failed to delete service item");
 }

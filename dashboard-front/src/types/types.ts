@@ -50,7 +50,6 @@ export interface Vehicle {
   createdAt?: string;
   updatedAt?: string;
 }
-export type ServiceRecordDTO = Omit<ServiceRecord, "createdAt" | "updatedAt">;
 
 export type LedgerType = 'expense' | 'income';
 
@@ -92,27 +91,62 @@ export interface VehicleCreateDTO {
 
 export type VehicleUpdateDTO = Partial<VehicleCreateDTO>;
 
+/* ---------- Stored/returned item ---------- */
 export interface ServiceItem {
   name: string;
-  unit: string;
   cost: number;
+  date: { _seconds: number; _nanoseconds: number },                 // Firestore
+  value: string;
+  vehicleMileage: number;
+  serviceDueMileage: number;
+  serviceDueDate: { _seconds: number; _nanoseconds: number },        // Firestore
+  expectedLifespanMileage?: number;
+  expectedLifespanDays?: number;
   quantity: number;
+  unit: string;
 }
 
+/* ---------- Catalog prime ---------- */
+export interface ServiceItemPrime  {
+  expectedLifespanMileage: number;
+  expectedLifespanDays: number;
+  name: string;
+  value: string;
+}
+
+/* ---------- Minimal input line for create/update ---------- */
+export type ServiceLineItemInput = {
+  name: string;
+  unit: string;
+  cost: number | string;
+  quantity: number | string;
+};
+
+/* ---------- Record returned from API ---------- */
 export interface ServiceRecord {
-  id?: string;
-  date: string; // ISO in client
+  vehicleId: string;
+  date: { _seconds: number; _nanoseconds: number },  
   mechanic: string;
-  condition: string;
   cost: number;
   serviceMileage: number;
-  itemsChanged: ServiceItem[];
-  notes?: string;
-  createdAt?: string;
-  updatedAt?: string;
-  vehicleId: string
+  condition: string;
+  itemsChanged: ServiceItem[];          // full derived items (from subcollection)
+  notes: string | null;
+  createdAt?: { _seconds: number; _nanoseconds: number },  
+  updatedAt?:{ _seconds: number; _nanoseconds: number },  
 }
 
+/* ---------- DTO used to CREATE/UPDATE ---------- */
+export interface ServiceRecordDTO {
+  date: string;                         // ISO (from <input type="date">)
+  vehicleId: string;
+  serviceMileage: number | string;
+  mechanic: string;
+  cost: number | string;
+  condition: string;
+  itemsChanged: ServiceLineItemInput[]; // <-- minimal input lines ✅
+  notes?: string | null;
+}
 
 export type DriverKpis = {
   avgWeeklyKm: number;      // rounded

@@ -6,6 +6,9 @@ import {
   getAllServiceRecords,
   deleteServiceRecord,
   getServiceRecordById,
+  addServiceItem,
+  getAllServiceItems,
+  deleteServiceItem,
 } from '../controllers/service-history.controller';
 
 const router = Router();
@@ -14,13 +17,12 @@ const router = Router();
 router.post('/add', addServiceRecord)
 router.get('/get', getAllServiceRecords);
 router.get('/get/:id', getServiceRecordById)
+router.put("/update/:id", updateServiceRecord);
+router.delete('/delete/:id', deleteServiceRecord);
+router.post('/add-service-item', addServiceItem);
+router.get('/service-items-get', getAllServiceItems);
+router.delete('/delete-service-item/:id', deleteServiceItem);
 router.get('/:vehicleId', getServiceRecordsForVehicle);
 
 
-router.put("/update/:id", updateServiceRecord);
-router.delete('/delete/:id', deleteServiceRecord);
-
-// Global (across vehicles via collectionGroup)
-
- 
 export default router;

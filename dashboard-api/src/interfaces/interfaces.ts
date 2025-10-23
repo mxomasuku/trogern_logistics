@@ -1,3 +1,4 @@
+import { Timestamp } from "firebase-admin/firestore";
 
 
 export interface ApiResponse<T = any> {
@@ -62,10 +63,37 @@ export type VehicleUpdateDTO = Partial<VehicleCreateDTO>;
 
 export interface ServiceItem {
   name: string;
-  cost: number;        // per unit
+  cost: number;
+  date: FirebaseFirestore.Timestamp;          // Firestore
+  value: string;
+  vehicleMileage: number;
+  serviceDueMileage: number;
+  serviceDueDate: FirebaseFirestore.Timestamp; // Firestore ✔
+  expectedLifespanMileage?: number;
+  expectedLifespanDays?: number;
   quantity: number;
+  unit: string;
+}
+
+
+
+export interface ServiceItemDTO { 
+  name: string;
+  cost: number 
+  date: string;
+  value: string;
+  vehicleMileage: number         // ISO string      // per unit§
+  quantity: number | string;
   unit: string;        // "pieces", "liters", etc.
 }
+
+export interface ServiceItemPrime  {
+  expectedLifespanMileage: number;       // per unit
+  expectedLifespanDays: number;     
+  name: string;
+  value: string     // per unit
+} 
+
 
 export interface ServiceRecord {
   vehicleId: string
