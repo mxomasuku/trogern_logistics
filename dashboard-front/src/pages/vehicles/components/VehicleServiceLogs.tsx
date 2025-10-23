@@ -1,26 +1,12 @@
-// src/pages/components/VehicleServiceLogs.tsx
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import type { ServiceRecord } from "@/types/types";
-import { fmtDate } from "@/lib/utils";
-
-type FireTs = { _seconds: number; _nanoseconds: number } | null | undefined;
-
-const tsToDate = (ts: FireTs): Date | null => {
-  if (!ts || typeof ts._seconds !== "number") return null;
-  const ms = ts._seconds * 1000 + Math.floor((ts._nanoseconds || 0) / 1e6);
-  return new Date(ms);
-};
+import { fmtDate, tsLikeToDate } from "@/lib/utils";
 
 type VehicleServiceLogsProps = {
-  // Your API returns `id` alongside the ServiceRecord fields
+  // API returns `id` alongside the ServiceRecord fields
   filteredService: Array<ServiceRecord & { id: string }>;
 };
 
@@ -41,7 +27,6 @@ const VehicleServiceLogs = ({ filteredService }: VehicleServiceLogsProps) => {
               <TableRow>
                 <TableHead>Date</TableHead>
                 <TableHead>Mechanic</TableHead>
-                <TableHead>Condition</TableHead>
                 <TableHead>Cost</TableHead>
                 <TableHead>Items</TableHead>
               </TableRow>
@@ -49,9 +34,8 @@ const VehicleServiceLogs = ({ filteredService }: VehicleServiceLogsProps) => {
             <TableBody>
               {filteredService.map((r) => (
                 <TableRow key={r.id}>
-                  <TableCell>{fmtDate(tsToDate(r.date as any))}</TableCell>
+                  <TableCell>{fmtDate(tsLikeToDate(r.date))}</TableCell>
                   <TableCell>{r.mechanic || "-"}</TableCell>
-                  <TableCell>{r.condition || "-"}</TableCell>
                   <TableCell>
                     {typeof r.cost === "number" ? r.cost.toFixed(2) : r.cost ?? "—"}
                   </TableCell>

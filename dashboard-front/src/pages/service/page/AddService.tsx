@@ -1,9 +1,8 @@
-// src/pages/ServiceAddPage.tsx
 'use client';
 
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { toDateInputValue } from "@/lib/utils";
+import { toDateInputValue, tsLikeToDate } from "@/lib/utils";
 
 import {
   addServiceRecord,
@@ -28,8 +27,10 @@ type CatalogItem = {
   id?: string;
   name: string;
   value: string;
-  expectedLifespanMileage: number;
-  expectedLifespanDays: number;
+  expectedLifespanMileage: number | null;
+  expectedLifespanDays: number | null;
+  // kind exists on backend but we only show the name here
+  kind?: "consumable" | "labour" | "license" | "other";
 };
 
 type LineItem = {
@@ -54,7 +55,6 @@ export default function AddServicePage() {
   const [selectedVehicleId, setSelectedVehicleId] = useState("");
   const [serviceDate, setServiceDate] = useState("");
   const [mechanicName, setMechanicName] = useState("");
-  const [vehicleCondition, setVehicleCondition] = useState("");
   const [serviceNotes, setServiceNotes] = useState("");
   const [serviceMileage, setServiceMileage] = useState("");
 
@@ -116,9 +116,9 @@ export default function AddServicePage() {
         if (cancelled) return;
 
         setSelectedVehicleId(rec.vehicleId ?? "");
-        setServiceDate(toDateInputValue((rec as any).date));
+        // Backend returns ISO string; normalize for date input.
+        setServiceDate(toDateInputValue(tsLikeToDate(rec.date)));
         setMechanicName(rec.mechanic ?? "");
-        setVehicleCondition(rec.condition ?? "");
         setServiceNotes(rec.notes ?? "");
         setServiceMileage(String(rec.serviceMileage ?? ""));
 
@@ -198,9 +198,8 @@ export default function AddServicePage() {
       mechanic: mechanicName || "",
       serviceMileage: Number(serviceMileage),
       vehicleId: selectedVehicleId,
-      condition: vehicleCondition || "",
       cost: Number(serviceTotal),
-      notes: serviceNotes || null,
+      notes: serviceNotes || "",
       itemsChanged: serviceItems.map((item) => ({
         name: item.name,
         unit: item.unit,
@@ -290,12 +289,11 @@ export default function AddServicePage() {
 
           {!prefilling && (
             <>
-              {/* Core fields — compact 3 per row */}
+              {/* Core fields — compact 3 per row (condition removed) */}
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                 <Field label="Date" type="date" value={serviceDate} onChange={setServiceDate} required />
                 <Field label="Mechanic" value={mechanicName} onChange={setMechanicName} />
                 <Field label="Service Mileage (km)" type="number" value={serviceMileage} onChange={setServiceMileage} placeholder="e.g. 182340" required />
-                <Field label="Condition" value={vehicleCondition} onChange={setVehicleCondition} />
                 <Field label="Notes" value={serviceNotes} onChange={setServiceNotes} placeholder="optional" />
               </div>
 

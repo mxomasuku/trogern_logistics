@@ -56,12 +56,11 @@ async function getDriverDetailsForVehicle(vehicleId: string): Promise<{
 function buildServiceExpenseNote(input: {
   dateISO: string;
   mechanic: string;
-  condition: string;
   itemsChanged: Array<{ name: string; quantity: number; unit: string; cost: number }>;
   extraNote?: string | null;
 }) {
-  const { dateISO, mechanic, condition, itemsChanged, extraNote } = input;
-  const head = `Service ${dateISO} | ${mechanic} | ${condition}`;
+  const { dateISO, mechanic, itemsChanged, extraNote } = input;
+  const head = `Service ${dateISO} | ${mechanic} `;
   const items = itemsChanged
     .slice(0, 5)
     .map((i) => `${i.name} x${i.quantity}${i.unit ? ` ${i.unit}` : ''}`)
@@ -80,7 +79,6 @@ export async function upsertExpenseForService(params: {
   serviceMileage: number;
   serviceDate: FirebaseFirestore.Timestamp;
   mechanic: string;
-  condition: string;
   itemsChanged: Array<{ name: string; quantity: number; unit: string; cost: number }>;
   notes: string | null;
 }) {
@@ -91,7 +89,6 @@ export async function upsertExpenseForService(params: {
     serviceMileage,
     serviceDate,
     mechanic,
-    condition,
     itemsChanged,
     notes,
   } = params;
@@ -119,7 +116,6 @@ export async function upsertExpenseForService(params: {
     note: buildServiceExpenseNote({
       dateISO,
       mechanic,
-      condition,
       itemsChanged,
       extraNote: notes,
     }),

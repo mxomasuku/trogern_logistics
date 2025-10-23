@@ -61,62 +61,68 @@ export interface VehicleCreateDTO {
 export type VehicleUpdateDTO = Partial<VehicleCreateDTO>;
 
 
+// src/interfaces/interfaces.ts
+
+export type ServiceItemKind = "consumable" | "labour" | "license" | "other";
+
+
 export interface ServiceItem {
+  kind: ServiceItemKind;                       // ✅ store for easy querying
   name: string;
-  cost: number;
-  date: FirebaseFirestore.Timestamp;          // Firestore
   value: string;
+  unit: string;
+  quantity: number;
+  cost: number;
+
+  // core service context
+  date: FirebaseFirestore.Timestamp;
   vehicleMileage: number;
-  serviceDueMileage: number;
-  serviceDueDate: FirebaseFirestore.Timestamp; // Firestore ✔
+
+  // derived only when lifespan present; absent for labour/etc.
   expectedLifespanMileage?: number;
   expectedLifespanDays?: number;
-  quantity: number;
+  serviceDueMileage?: number;
+  serviceDueDate?: FirebaseFirestore.Timestamp;
+}
+
+// Catalog (primes you create once)
+export interface ServiceItemPrime {
+  kind: ServiceItemKind;                       
+  name: string;
+  value: string;                         
+  expectedLifespanMileage: number | null;
+  expectedLifespanDays: number | null;
+}
+
+export interface ServiceItemDTO {
+  name: string;
+  cost: number;
+  date: string;             // ISO string (not used when embedded in ServiceRecordDTO.itemsChanged)
+  value: string;
+  vehicleMileage: number;   // per unit
+  quantity: number | string;
   unit: string;
 }
 
-
-
-export interface ServiceItemDTO { 
-  name: string;
-  cost: number 
-  date: string;
-  value: string;
-  vehicleMileage: number         // ISO string      // per unit§
-  quantity: number | string;
-  unit: string;        // "pieces", "liters", etc.
-}
-
-export interface ServiceItemPrime  {
-  expectedLifespanMileage: number;       // per unit
-  expectedLifespanDays: number;     
-  name: string;
-  value: string     // per unit
-} 
-
-
 export interface ServiceRecord {
-  vehicleId: string
-  date: FirebaseFirestore.Timestamp;  // when serviced
+  vehicleId: string;
+  date: FirebaseFirestore.Timestamp;       // when serviced
   mechanic: string;
-  cost: number;    
-  serviceMileage: number;                   // total cost for this service
-  condition: string;                  // e.g. "good", "requires attention"
-  itemsChanged: ServiceItem[];        // line items
+  cost: number;
+  serviceMileage: number;                  // odometer at service time                     // e.g. "good", "requires attention"
+  itemsChanged: ServiceItem[];             // not embedded (kept for backward compat), we store in subcollection
   notes: string | null;
-
   createdAt?: FirebaseFirestore.Timestamp;
   updatedAt?: FirebaseFirestore.Timestamp;
 }
 
-// DTO for incoming payload (dates as strings)
+// DTO from client (dates as strings)
 export interface ServiceRecordDTO {
-  date: string;  
-  vehicleId: string  
-  serviceMileage: number           // ISO date string
+  date: string;                // ISO
+  vehicleId: string;
+  serviceMileage: number;
   mechanic: string;
   cost: number | string;
-  condition: string;
   itemsChanged: Array<{
     name: string;
     cost: number | string;
