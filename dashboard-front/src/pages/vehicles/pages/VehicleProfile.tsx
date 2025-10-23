@@ -111,8 +111,6 @@ function useVehicleKpis(vehicleId: string) {
   return { kpis, kpisLoading, kpisError } as const;
 }
 
-// -----------------------------------------------------------------------------
-// Presentational bits
 
 function PageHeader({ plate, makeModel, status, onBack }: { plate: string; makeModel: string; status?: string; onBack: () => void }) {
   return (
@@ -170,55 +168,8 @@ function FilterBar({ value, onChange }: { value: string; onChange: (v: string) =
   );
 }
 
-// -----------------------------------------------------------------------------
-// Sections: Service & Income tables (delegating to your existing components)
 
-function ServiceLogsSection({ list, filterText }: { list: (ServiceRecord & { id: string })[]; filterText: string }) {
-  const filtered = useMemo(() => {
-    const q = filterText.trim().toLowerCase();
-    if (!q) return list;
-    return list.filter((r) =>
-      [
-        r.mechanic,
-        r.condition,
-        r.notes,
-        String(r.cost),
-        ...(r.itemsChanged || []).flatMap((i) => [i.name, i.unit, String(i.cost), String(i.quantity)]),
-      ]
-        .filter(Boolean)
-        .some((s) => String(s).toLowerCase().includes(q)),
-    );
-  }, [list, filterText]);
 
-  return <VehicleServiceLogs filteredService={filtered} />;
-}
-
-function IncomeLogsSection({ list, filterText }: { list: IncomeLog[]; filterText: string }) {
-  const filtered = useMemo(() => {
-    const q = filterText.trim().toLowerCase();
-    if (!q) return list;
-
-    return list.filter((r) => {
-      const dCash = toJsDate((r as any).cashDate);
-      const dCreated = toJsDate((r as any).createdAt);
-      const dateStrs = [
-        dCash?.toLocaleDateString?.(),
-        dCreated?.toLocaleDateString?.(),
-        dCash?.toISOString?.(),
-        dCreated?.toISOString?.(),
-      ].filter(Boolean) as string[];
-
-      return [r.amount, r.weekEndingMileage, r.driverName, r.driverId, r.note, ...dateStrs]
-        .filter(Boolean)
-        .some((s) => String(s).toLowerCase().includes(q));
-    });
-  }, [list, filterText]);
-
-  return <VehicleIncomeLogs filteredIncome={filtered} />;
-}
-
-// -----------------------------------------------------------------------------
-// Main page
 export default function VehicleProfile() {
   const navigate = useNavigate();
   const vehicleId = useQueryId();
@@ -227,10 +178,9 @@ export default function VehicleProfile() {
   const { kpis, kpisLoading } = useVehicleKpis(vehicleId);
   const [filterText, setFilterText] = useState<string>("");
 
-  // Derived values for header
+
   const makeModel = vehicle ? `${vehicle.make} ${vehicle.model} ${vehicle.year ? `(${vehicle.year})` : ""}` : "";
   const purchasedDate = toJsDate((vehicle as any)?.datePurchased) ?? null;
-  const lastServiceFromVehicle = toJsDate((vehicle as any)?.lastServiceDate) ?? null;
 
   const isLoading = loading || kpisLoading;
 
