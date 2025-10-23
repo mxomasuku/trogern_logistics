@@ -1,44 +1,43 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-
-import { getVehicle } from "@/api/vehicles";
-import { getServiceRecordsForVehicle } from "@/api/service";
-import { getIncomeLogsForVehicle } from "@/api/income";
-
-import type { Vehicle, IncomeLog, ServiceRecord } from "@/types/types";
-
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import VehicleServiceLogs from "../components/VehicleServiceLogs";
-import VehicleIncomeLogs from "../components/VehicleIncomeLogs";
-
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
-// shared utils
+// API
+import { getVehicle } from "@/api/vehicles";
+import { getServiceRecordsForVehicle } from "@/api/service";
+import { getIncomeLogsForVehicle } from "@/api/income";
+import { getVehicleKpis } from "@/api/kpis";
+
+// UI
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+
+// Types & utils
+import type { Vehicle, IncomeLog, ServiceRecord, VehicleKpiResponse } from "@/types/types";
 import { toJsDate, fmtDate } from "@/lib/utils";
 
-/** Helper: read ?id=... */
+import VehicleServiceLogs from "../components/VehicleServiceLogs";
+import VehicleIncomeLogs from "../components/VehicleIncomeLogs";
+
+// -----------------------------------------------------------------------------
+// Hook: read ?id=...
 function useQueryId() {
   const { search } = useLocation();
   return useMemo(() => new URLSearchParams(search).get("id") ?? "", [search]);
 }
 
+// -----------------------------------------------------------------------------
+// Hooks: Data & KPIs
 
-
-export default function VehicleProfile() {
+function useVehicleProfileData(vehicleId: string) {
   const navigate = useNavigate();
-  const vehicleId = useQueryId();
-
   const [vehicle, setVehicle] = useState<Vehicle | null>(null);
   const [serviceRecords, setServiceRecords] = useState<(ServiceRecord & { id: string })[]>([]);
   const [incomeLogs, setIncomeLogs] = useState<IncomeLog[]>([]);
-
   const [loading, setLoading] = useState<boolean>(true);
-  const [filterText, setFilterText] = useState<string>("");
 
-  // ---------- load ----------
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -49,13 +48,10 @@ export default function VehicleProfile() {
       }
       try {
         setLoading(true);
-
-        // 1) Vehicle core
         const v = await getVehicle(vehicleId);
         if (cancelled) return;
         setVehicle(v);
 
-        // 2) Related: service & income
         const [svc, inc] = await Promise.all([
           getServiceRecordsForVehicle(vehicleId).catch((e: unknown) => {
             console.warn("Service load failed:", e);
@@ -82,62 +78,106 @@ export default function VehicleProfile() {
     };
   }, [vehicleId, navigate]);
 
-  // ---------- KPIs ----------
-  const kpis = useMemo(() => {
-    // income total (this month) for this vehicle
-    const now = new Date();
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  return { vehicle, serviceRecords, incomeLogs, loading } as const;
+}
 
-    const thisMonthIncome = incomeLogs
-      .filter((r) => {
-        const d = toJsDate((r as any).cashDate) ?? toJsDate((r as any).createdAt);
-        return !!d && d >= monthStart;
-      })
-      .reduce((sum, r) => sum + Number(r.amount || 0), 0);
+function useVehicleKpis(vehicleId: string) {
+  const [kpis, setKpis] = useState<VehicleKpiResponse | null>(null);
+  const [kpisLoading, setKpisLoading] = useState(true);
+  const [kpisError, setKpisError] = useState<string | null>(null);
 
-    // mileage: crude weekly km estimate based on last two logs
-    const sorted = [...incomeLogs]
-      .filter((r) => r.weekEndingMileage != null)
-      .sort((a, b) => {
-        const da = toJsDate((a as any).cashDate) ?? toJsDate((a as any).createdAt);
-        const db = toJsDate((b as any).cashDate) ?? toJsDate((b as any).createdAt);
-        return (da?.getTime() ?? 0) - (db?.getTime() ?? 0);
-      });
-
-    let weeklyKm = 0;
-    if (sorted.length >= 2) {
-      const last = Number(sorted[sorted.length - 1].weekEndingMileage || 0);
-      const prev = Number(sorted[sorted.length - 2].weekEndingMileage || 0);
-      weeklyKm = Math.max(0, last - prev);
-    }
-
-    // last service date derived from records (fallback if vehicle.lastServiceDate missing)
-    const lastServiceDerived = serviceRecords
-      .map((r) => (r.date ? new Date(r.date).getTime() : 0))
-      .filter((t) => t > 0)
-      .sort((a, b) => b - a)[0];
-
-    // distance travelled since delivery
-    const distanceTravelled =
-      vehicle?.currentMileage != null && vehicle?.deliveryMileage != null
-        ? Math.max(0, Number(vehicle.currentMileage) - Number(vehicle.deliveryMileage))
-        : 0;
-
-    return {
-      thisMonthIncome,
-      weeklyKm,
-      lastServiceDerivedDate: lastServiceDerived ? new Date(lastServiceDerived) : null,
-      serviceCount: serviceRecords.length,
-      incomeCount: incomeLogs.length,
-      distanceTravelled,
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (!vehicleId) return;
+      try {
+        setKpisLoading(true);
+        const data = await getVehicleKpis(vehicleId);
+        if (cancelled) return;
+        setKpis(data);
+      } catch (e: any) {
+        if (cancelled) return;
+        console.warn("KPIs load failed:", e);
+        setKpisError(e?.message ?? "Failed to load KPIs");
+      } finally {
+        if (!cancelled) setKpisLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
     };
-  }, [incomeLogs, serviceRecords, vehicle]);
+  }, [vehicleId]);
 
-  // ---------- filtered detail views ----------
-  const filteredService = useMemo(() => {
+  return { kpis, kpisLoading, kpisError } as const;
+}
+
+// -----------------------------------------------------------------------------
+// Presentational bits
+
+function PageHeader({ plate, makeModel, status, onBack }: { plate: string; makeModel: string; status?: string; onBack: () => void }) {
+  return (
+    <div className="flex items-center justify-between">
+      <div className="flex items-center gap-2">
+        <Button variant="ghost" onClick={onBack}>
+          <ArrowLeft className="mr-2 h-4 w-4" /> Back
+        </Button>
+        <h1 className="text-xl font-semibold">
+          {plate}
+          <span className="ml-2 text-muted-foreground font-normal">{makeModel}</span>
+        </h1>
+      </div>
+      {status && (
+        <div className="text-sm text-muted-foreground">
+          Status: <span className="capitalize">{status}</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Kpi({ label, value, hint }: { label: string; value: ReactNode; hint?: string }) {
+  return (
+    <div className="rounded-lg border p-3">
+      <div className="text-xs text-muted-foreground">{label}</div>
+      <div className="text-lg font-semibold">{value}</div>
+      {hint ? <div className="text-[11px] text-muted-foreground/80">{hint}</div> : null}
+    </div>
+  );
+}
+
+function KpiGroup({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle>{title}</CardTitle>
+      </CardHeader>
+      <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-3">{children}</CardContent>
+    </Card>
+  );
+}
+
+function FilterBar({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  return (
+    <div className="flex items-center justify-between">
+      <div className="w-full md:w-72">
+        <Input
+          placeholder="Filter details…"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+        />
+      </div>
+    </div>
+  );
+}
+
+// -----------------------------------------------------------------------------
+// Sections: Service & Income tables (delegating to your existing components)
+
+function ServiceLogsSection({ list, filterText }: { list: (ServiceRecord & { id: string })[]; filterText: string }) {
+  const filtered = useMemo(() => {
     const q = filterText.trim().toLowerCase();
-    if (!q) return serviceRecords;
-    return serviceRecords.filter((r) =>
+    if (!q) return list;
+    return list.filter((r) =>
       [
         r.mechanic,
         r.condition,
@@ -148,13 +188,17 @@ export default function VehicleProfile() {
         .filter(Boolean)
         .some((s) => String(s).toLowerCase().includes(q)),
     );
-  }, [serviceRecords, filterText]);
+  }, [list, filterText]);
 
-  const filteredIncome: IncomeLog[] = useMemo(() => {
+  return <VehicleServiceLogs filteredService={filtered} />;
+}
+
+function IncomeLogsSection({ list, filterText }: { list: IncomeLog[]; filterText: string }) {
+  const filtered = useMemo(() => {
     const q = filterText.trim().toLowerCase();
-    if (!q) return incomeLogs;
+    if (!q) return list;
 
-    return incomeLogs.filter((r) => {
+    return list.filter((r) => {
       const dCash = toJsDate((r as any).cashDate);
       const dCreated = toJsDate((r as any).createdAt);
       const dateStrs = [
@@ -164,21 +208,34 @@ export default function VehicleProfile() {
         dCreated?.toISOString?.(),
       ].filter(Boolean) as string[];
 
-      return [
-        r.amount,
-        r.weekEndingMileage,
-        r.driverName,
-        r.driverId,
-        r.note,
-        ...dateStrs,
-      ]
+      return [r.amount, r.weekEndingMileage, r.driverName, r.driverId, r.note, ...dateStrs]
         .filter(Boolean)
         .some((s) => String(s).toLowerCase().includes(q));
     });
-  }, [incomeLogs, filterText]);
+  }, [list, filterText]);
+
+  return <VehicleIncomeLogs filteredIncome={filtered} />;
+}
+
+// -----------------------------------------------------------------------------
+// Main page
+export default function VehicleProfile() {
+  const navigate = useNavigate();
+  const vehicleId = useQueryId();
+
+  const { vehicle, serviceRecords, incomeLogs, loading } = useVehicleProfileData(vehicleId);
+  const { kpis, kpisLoading } = useVehicleKpis(vehicleId);
+  const [filterText, setFilterText] = useState<string>("");
+
+  // Derived values for header
+  const makeModel = vehicle ? `${vehicle.make} ${vehicle.model} ${vehicle.year ? `(${vehicle.year})` : ""}` : "";
+  const purchasedDate = toJsDate((vehicle as any)?.datePurchased) ?? null;
+  const lastServiceFromVehicle = toJsDate((vehicle as any)?.lastServiceDate) ?? null;
+
+  const isLoading = loading || kpisLoading;
 
   // ---------- UI ----------
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="mx-auto max-w-6xl">
         <div className="flex items-center gap-2 mb-4">
@@ -202,105 +259,77 @@ export default function VehicleProfile() {
           </Button>
         </div>
         <Card>
-          <CardContent className="py-10 text-center text-sm text-muted-foreground">
-            Vehicle not found.
-          </CardContent>
+          <CardContent className="py-10 text-center text-sm text-muted-foreground">Vehicle not found.</CardContent>
         </Card>
       </div>
     );
   }
 
-  // Convert Firestore timestamps from the vehicle using shared util
-  const purchasedDate = toJsDate((vehicle as any).datePurchased) ?? null;
-  const lastServiceFromVehicle = toJsDate((vehicle as any).lastServiceDate) ?? null;
+  // Slices (guarded)
+  const lifetime = kpis?.kpis.lifetime;
+  const last30 = kpis?.kpis.last30Days;
 
   return (
     <div className="mx-auto max-w-6xl space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Button variant="ghost" onClick={() => navigate(-1)}>
-            <ArrowLeft className="mr-2 h-4 w-4" /> Back
-          </Button>
-          <h1 className="text-xl font-semibold">
-            {vehicle.plateNumber}
-            <span className="ml-2 text-muted-foreground font-normal">
-              {vehicle.make} {vehicle.model} {vehicle.year ? `(${vehicle.year})` : ""}
-            </span>
-          </h1>
-        </div>
-        <div className="text-sm text-muted-foreground">
-          Status: <span className="capitalize">{vehicle.status}</span>
-        </div>
-      </div>
+      <PageHeader
+        plate={vehicle.plateNumber}
+        makeModel={makeModel}
+        status={vehicle.status}
+        onBack={() => navigate(-1)}
+      />
 
-      {/* Top: quick facts */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle>Overview</CardTitle>
-        </CardHeader>
-        <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <Kpi label="Assigned driver" value={vehicle.assignedDriverName || "—"} />
-          <Kpi label="Route" value={vehicle.route || "—"} />
+      {/* GROUP: Overview */}
+      <KpiGroup title="Overview">
+        <Kpi label="Assigned driver" value={vehicle.assignedDriverName || "—"} />
+        <Kpi label="Route" value={vehicle.route || "—"} />
+        <Kpi label="Purchased" value={fmtDate(purchasedDate)} />
+        <Kpi
+          label="Purchase price"
+          value={
+            vehicle.price != null
+              ? vehicle.price.toLocaleString(undefined, { style: "currency", currency: "USD" })
+              : "—"
+          }
+        />
+        <Kpi label="Current mileage" value={`${vehicle.currentMileage?.toLocaleString?.() ?? "—"} km`} />
+        <Kpi label="Distance travelled" value={lifetime ? `${(lifetime.distanceTravelledKm ?? 0).toLocaleString()} km` : "—"} />
+        <Kpi label="Days since purchase" value={kpis?.meta.daysSincePurchase ?? "—"} />
+      </KpiGroup>
 
-          <Kpi label="Purchased" value={fmtDate(purchasedDate)} />
-          <Kpi
-            label="Purchase price"
-            value={
-              vehicle.price != null
-                ? vehicle.price.toLocaleString(undefined, { style: "currency", currency: "USD" })
-                : "—"
-            }
-          />
+      {/* GROUP: Financial (30d + Lifetime) */}
+      <KpiGroup title="Financial (30d)">
+        <Kpi label="Income (30d)" value={last30 ? last30.totalIncome.toLocaleString(undefined, { style: "currency", currency: "USD" }) : "—"} />
+        <Kpi label="Expense (30d)" value={last30 ? last30.totalExpense.toLocaleString(undefined, { style: "currency", currency: "USD" }) : "—"} />
+        <Kpi label="Net (30d)" value={last30 ? last30.netEarnings.toLocaleString(undefined, { style: "currency", currency: "USD" }) : "—"} />
+      </KpiGroup>
 
-          <Kpi
-            label="Last service"
-            value={fmtDate(lastServiceFromVehicle || kpis.lastServiceDerivedDate)}
-          />
+      <KpiGroup title="Financial (Lifetime)">
+        <Kpi label="Total Income" value={lifetime ? lifetime.totalIncome.toLocaleString(undefined, { style: "currency", currency: "USD" }) : "—"} />
+        <Kpi label="Total Expense" value={lifetime ? lifetime.totalExpense.toLocaleString(undefined, { style: "currency", currency: "USD" }) : "—"} />
+        <Kpi label="Total Net" value={lifetime ? lifetime.netEarnings.toLocaleString(undefined, { style: "currency", currency: "USD" }) : "—"} />
+      </KpiGroup>
 
-          <Kpi
-            label="Weekly km (est.)"
-            value={`${kpis.weeklyKm.toLocaleString()} km`}
-            hint="Based on last two income logs"
-          />
-          <Kpi
-            label="Cash this month"
-            value={kpis.thisMonthIncome.toLocaleString(undefined, { style: "currency", currency: "USD" })}
-          />
-          <Kpi label="Service records" value={kpis.serviceCount} />
-          <Kpi label="Income logs" value={kpis.incomeCount} />
-          <Kpi label="Current mileage" value={`${vehicle.currentMileage?.toLocaleString?.() ?? "—"} km`} />
-          <Kpi label="Distance travelled" value={`${kpis.distanceTravelled.toLocaleString()} km`} />
-        </CardContent>
-      </Card>
+      {/* GROUP: Operations (30d) */}
+      <KpiGroup title="Operations (30d)">
+        <Kpi label="Revenue / km" value={last30?.revenuePerKm != null ? last30.revenuePerKm.toFixed(3) : "—"} />
+        <Kpi label="Cost / km" value={last30?.costPerKm != null ? last30.costPerKm.toFixed(3) : "—"} />
+        <Kpi label="Profit / km" value={last30?.profitPerKm != null ? last30.profitPerKm.toFixed(3) : "—"} />
+        <Kpi label="Distance (30d)" value={last30 ? `${(last30.distanceTravelledKm ?? 0).toLocaleString()} km` : "—"} />
+      </KpiGroup>
 
-      {/* Filter box for tables below */}
-      <div className="flex items-center justify-between">
-        <div className="w-full md:w-72">
-          <Input
-            placeholder="Filter details…"
-            value={filterText}
-            onChange={(e) => setFilterText(e.target.value)}
-          />
-        </div>
-      </div>
+      {/* GROUP: Maintenance */}
+      <KpiGroup title="Maintenance">
+        <Kpi label="Last service" value={fmtDate(toJsDate((vehicle as any)?.lastServiceDate))} />
+        <Kpi label="Service records" value={serviceRecords.length} />
+      </KpiGroup>
 
-      {/* Service Records */}
-      <VehicleServiceLogs filteredService={filteredService} />
+      {/* Filter for details */}
+      <FilterBar value={filterText} onChange={setFilterText} />
 
-      {/* Income Logs */}
-      <VehicleIncomeLogs filteredIncome={filteredIncome} />
-    </div>
-  );
-}
-
-/* ---------- small UI bits ---------- */
-function Kpi({ label, value, hint }: { label: string; value: ReactNode; hint?: string }) {
-  return (
-    <div className="rounded-lg border p-3">
-      <div className="text-xs text-muted-foreground">{label}</div>
-      <div className="text-lg font-semibold">{value}</div>
-      {hint ? <div className="text-[11px] text-muted-foreground/80">{hint}</div> : null}
+      {/* Tables */}
+      <VehicleServiceLogs filteredService={serviceRecords} />
+      <VehicleIncomeLogs filteredIncome={incomeLogs} />
     </div>
   );
 }

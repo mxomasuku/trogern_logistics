@@ -205,3 +205,39 @@ export interface DriverKpiResult {
   // Metadata summary
   meta: DriverKpiMeta;
 }
+
+
+
+export interface VehicleKpiSlice {
+  totalEntries: number;
+  totalIncome: number;
+  totalExpense: number;
+  netEarnings: number;
+  distanceTravelledKm: number;
+  revenuePerKm: number | null;
+  costPerKm: number | null;
+  profitPerKm: number | null;
+  periodStart: string | null;
+  periodEnd: string | null;
+  lastEntryAt: string | null;
+}
+
+export interface VehicleKpiMeta {
+  generatedAt: string;
+  totalLogs: number;
+  lastMileage: number | null;
+  deliveryMileage: number | null;
+  lastEntryAt: string | null;
+  daysSincePurchase: number | null;
+}
+
+
+export interface VehicleKpiResponse {
+  vehicleId: string;
+  meta: VehicleKpiMeta;
+  kpis: {
+    last7Days: VehicleKpiSlice;
+    last30Days: VehicleKpiSlice;
+    lifetime: VehicleKpiSlice;
+  };
+}
