@@ -22,7 +22,10 @@ export default function AppRoutes() {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/" element={<HomeLayout />}>
         <Route path="home" element={<Protected><Home /></Protected>} />
-        <Route path="drivers" element={<Protected><DriversPage /></Protected>} />
+        <Route path="drivers" element={<Protected>
+          <DriversPage/>
+
+        </Protected>} />
         <Route path="drivers/add" element={<Protected><AddDriver /></Protected>} /> 
 <Route path="/drivers/profile" element={<DriverProfile />} />
 

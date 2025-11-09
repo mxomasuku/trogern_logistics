@@ -1,3 +1,4 @@
+// src/layouts/HomeLayout/index.tsx
 import { Outlet } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { useMeQuery } from "@/pages/auth/authSlice";
@@ -17,20 +18,56 @@ export default function HomeLayout() {
   }
 
   return (
-    <div className="relative flex min-h-screen text-foreground transition-colors duration-500">
+    /**
+     * 1) Lock the outer layout to the viewport and prevent horizontal growth.
+     *    h-screen + overflow-hidden stops the page from stretching.
+     */
+    <div className="h-screen overflow-hidden bg-gray-100 text-foreground">
       {isAuthenticated ? (
-        <>
+        <div className="flex h-full">
+          {/* Sidebar stays fixed width; never causes horizontal scroll */}
           <Sidebar />
-          <div className="relative z-10 flex min-h-screen flex-1 flex-col">
+
+          {/**
+           * 2) The content column must NOT force width growth.
+           *    min-w-0 is critical in flex layouts so child overflow doesn't expand the parent.
+           *    overflow-hidden here creates a clipping context for the scrolling child below.
+           */}
+          <div className="flex min-w-0 grow flex-col overflow-hidden">
+            {/* Topbar is sticky within this column, not the whole page */}
             <TopBar />
-            <main className="flex-1 p-4">
+
+            {/**
+             * 3) This is the ONLY scroll container for the app content.
+             *    - overflow-auto gives vertical scroll inside the column
+             *    - overflow-x-hidden prevents accidental horizontal bleed
+             *    - min-w-0 ensures nested flex children don’t widen the column
+             */}
+            <main className="min-w-0 flex-1 overflow-auto overflow-x-hidden p-4">
+              {/* 
+                Rule of thumb for child components that are wider than the viewport (tables, code blocks):
+                Wrap them like this inside the page component:
+
+                <div className="overflow-x-auto">
+                  <div className="min-w-[900px] lg:min-w-full">
+                    ...wide table...
+                  </div>
+                </div>
+
+                That way the *child* scrolls horizontally without stretching the layout.
+              */}
               <Outlet />
             </main>
           </div>
-        </>
+        </div>
       ) : (
-        <div className="relative z-10 flex min-h-screen flex-1 flex-col">
-          <Outlet />
+        // Unauthed shell uses the same scrolling strategy
+        <div className="flex h-full">
+          <div className="min-w-0 flex-1 overflow-hidden bg-gray-50">
+            <main className="min-w-0 h-full overflow-auto overflow-x-hidden p-4">
+              <Outlet />
+            </main>
+          </div>
         </div>
       )}
     </div>

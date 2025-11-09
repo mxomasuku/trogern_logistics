@@ -29,7 +29,7 @@ export default function Home() {
   const navigate = useNavigate();
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 p-6">
       {/* Header */}
       <section className="flex flex-col gap-2">
         <h1 className="text-2xl font-semibold tracking-tight text-blue-700">
@@ -46,7 +46,7 @@ export default function Home() {
           <Card
             key={title}
             onClick={() => navigate(to)}
-            className="group cursor-pointer bg-gray-100 hover:bg-blue-50 active:bg-blue-100
+            className="group cursor-pointer bg-white hover:bg-blue-50 active:bg-blue-100
                        transition-all duration-200 rounded-xl p-2 shadow-none hover:shadow-md border-0"
           >
             <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3 border-0">
@@ -69,7 +69,7 @@ export default function Home() {
       {/* Live stats */}
       <section className="space-y-3">
         <h2 className="text-sm font-medium text-gray-600">Live Ops</h2>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 ">
           <StatCard
             title="Active Drivers"
             description="Currently on the road"
@@ -89,7 +89,7 @@ export default function Home() {
 
       {/* Secondary area */}
       <section className="grid gap-4 md:grid-cols-2">
-        <Card className="p-4 bg-gray-100 hover:bg-blue-50 transition-all rounded-xl hover:shadow-md shadow-none border-0">
+        <Card className="p-4 bg-white hover:bg-blue-50 transition-all rounded-xl hover:shadow-md shadow-none border-0">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-sm font-medium text-blue-800">Today’s Ops</h2>
@@ -108,7 +108,7 @@ export default function Home() {
           </div>
         </Card>
 
-        <Card className="p-4 bg-gray-100 hover:bg-blue-50 transition-all rounded-xl hover:shadow-md shadow-none border-0">
+        <Card className="p-4 bg-white hover:bg-blue-50 transition-all rounded-xl hover:shadow-md shadow-none border-0">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-sm font-medium text-blue-800">Recent Activity</h2>
