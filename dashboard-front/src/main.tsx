@@ -4,15 +4,21 @@ import { BrowserRouter } from "react-router-dom";
 import { Provider } from "react-redux";
 import { store } from "./app/store";
 import { ThemeProvider } from "@/components/theme-provider";
-import AppRoutes from "./routes/AppRoutes";
+import App from "./App";
 import "./index.css";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <Provider store={store}>
       <BrowserRouter>
-     <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-          <AppRoutes />
+<ThemeProvider
+  attribute="class"
+  defaultTheme="system"
+  enableSystem
+  enableColorScheme
+
+>
+      <App/>
         </ThemeProvider>
       </BrowserRouter>
     </Provider>

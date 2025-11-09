@@ -1,8 +1,10 @@
 import { createSlice } from "@reduxjs/toolkit";
 import { api } from "@/app/rtk";
 
-type User = { uid: string; email?: string } | null;
-type MeResponse = { user: User; subscriptionStatus?: string };
+
+type User = { uid: string; email?: string | null; name?: string | null } | null;
+type MeResponse = { user: User };
+type LoginResponse = { message: string; isSuccessful: boolean; user?: User };
 
 export const authApi = api.injectEndpoints({
   endpoints: (build) => ({
@@ -10,7 +12,7 @@ export const authApi = api.injectEndpoints({
       query: () => ({ url: "/auth/me" }),
       providesTags: ["Me"],
     }),
-    login: build.mutation<{ message: string }, { email: string; password: string }>({
+    login: build.mutation<LoginResponse, { email: string; password: string }>({
       query: (body) => ({ url: "/auth/login", method: "POST", body }),
       invalidatesTags: ["Me"],
     }),
@@ -20,14 +22,13 @@ export const authApi = api.injectEndpoints({
     }),
   }),
 });
-
 const initialState = { userLoading: true };
 
 const slice = createSlice({
   name: "auth",
   initialState,
   reducers: {
-    unauthorized: (s) => s, // optional hook for analytics
+    unauthorized: (s) => s,
   },
   extraReducers: (b) => {
     b.addMatcher(authApi.endpoints.me.matchPending, (s) => { s.userLoading = true; });

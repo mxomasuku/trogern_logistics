@@ -4,14 +4,13 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Settings, User } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { DarkModeToggle } from "./dark-mode-toggle";
+
 
 export default function UserMenu() {
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement | null>(null);
   const btnRef = useRef<HTMLButtonElement | null>(null);
-
 
   // close on outside click / Esc
   useEffect(() => {
@@ -51,29 +50,19 @@ export default function UserMenu() {
         role="menu"
         data-open={open ? "true" : "false"}
         className={cn(
-          "absolute right-0 mt-2 w-56 select-none rounded-xl z-50 overflow-hidden", // overflow-hidden so overlay rounds too
-          // Solid-but-glass surface (explicit colors to avoid token translucency)
-          "bg-white/70 dark:bg-neutral-900/70",
-          "backdrop-blur-md supports-[backdrop-filter]:bg-white/55 supports-[backdrop-filter]:dark:bg-neutral-900/55",
-          "border border-black/5 dark:border-white/10 shadow-2xl ring-1 ring-black/5",
-          "text-slate-900 dark:text-neutral-100",
+          "absolute right-0 mt-2 w-56 select-none rounded-xl z-50 overflow-hidden",
+          "bg-white dark:bg-neutral-900",
+          "border border-gray-200 dark:border-gray-800 shadow-xl",
+          "text-gray-900 dark:text-gray-100",
           "origin-top-right transition-all",
-          open ? "scale-100 opacity-100 pointer-events-auto" : "scale-95 opacity-0 pointer-events-none"
+          open
+            ? "scale-100 opacity-100 pointer-events-auto"
+            : "scale-95 opacity-0 pointer-events-none"
         )}
       >
-
-        <div
-          className="
-            pointer-events-none absolute inset-0
-            bg-gradient-to-b from-white/40 to-white/10
-            dark:from-black/40 dark:to-black/10
-            mix-blend-normal
-          "
-        />
-
         <div className="relative">
           <div className="px-3 py-2 text-sm font-medium flex items-center gap-2">
-            <User className="h-4 w-4" />
+            <User className="h-4 w-4 text-blue-600" />
             Account
           </div>
 
@@ -84,15 +73,15 @@ export default function UserMenu() {
               navigate("/account");
             }}
             className="flex w-full items-center gap-2 px-3 py-2 text-sm rounded-md
-                       hover:bg-black/5 hover:dark:bg-white/10"
+                       hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-colors"
           >
-            <Settings className="h-4 w-4" />
+            <Settings className="h-4 w-4 text-blue-500" />
             Account settings
           </button>
 
-          <div className="my-2 h-px bg-black/10 dark:bg-white/10" />
+          <div className="my-2 h-px bg-gray-200 dark:bg-gray-700" />
 
-  <DarkModeToggle/>
+      
 
           <div className="p-2">
             <Button

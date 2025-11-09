@@ -16,25 +16,23 @@ export default function HomeLayout() {
     );
   }
 
-  // Public shell (no nav) – e.g. /login
-  if (!isAuthenticated) {
-    return (
-      <div className="min-h-screen bg-background text-foreground">
-        <Outlet />
-      </div>
-    );
-  }
-
-  // Authenticated shell with sidebar + topbar
   return (
-    <div className="flex min-h-screen bg-background text-foreground">
-      <Sidebar />
-      <div className="flex min-h-screen flex-1 flex-col">
-        <TopBar />
-        <main className="flex-1 p-4">
+    <div className="relative flex min-h-screen text-foreground transition-colors duration-500">
+      {isAuthenticated ? (
+        <>
+          <Sidebar />
+          <div className="relative z-10 flex min-h-screen flex-1 flex-col">
+            <TopBar />
+            <main className="flex-1 p-4">
+              <Outlet />
+            </main>
+          </div>
+        </>
+      ) : (
+        <div className="relative z-10 flex min-h-screen flex-1 flex-col">
           <Outlet />
-        </main>
-      </div>
+        </div>
+      )}
     </div>
   );
 }

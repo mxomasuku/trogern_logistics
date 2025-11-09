@@ -1,29 +1,41 @@
-
+// src/components/layout/SideLink.tsx
 import { NavLink } from "react-router-dom";
 import { cn } from "@/lib/utils";
+import type { LucideIcon } from "lucide-react";
 
-type IconType = React.ComponentType<React.SVGProps<SVGSVGElement>>;
-
-export default function SideLink({
-  to, icon: Icon, label, collapsed, active,
-}: {
+type Props = {
   to: string;
-  icon: IconType;
   label: string;
+  icon: LucideIcon;
   collapsed: boolean;
   active: boolean;
-}) {
+  className?: string;       // <--- add
+  iconClassName?: string;   // <--- add
+  activeClassName?: string; // <--- add
+};
+
+export default function SideLink({
+  to,
+  label,
+  icon: Icon,
+  collapsed,
+  active,
+  className,
+  iconClassName,
+  activeClassName,
+}: Props) {
   return (
     <NavLink
       to={to}
       className={cn(
-        "relative flex items-center gap-3 rounded-lg px-2 py-2 text-sm transition-colors",
-        active
-          ? "bg-primary/10 text-primary hover:bg-primary/15"
-          : "text-muted-foreground hover:bg-accent hover:text-foreground"
+        "group flex items-center gap-3 text-sm rounded-lg px-3 py-2",
+        "focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500",
+        active ? (activeClassName || "bg-accent text-foreground") : "text-muted-foreground",
+        collapsed && "justify-center px-2",
+        className
       )}
     >
-      <Icon className="h-5 w-5 shrink-0" />
+      <Icon className={cn("h-5 w-5 shrink-0", iconClassName)} />
       {!collapsed && <span className="truncate">{label}</span>}
     </NavLink>
   );
