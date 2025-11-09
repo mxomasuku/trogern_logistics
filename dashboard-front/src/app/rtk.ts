@@ -14,16 +14,23 @@ const rawBaseQuery = fetchBaseQuery({
 const baseQueryWithReauth: typeof rawBaseQuery = async (args, api, extra) => {
   const res = await rawBaseQuery(args, api, extra);
 
-  if (res.error && (res.error as any).status === 401) {
-    // Save intended destination WITHOUT polluting the URL
+  const path = typeof window !== "undefined" ? window.location.pathname : "";
+  const isOnLoginPage = path === "/login";
+
+  // figure out the request URL
+  const url =
+    typeof args === "string" ? args :
+    typeof args === "object" && "url" in args ? (args as any).url :
+    "";
+
+  const isAuthLogin = typeof url === "string" && url.includes("/auth/login");
+
+  if (res.error && (res.error as any).status === 401 && !isOnLoginPage && !isAuthLogin) {
     try {
       const here = window.location.pathname + window.location.search;
-      // keep it sane in size
-      sessionStorage.setItem('postLoginRedirect', here.slice(0, 2048));
-    } catch { /* ignore storage errors */ }
-
-    // clean redirect (no big query string)
-    window.location.replace('/login');
+      sessionStorage.setItem("postLoginRedirect", here.slice(0, 2048));
+    } catch {}
+    window.location.replace("/login"); // still hard reload, but never from the login call itself
   }
 
   return res;

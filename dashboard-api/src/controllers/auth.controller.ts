@@ -37,7 +37,7 @@ export async function loginUser(req: Request, res: Response) {
       picture: decoded.picture ?? null,
     };
 
-    return res.status(200).json({ message: 'Login successful', user });
+    return res.status(200).json({ message: 'Login successful', user, isSuccessful: true });
   } catch (e: any) {
     return res.status(401).json({ error: e.message || 'Authentication failed' });
   }
