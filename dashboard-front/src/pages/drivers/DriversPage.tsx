@@ -1,10 +1,6 @@
+// src/pages/drivers/DriversPage.tsx
 import { useEffect, useMemo, useState } from "react";
-import {
-  getDrivers,
-  deleteDriver,
- 
-} from "@/api/drivers";
-
+import { getDrivers, deleteDriver } from "@/api/drivers";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -21,16 +17,15 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Loader2, Plus, Search } from "lucide-react";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
 import { DriverTable } from "./components/DriverTable";
-import type {Driver} from '@/types/types'
+import type { Driver } from "@/types/types";
 
 export default function DriversPage() {
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [deleteId, setDeleteId] = useState<string | null>(null);
-
+  const [showSearchMobile, setShowSearchMobile] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -50,7 +45,14 @@ export default function DriversPage() {
     const q = search.trim().toLowerCase();
     if (!q) return drivers;
     return drivers.filter((driver) =>
-      [driver.name, driver.contact, driver.licenseNumber, driver.nationalId, driver.email, driver.assignedVehicleId]
+      [
+        driver.name,
+        driver.contact,
+        driver.licenseNumber,
+        driver.nationalId,
+        driver.email,
+        driver.assignedVehicleId,
+      ]
         .filter(Boolean)
         .some((v) => String(v).toLowerCase().includes(q))
     );
@@ -70,43 +72,92 @@ export default function DriversPage() {
   };
 
   return (
-    <div className="space-y-4">
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Drivers</CardTitle>
-          <div className="flex items-center gap-2">
-            <div className="relative">
-              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+    <div className="space-y-6">
+      <Card className="bg-white shadow-none border-0 rounded-2xl">
+        <CardHeader className="pb-0">
+          {/* Title */}
+          <CardTitle className="text-xl font-semibold text-blue-700">
+            Driver <span className="text-sky-500">Management</span>
+          </CardTitle>
+
+          {/* Controls stacked under title */}
+          <div className="mt-3 flex items-center gap-2">
+            {/* Search (compact, sm+ only) */}
+            <div className="relative hidden sm:block">
+              <Search className="absolute left-2 top-2.5 h-4 w-4 text-blue-400" />
               <Input
-                className="pl-8 w-64"
+                className="h-9 pl-8 w-52 rounded-md border-0 bg-blue-50 text-blue-900 placeholder:text-blue-300 focus-visible:ring-2 focus-visible:ring-sky-400"
                 placeholder="Search drivers…"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
             </div>
-            <Button onClick={() => navigate("/drivers/add")}>
+
+            {/* Add button (compact label on sm+, icon-only on xs) */}
+            <Button
+              onClick={() => navigate("/drivers/add")}
+              size="sm"
+              className="hidden sm:inline-flex bg-gradient-to-r from-blue-500 via-sky-500 to-indigo-500 
+                         hover:from-blue-600 hover:via-sky-600 hover:to-indigo-600 
+                         text-white shadow-sm rounded-md"
+            >
               <Plus className="h-4 w-4 mr-2" />
-              Add driver
+              Add Driver
+            </Button>
+
+            {/* Mobile icon-only toggles */}
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="sm:hidden h-9 w-9 text-blue-600 hover:bg-blue-50"
+              aria-label="Search"
+              onClick={() => setShowSearchMobile((v) => !v)}
+            >
+              <Search className="h-5 w-5" />
+            </Button>
+            <Button
+              type="button"
+              size="icon"
+              className="sm:hidden h-9 w-9 bg-blue-600 hover:bg-blue-700 text-white"
+              aria-label="Add driver"
+              onClick={() => navigate("/drivers/add")}
+            >
+              <Plus className="h-5 w-5" />
             </Button>
           </div>
+
+          {/* Mobile search reveal */}
+          {showSearchMobile && (
+            <div className="mt-2 sm:hidden">
+              <div className="relative">
+                <Search className="absolute left-2 top-2.5 h-4 w-4 text-blue-400" />
+                <Input
+                  className="h-9 pl-8 w-full rounded-md border-0 bg-blue-50 text-blue-900 placeholder:text-blue-300 focus-visible:ring-2 focus-visible:ring-sky-400"
+                  placeholder="Search drivers…"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
+              </div>
+            </div>
+          )}
         </CardHeader>
 
-        <CardContent>
+        <CardContent className="mt-4 p-0 overflow-visible">
           {loading ? (
             <div className="flex justify-center py-12">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              <Loader2 className="h-6 w-6 animate-spin text-sky-500" />
             </div>
           ) : filtered.length === 0 ? (
-            <div className="text-sm text-muted-foreground py-8 text-center">
-              No drivers found.
-            </div>
+            <div className="text-sm text-slate-500 py-8 text-center">No drivers found.</div>
           ) : (
-            <DriverTable
-              drivers={filtered}
-              onEdit={(driver) => navigate(`/drivers/add?id=${driver.id}`)}
-              onDelete={(id) => setDeleteId(id)}
-              cn={cn}
-            />
+            <div className="relative isolate">
+              <DriverTable
+                drivers={filtered}
+                onEdit={(driver) => navigate(`/drivers/add?id=${driver.id}`)}
+                onDelete={(id) => setDeleteId(id)}
+              />
+            </div>
           )}
         </CardContent>
       </Card>
@@ -114,17 +165,19 @@ export default function DriversPage() {
       {/* Delete Confirm */}
       <AlertDialog open={!!deleteId} onOpenChange={(o) => !o && setDeleteId(null)}>
         <AlertDialogOverlay className="fixed inset-0 bg-black/60 backdrop-blur-sm" />
-        <AlertDialogContent className="bg-neutral-900 text-white dark:bg-card dark:text-card-foreground">
+        <AlertDialogContent className="bg-white text-gray-900 rounded-xl border-0 shadow-xl">
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete this driver?</AlertDialogTitle>
+            <AlertDialogTitle className="text-lg font-semibold text-blue-700">
+              Delete this driver?
+            </AlertDialogTitle>
           </AlertDialogHeader>
-          <p className="text-sm opacity-90">This action cannot be undone.</p>
-          <AlertDialogFooter>
-            <AlertDialogCancel className="bg-white/10 hover:bg-white/15 text-white dark:text-foreground">
+          <p className="text-sm text-gray-600 mb-4">This action cannot be undone.</p>
+          <AlertDialogFooter className="gap-2">
+            <AlertDialogCancel className="bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg">
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction
-              className="bg-red-600 hover:bg-red-700 text-white"
+              className="bg-red-600 hover:bg-red-700 text-white rounded-lg"
               onClick={confirmDelete}
             >
               Delete
