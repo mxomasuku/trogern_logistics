@@ -82,8 +82,8 @@ export default function VehiclesPage() {
       <Card className="border-0 shadow-none bg-white rounded-2xl ring-1 ring-black/5">
         <CardHeader className="pb-0">
           {/* Title */}
-          <CardTitle className="text-xl font-semibold text-blue-700">
-            Vehicles
+        <CardTitle className="text-xl font-semibold text-blue-700">
+            Vehicle <span className="text-sky-500">Management</span>
           </CardTitle>
 
           {/* Controls */}

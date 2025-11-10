@@ -4,8 +4,13 @@ import UserMenu from "./UserMenu";
 export default function TopBar() {
   return (
     <header
-      className="sticky top-0 z-20 bg-background/70 backdrop-blur supports-[backdrop-filter]:bg-background/60 shadow-sm"
       role="banner"
+      className="
+        sticky top-0 z-20
+        bg-white/95
+        backdrop-blur supports-[backdrop-filter]:bg-white/90
+        shadow-sm
+      "
     >
       {/* Horizontal scroll container for small screens */}
       <div
@@ -14,8 +19,8 @@ export default function TopBar() {
       >
         {/* Keep items on one line, allow scroll if they don't fit */}
         <div className="flex items-center gap-3 min-w-0 whitespace-nowrap">
-          <span className="text-sm text-muted-foreground shrink-0">/</span>
-          <span className="text-sm font-medium truncate">Home</span>
+          <span className="text-sm text-slate-400 shrink-0">/</span>
+          <span className="text-sm font-medium truncate text-slate-800">Home</span>
         </div>
 
         {/* Flexible spacer */}

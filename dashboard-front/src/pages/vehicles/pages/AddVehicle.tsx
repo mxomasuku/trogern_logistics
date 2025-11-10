@@ -52,6 +52,17 @@ const ROUTE_OPTS: RouteType[] = ["local", "highway", "mixed"];
 
 type DriverOption = { id: string; name: string };
 
+/* ---- UI helpers to keep styling consistent ---- */
+function baseInputClasses() {
+  return [
+    "h-10 rounded-lg",
+    "border-0 bg-blue-50/60",
+    "text-blue-950 placeholder:text-blue-300",
+    "focus-visible:ring-2 focus-visible:ring-sky-400 focus-visible:ring-offset-0",
+  ].join(" ");
+}
+const labelCls = "text-sm text-blue-900/80";
+
 export default function AddVehiclePage() {
   const navigate = useNavigate();
   const { search } = useLocation();
@@ -78,6 +89,7 @@ export default function AddVehiclePage() {
 
   // drivers
   const [drivers, setDrivers] = useState<DriverOption[]>([]);
+
   const [driversLoading, setDriversLoading] = useState(false);
   const [assignedDriverId, setAssignedDriverId] = useState<string>("");
   const [assignedDriverName, setAssignedDriverName] = useState<string>("");
@@ -88,59 +100,49 @@ export default function AddVehiclePage() {
   const driverMissing = driverRequired && (!assignedDriverId || !assignedDriverName);
   const [showDriverError, setShowDriverError] = useState(false);
 
-// All required-field & validity checks in one place
-const requiredComplete = useMemo(() => {
-  // text fields
-  if (!plateNumber || !make || !model) return false;
+  // All required-field & validity checks in one place (for live-disabled Save)
+  const requiredComplete = useMemo(() => {
+    if (!plateNumber || !make || !model) return false;
+    if (!year || String(year).length !== 4) return false;
+    if (!route) return false;
+    if (!datePurchased) return false;
 
-  // year (4 digits)
-  if (!year || String(year).length !== 4) return false;
+    if (Number.isNaN(currentMileage) || currentMileage < 0) return false;
+    if (Number.isNaN(deliveryMileage) || deliveryMileage < 0) return false;
+    if (Number.isNaN(price) || price < 0) return false;
 
-  // required selects / dates
-  if (!route) return false;
-  if (!datePurchased) return false;
-
-  // numbers (non-negative)
-  if (Number.isNaN(currentMileage) || currentMileage < 0) return false;
-  if (Number.isNaN(deliveryMileage) || deliveryMileage < 0) return false;
-  if (Number.isNaN(price) || price < 0) return false;
-
-  // date format validity
-  try {
-    dateInputToISO(datePurchased);
-  } catch {
-    return false;
-  }
-  if (lastServiceDate) {
     try {
-      dateInputToISO(lastServiceDate);
+      dateInputToISO(datePurchased);
     } catch {
       return false;
     }
-  }
+    if (lastServiceDate) {
+      try {
+        dateInputToISO(lastServiceDate);
+      } catch {
+        return false;
+      }
+    }
 
-  // driver required when active
-  if (status === "active") {
-    if (!assignedDriverId || !assignedDriverName) return false;
-  }
-
-  return true;
-}, [
-  plateNumber,
-  make,
-  model,
-  year,
-  route,
-  datePurchased,
-  lastServiceDate,
-  currentMileage,
-  deliveryMileage,
-  price,
-  status,
-  assignedDriverId,
-  assignedDriverName,
-]);
-
+    if (status === "active") {
+      if (!assignedDriverId || !assignedDriverName) return false;
+    }
+    return true;
+  }, [
+    plateNumber,
+    make,
+    model,
+    year,
+    route,
+    datePurchased,
+    lastServiceDate,
+    currentMileage,
+    deliveryMileage,
+    price,
+    status,
+    assignedDriverId,
+    assignedDriverName,
+  ]);
 
   // Prefill when editing
   useEffect(() => {
@@ -173,22 +175,17 @@ const requiredComplete = useMemo(() => {
     setColor(v.color ?? "");
     setVin(v.vin ?? "");
     setPrice(Number((v as any).price ?? 0));
-
-    // support both new & legacy fields
     setAssignedDriverId((v as any).assignedDriverId ?? (v as any).assignedDriver ?? "");
     setAssignedDriverName((v as any).assignedDriverName ?? "");
-
     setStatus((v.status as VehicleStatus) ?? "active");
     setRoute((v.route as RouteType) ?? "local");
-
     setDatePurchased(fsTsToDateInput(v.datePurchased as any));
     setLastServiceDate(fsTsToDateInput(v.lastServiceDate as any));
-
     setCurrentMileage(Number(v.currentMileage ?? 0));
     setDeliveryMileage(Number(v.deliveryMileage ?? 0));
   };
 
-  // Load candidates (we want "inactive" drivers to assign to an "active" vehicle)
+  // Load inactive drivers when needed
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -201,22 +198,18 @@ const requiredComplete = useMemo(() => {
       }
       setDriversLoading(true);
       try {
-        const list = await getAllInactiveDrivers(); // expect [{ id, name }, ...]
+        const list = await getAllInactiveDrivers();
         if (cancelled) return;
         const mapped: DriverOption[] = (list || [])
-          .map((d: any) => ({
-            id: d.id ?? d.licenseNumber ?? "",
-            name: d.name ?? "",
-          }))
+          .map((d: any) => ({ id: d.id ?? d.licenseNumber ?? "", name: d.name ?? "" }))
           .filter((d: DriverOption) => d.id && d.name);
         setDrivers(mapped);
 
-        // if editing & selected driver not present anymore, clear
         if (assignedDriverId && !mapped.find((d) => d.id === assignedDriverId)) {
           setAssignedDriverId("");
           setAssignedDriverName("");
         }
-      } catch (e) {
+      } catch {
         if (!cancelled) toast.error("Failed to load drivers");
       } finally {
         if (!cancelled) setDriversLoading(false);
@@ -228,7 +221,6 @@ const requiredComplete = useMemo(() => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status]);
 
-  // When user toggles status off 'active', clear error
   useEffect(() => {
     if (!driverRequired) setShowDriverError(false);
   }, [driverRequired]);
@@ -258,12 +250,9 @@ const requiredComplete = useMemo(() => {
       }
     }
 
-    // hard-block: active vehicle must have a driver
     if (driverMissing) {
       setShowDriverError(true);
-      // scroll into view for better UX
       driverSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-      // optional toast
       toast.error("Assign a driver before saving an active vehicle.");
       return;
     }
@@ -277,7 +266,6 @@ const requiredComplete = useMemo(() => {
     try {
       const includeDriver = driverRequired && !driverMissing;
 
-      // Build payload (send both new & legacy fields for compatibility)
       const payload: VehicleCreateDTO = {
         plateNumber,
         make,
@@ -293,21 +281,12 @@ const requiredComplete = useMemo(() => {
         currentMileage: Number(currentMileage || 0),
         deliveryMileage: Number(deliveryMileage || 0),
         ...(includeDriver
-          ? {
-              assignedDriverId,
-              assignedDriverName,
-              assignedDriver: assignedDriverId, // legacy
-            }
-          : {
-              assignedDriverId: "",
-              assignedDriverName: "",
-              assignedDriver: "", // legacy
-            }),
+          ? { assignedDriverId, assignedDriverName, assignedDriver: assignedDriverId }
+          : { assignedDriverId: "", assignedDriverName: "", assignedDriver: "" }),
       };
 
       if (isEdit) {
-        const patch: VehicleUpdateDTO = payload as unknown as VehicleUpdateDTO;
-        await updateVehicle(editId!, patch);
+        await updateVehicle(editId!, payload as unknown as VehicleUpdateDTO);
         toast.success("Vehicle updated");
       } else {
         await addVehicle(payload);
@@ -321,29 +300,37 @@ const requiredComplete = useMemo(() => {
     }
   };
 
-  // Disable Save button if we already know it's invalid (live lock)
-const disableSave = saving || !requiredComplete; // live guard, final guard also in onSave
+  const disableSave = saving || !requiredComplete;
 
   return (
     <div className="mx-auto max-w-5xl space-y-4">
+      {/* Back */}
       <div className="flex items-center gap-2">
-        <Button variant="ghost" onClick={() => navigate(-1)}>
+        <Button
+          variant="ghost"
+          onClick={() => navigate(-1)}
+          className="text-blue-700 hover:bg-blue-50 hover:text-blue-800"
+        >
           <ArrowLeft className="mr-2 h-4 w-4" /> Back
         </Button>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>{isEdit ? "Edit Vehicle" : "Add Vehicle"}</CardTitle>
+      <Card className="border-0 shadow-none bg-white rounded-2xl ring-1 ring-black/5">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-xl font-semibold text-blue-700">
+            {isEdit ? "Edit Vehicle" : "Add Vehicle"}
+          </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-6">
+
+        <CardContent className="space-y-8">
           {loadingPrefill ? (
-            <div className="flex justify-center py-16 text-sm text-muted-foreground">
+            <div className="flex justify-center py-16 text-sm text-slate-500">
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               Loading vehicle…
             </div>
           ) : (
             <>
+              {/* Core details */}
               <Grid two>
                 <TextField label="Plate number" value={plateNumber} onChange={setPlateNumber} required />
                 <TextField label="Make" value={make} onChange={setMake} required />
@@ -364,12 +351,12 @@ const disableSave = saving || !requiredComplete; // live guard, final guard also
                 />
               </Grid>
 
+              {/* Status */}
               <SelectField
                 label="Status"
                 value={status}
                 onValueChange={(v) => {
                   setStatus(v as VehicleStatus);
-                  // trigger validation hint if user flips to active without driver
                   if (v === "active" && (!assignedDriverId || !assignedDriverName)) {
                     setShowDriverError(true);
                     driverSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -380,32 +367,33 @@ const disableSave = saving || !requiredComplete; // live guard, final guard also
                 items={STATUS_OPTS}
               />
 
-              {/* Driver Selection (required if status === 'active') */}
+              {/* Driver Selection */}
               <div ref={driverSectionRef}>
-                <Label className="mb-1 inline-block">
+                <Label className={`${labelCls} mb-1 inline-block`}>
                   Assign driver{" "}
                   {driverRequired ? (
                     <span className="text-red-600">*</span>
                   ) : (
-                    <span className="text-muted-foreground">(enable by setting status to “active”)</span>
+                    <span className="text-slate-400">(enable by setting status to “active”)</span>
                   )}
                 </Label>
 
                 {driversLoading ? (
-                  <div className="text-sm text-muted-foreground">Loading drivers…</div>
+                  <div className="text-sm text-slate-500">Loading drivers…</div>
                 ) : drivers.length === 0 ? (
-                  <div className="text-sm text-muted-foreground">
+                  <div className="text-sm text-slate-500">
                     {driverRequired
-                      ? "No inactive drivers available"
+                      ? "No inactive drivers available."
                       : "Set status to “active” to choose a driver."}
                   </div>
                 ) : (
                   <div
                     className={[
-                      "rounded-md p-3 border",
+                      "rounded-xl p-3 ring-1",
                       driverRequired && showDriverError && driverMissing
-                        ? "border-red-500"
-                        : "border-border",
+                        ? "ring-red-400"
+                        : "ring-black/5",
+                      "bg-white",
                     ].join(" ")}
                   >
                     <RadioGroup
@@ -420,17 +408,13 @@ const disableSave = saving || !requiredComplete; // live guard, final guard also
                     >
                       {drivers.map((d) => (
                         <div key={d.id} className="flex items-center space-x-2">
-                          <RadioGroupItem
-                            value={d.id}
-                            id={`drv-${d.id}`}
-                            disabled={!driverRequired}
-                          />
+                          <RadioGroupItem value={d.id} id={`drv-${d.id}`} disabled={!driverRequired} />
                           <Label
                             htmlFor={`drv-${d.id}`}
-                            className={!driverRequired ? "text-muted-foreground" : ""}
+                            className={!driverRequired ? "text-slate-400" : "text-slate-800"}
                           >
                             {d.name}{" "}
-                            <span className="text-xs text-muted-foreground">({d.id})</span>
+                            <span className="text-xs text-slate-500">({d.id})</span>
                           </Label>
                         </div>
                       ))}
@@ -446,11 +430,23 @@ const disableSave = saving || !requiredComplete; // live guard, final guard also
                 )}
               </div>
 
+              {/* Actions */}
               <div className="flex justify-end gap-2">
-                <Button variant="ghost" onClick={() => navigate("/vehicles")} disabled={saving}>
+                <Button
+                  variant="ghost"
+                  onClick={() => navigate("/vehicles")}
+                  disabled={saving}
+                  className="text-blue-700 hover:bg-blue-50 hover:text-blue-800"
+                >
                   Cancel
                 </Button>
-                <Button onClick={onSave} disabled={disableSave}>
+                <Button
+                  onClick={onSave}
+                  disabled={disableSave}
+                  className="bg-gradient-to-r from-blue-500 via-sky-500 to-indigo-500
+                             hover:from-blue-600 hover:via-sky-600 hover:to-indigo-600
+                             text-white shadow-sm"
+                >
                   {saving ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving…
@@ -483,13 +479,7 @@ function Grid({
   two?: boolean;
   three?: boolean;
 }) {
-  const cols = three
-    ? "md:grid-cols-3"
-    : two
-    ? "md:grid-cols-2"
-    : one
-    ? "md:grid-cols-1"
-    : "md:grid-cols-2";
+  const cols = three ? "md:grid-cols-3" : two ? "md:grid-cols-2" : one ? "md:grid-cols-1" : "md:grid-cols-2";
   return <div className={`grid grid-cols-1 ${cols} gap-4`}>{children}</div>;
 }
 
@@ -510,7 +500,7 @@ function TextField({
 }) {
   return (
     <div>
-      <Label className="mb-1 inline-block">
+      <Label className={labelCls}>
         {label}
         {required && <span className="text-red-600"> *</span>}
       </Label>
@@ -519,6 +509,7 @@ function TextField({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
+        className={`${baseInputClasses()} mt-1`}
       />
     </div>
   );
@@ -543,7 +534,7 @@ function NumberField({
 }) {
   return (
     <div>
-      <Label className="mb-1 inline-block">
+      <Label className={labelCls}>
         {label}
         {required && <span className="text-red-600"> *</span>}
       </Label>
@@ -552,8 +543,9 @@ function NumberField({
         value={String(value)}
         onChange={(e) => onChange(Number(e.target.value))}
         min={min}
-        max={max}
+      max={max}
         step={step}
+        className={`${baseInputClasses()} mt-1`}
       />
     </div>
   );
@@ -572,14 +564,31 @@ function SelectField<T extends string>({
 }) {
   return (
     <div>
-      <Label className="mb-1 inline-block">{label}</Label>
+      <Label className={labelCls}>{label}</Label>
       <Select value={value} onValueChange={onValueChange}>
-        <SelectTrigger>
+        {/* Solid trigger to match theme */}
+        <SelectTrigger className={`${baseInputClasses().replace("bg-blue-50/60", "bg-white")} mt-1`}>
           <SelectValue placeholder="Select…" />
         </SelectTrigger>
-        <SelectContent>
+
+        {/* Solid dropdown, no translucency */}
+        <SelectContent
+          className="
+            bg-white text-blue-950
+            border-0 ring-1 ring-black/5 shadow-xl
+            rounded-lg
+          "
+        >
           {items.map((opt) => (
-            <SelectItem key={opt} value={opt} className="capitalize">
+            <SelectItem
+              key={opt}
+              value={opt}
+              className="
+                capitalize
+                focus:bg-blue-50 focus:text-blue-900
+                data-[state=checked]:bg-blue-100 data-[state=checked]:text-blue-900
+              "
+            >
               {opt}
             </SelectItem>
           ))}

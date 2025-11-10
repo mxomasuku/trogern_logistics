@@ -1,4 +1,3 @@
-// src/pages/drivers/components/IncidentsSection.tsx
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 export type DriverIncident = {
@@ -9,6 +8,7 @@ export type DriverIncident = {
   notes?: string;
 };
 
+/* date normalization helper */
 export function toDateInputValue(value: unknown): string {
   try {
     if (value == null) return "";
@@ -39,36 +39,82 @@ export function IncidentsSection({
   incidents: DriverIncident[];
 }) {
   return (
-    <div className="space-y-2">
-      <h3 className="text-sm font-medium text-blue-700/80">{title}</h3>
+    <div className="space-y-2 bg-white p-4 rounded-xl ring-1 ring-black/5">
+      <h3 className="text-sm font-medium text-blue-700/80 tracking-wide">{title}</h3>
+
       {loading ? (
-        <div className="text-sm text-muted-foreground py-6">Loading incidents…</div>
+        <div className="text-sm text-slate-500 py-6">Loading incidents…</div>
       ) : incidents.length === 0 ? (
-        <div className="text-sm text-muted-foreground">No incidents recorded.</div>
+        <div className="text-sm text-slate-500">No incidents recorded.</div>
       ) : (
-        <div className="overflow-x-auto rounded-xl ring-1 ring-black/5 bg-white">
+        <div className="overflow-x-auto rounded-2xl ring-1 ring-black/5 bg-white shadow-sm">
           <Table className="min-w-[640px]">
-            <TableHeader>
-              <TableRow>
-                <TableHead>Date</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Severity</TableHead>
-                <TableHead>Notes</TableHead>
+            <TableHeader className="bg-white">
+              <TableRow className="border-b border-slate-100">
+                <TableHead className="text-slate-500 uppercase font-medium text-[11px] sm:text-xs">
+                  Date
+                </TableHead>
+                <TableHead className="text-slate-500 uppercase font-medium text-[11px] sm:text-xs">
+                  Type
+                </TableHead>
+                <TableHead className="text-slate-500 uppercase font-medium text-[11px] sm:text-xs">
+                  Severity
+                </TableHead>
+                <TableHead className="text-slate-500 uppercase font-medium text-[11px] sm:text-xs">
+                  Notes
+                </TableHead>
               </TableRow>
             </TableHeader>
-            <TableBody className="divide-y divide-slate-100 [&>*:nth-child(odd)]:bg-slate-50/40">
-              {incidents.slice(0, 10).map((ev) => (
-                <TableRow key={ev.id ?? ev.date}>
-                  <TableCell>{toDateInputValue(ev.date) || "—"}</TableCell>
-                  <TableCell className="capitalize">{ev.type || "—"}</TableCell>
-                  <TableCell className="capitalize">{ev.severity || "—"}</TableCell>
-                  <TableCell className="truncate max-w-[320px]" title={ev.notes}>
-                    {ev.notes || "—"}
-                  </TableCell>
-                </TableRow>
-              ))}
+
+            <TableBody className="divide-y divide-slate-100">
+              {incidents.slice(0, 10).map((ev, idx) => {
+                const date = toDateInputValue(ev.date) || "—";
+                const severityColor =
+                  ev.severity === "high"
+                    ? "bg-red-50 text-red-700"
+                    : ev.severity === "medium"
+                    ? "bg-amber-50 text-amber-700"
+                    : ev.severity === "low"
+                    ? "bg-sky-50 text-sky-700"
+                    : "bg-slate-50 text-slate-600";
+
+                return (
+                  <TableRow
+                    key={ev.id ?? ev.date ?? idx}
+                    className="odd:bg-slate-50 hover:bg-blue-50/60 transition-colors"
+                  >
+                    <TableCell className="py-3 text-slate-800">{date}</TableCell>
+                    <TableCell className="py-3 text-slate-800 capitalize">{ev.type || "—"}</TableCell>
+                    <TableCell className="py-3">
+                      {ev.severity ? (
+                        <span
+                          className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold capitalize ${severityColor}`}
+                        >
+                          {ev.severity}
+                        </span>
+                      ) : (
+                        "—"
+                      )}
+                    </TableCell>
+                    <TableCell
+                      className="py-3 max-w-[320px] truncate text-slate-800"
+                      title={ev.notes}
+                    >
+                      {ev.notes || "—"}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
+
+          <div className="px-4 py-3 text-[10px] sm:text-xs text-slate-500 border-t border-slate-100">
+            Showing{" "}
+            <strong className="text-slate-700">
+              {incidents.length > 10 ? "10 of " + incidents.length : incidents.length}
+            </strong>{" "}
+            {incidents.length === 1 ? "incident" : "incidents"}
+          </div>
         </div>
       )}
     </div>
