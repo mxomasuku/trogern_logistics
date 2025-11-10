@@ -1,6 +1,6 @@
 // src/pages/drivers/components/Last30DaysCard.tsx
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Kpi } from "./Kpi";
+import { Kpi } from "@/components/Kpi";
 import type { DriverKpiResult } from "@/types/types";
 
 function fmtMoney(n?: number | null, currency = "USD") {

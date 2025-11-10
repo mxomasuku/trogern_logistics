@@ -135,7 +135,8 @@ export interface ServiceItemDTO {
 
 export interface ServiceRecord {
   vehicleId: string;
-  date: { _seconds: number; _nanoseconds: number },       // when serviced
+  type: string;                      
+  date: { _seconds: number; _nanoseconds: number },  
   mechanic: string;
   cost: number;
   serviceMileage: number;                  // odometer at service time                     // e.g. "good", "requires attention"
