@@ -1,3 +1,4 @@
+// src/pages/income/IncomePage.tsx
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { listIncomeLogs, updateIncomeLog } from "@/api/income";
@@ -12,11 +13,11 @@ import {
   DialogFooter,
   DialogOverlay,
 } from "@/components/ui/dialog";
-import { Loader2, Plus, List } from "lucide-react";
+import { Loader2, Plus, List, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import { IncomeList } from "./components/IncomeList";
 import type { IncomeLog, LedgerType } from "@/types/types";
-import { toDateInputValue } from "@/lib/utils"; // IMPORTANT: converts TS/Date/ISO/number -> "YYYY-MM-DD"
+import { toDateInputValue } from "@/lib/utils";
 
 export default function IncomePage() {
   const [items, setItems] = useState<IncomeLog[]>([]);
@@ -31,7 +32,7 @@ export default function IncomePage() {
   const [mileage, setMileage] = useState<string>("");
   const [vehicle, setVehicle] = useState<string>("");
   const [driver, setEDriver] = useState<string>("");
-  const [cashDate, setCashDate] = useState<string>(""); // holds "YYYY-MM-DD" for <input type="date" />
+  const [cashDate, setCashDate] = useState<string>("");
   const [note, setNote] = useState<string>("");
   const [entryType, setEntryType] = useState<LedgerType>("income");
 
@@ -59,15 +60,11 @@ export default function IncomePage() {
     setMileage(String(row.weekEndingMileage ?? ""));
     setVehicle(row.vehicle ?? "");
     setEDriver(row.driverName || row.driverId || "");
-
-    // 🔧 Convert Firestore TS (or any date-like) -> "YYYY-MM-DD" for the date input
-    // Prefer cashDate, fallback to createdAt if missing
     const cashYMD =
       toDateInputValue((row as any).cashDate) ||
       toDateInputValue((row as any).createdAt) ||
       "";
     setCashDate(cashYMD);
-
     setNote(row.note ?? "");
     setEntryType((row.type as LedgerType) ?? "income");
     setEditOpen(true);
@@ -93,20 +90,17 @@ export default function IncomePage() {
 
     setSubmitting(true);
     try {
-      // Send cashDate as "YYYY-MM-DD" — backend converts to Firestore Timestamp
       const updated = await updateIncomeLog(editing.id, {
         amount: amt,
         weekEndingMileage: miles,
         vehicle,
         driverName: driver,
         driverId: driver,
-        cashDate, // string "YYYY-MM-DD"
+        cashDate,
         note: note || undefined,
         type: entryType,
       } as any);
 
-      // Merge into list.
-      // updated.cashDate should be a Firestore Timestamp (or you may echo the string; both are handled safely)
       setItems((prev) =>
         prev.map((x) =>
           x.id === editing.id
@@ -119,7 +113,6 @@ export default function IncomePage() {
                 driverId: updated.driverId ?? driver,
                 driverName: updated.driverName ?? driver,
                 note: updated.note ?? note,
-                // if backend returned TS use that, else keep prior or the string (downstream renderers handle it)
                 cashDate: (updated as any)?.cashDate ?? x.cashDate ?? cashDate,
                 type: (updated.type as LedgerType) ?? entryType,
                 createdAt: (updated as any)?.createdAt ?? x.createdAt,
@@ -138,103 +131,102 @@ export default function IncomePage() {
     }
   };
 
+  // ---------------------------------------------------------------------------
+
   return (
-    <div className="space-y-4">
-      {/* Actions */}
-      <Card>
+    <div className="mx-auto  space-y-4">
+ 
+
+      {/* Main Income Card */}
+      <Card className="bg-white border-0 shadow-none ring-1 ring-black/5 rounded-2xl">
         <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <CardTitle>Income</CardTitle>
+       <CardTitle className="text-xl font-semibold text-blue-700">
+            Income <span className="text-sky-500">Management</span>
+          </CardTitle>
           <div className="flex items-center gap-2">
-            <Button onClick={() => navigate("/income/add")}>
+            <Button onClick={() => navigate("/income/add")} className="bg-blue-600 hover:bg-blue-700 text-white">
               <Plus className="h-4 w-4 mr-2" />
-              Add income
+              Add Income
             </Button>
-            <Button variant={showList ? "secondary" : "default"} onClick={() => setShowList((v) => !v)}>
+            <Button
+              variant={showList ? "secondary" : "outline"}
+              onClick={() => setShowList((v) => !v)}
+              className="border-blue-200 text-blue-800 hover:bg-blue-50"
+            >
               <List className="h-4 w-4 mr-2" />
-              {showList ? "Hide list" : "View list"}
+              {showList ? "Hide List" : "View List"}
             </Button>
           </div>
         </CardHeader>
 
-        {/* List (only when requested) */}
         {showList && (
           <CardContent>
-            <IncomeList
-              items={items}
-              loading={loading}
-              onRowClick={openEdit}
-              currency="USD"
-            />
+            <IncomeList items={items} loading={loading} onRowClick={openEdit} currency="USD" />
           </CardContent>
         )}
       </Card>
 
-      {/* Edit Income Modal */}
+      {/* Edit Modal */}
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogOverlay className="fixed inset-0 bg-black/60 backdrop-blur-none" />
-        <DialogContent className="sm:max-w-2xl rounded-xl border bg-white text-slate-900 dark:bg-neutral-900 dark:text-neutral-100 shadow-2xl">
+        <DialogOverlay className="fixed inset-0 bg-black/50 backdrop-blur-sm" />
+        <DialogContent className="sm:max-w-2xl rounded-xl border-0 ring-1 ring-black/5 bg-white shadow-2xl">
           <DialogHeader>
-            <DialogTitle>Edit Income</DialogTitle>
+            <DialogTitle className="text-blue-900 font-semibold">Edit Income</DialogTitle>
           </DialogHeader>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 py-2">
             <div>
-              <Label className="mb-1 inline-block">Amount</Label>
+              <Label>Amount</Label>
               <input
-                className="w-full rounded-md border px-3 py-2"
+                className="w-full rounded-md border border-blue-100 bg-blue-50/30 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
                 type="number"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
-                min={0}
-                step={0.01}
               />
             </div>
 
             <div>
-              <Label className="mb-1 inline-block">Week-ending mileage</Label>
+              <Label>Week-ending Mileage</Label>
               <input
-                className="w-full rounded-md border px-3 py-2"
+                className="w-full rounded-md border border-blue-100 bg-blue-50/30 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
                 type="number"
                 value={mileage}
                 onChange={(e) => setMileage(e.target.value)}
-                min={0}
-                step={1}
               />
             </div>
 
             <div>
-              <Label className="mb-1 inline-block">Cash date</Label>
+              <Label>Cash Date</Label>
               <input
-                className="w-full rounded-md border px-3 py-2"
+                className="w-full rounded-md border border-blue-100 bg-blue-50/30 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
                 type="date"
-                value={cashDate} // "YYYY-MM-DD"
+                value={cashDate}
                 onChange={(e) => setCashDate(e.target.value)}
               />
             </div>
 
             <div>
-              <Label className="mb-1 inline-block">Vehicle</Label>
+              <Label>Vehicle</Label>
               <input
-                className="w-full rounded-md border px-3 py-2"
+                className="w-full rounded-md border border-blue-100 bg-blue-50/30 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
                 value={vehicle}
                 onChange={(e) => setVehicle(e.target.value)}
               />
             </div>
 
             <div>
-              <Label className="mb-1 inline-block">Driver</Label>
+              <Label>Driver</Label>
               <input
-                className="w-full rounded-md border px-3 py-2"
+                className="w-full rounded-md border border-blue-100 bg-blue-50/30 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
                 value={driver}
                 onChange={(e) => setEDriver(e.target.value)}
               />
             </div>
 
-            {/* Entry type */}
             <div>
-              <Label className="mb-1 inline-block">Entry type</Label>
-              <div className="flex gap-4 items-center">
-                <label className="inline-flex items-center gap-2 cursor-pointer">
+              <Label>Entry Type</Label>
+              <div className="flex gap-4 mt-1">
+                <label className="inline-flex items-center gap-2 text-blue-900">
                   <input
                     type="radio"
                     name="entryType"
@@ -244,7 +236,7 @@ export default function IncomePage() {
                   />
                   <span>Income</span>
                 </label>
-                <label className="inline-flex items-center gap-2 cursor-pointer">
+                <label className="inline-flex items-center gap-2 text-blue-900">
                   <input
                     type="radio"
                     name="entryType"
@@ -258,9 +250,9 @@ export default function IncomePage() {
             </div>
 
             <div className="md:col-span-3">
-              <Label className="mb-1 inline-block">Note</Label>
+              <Label>Note</Label>
               <input
-                className="w-full rounded-md border px-3 py-2"
+                className="w-full rounded-md border border-blue-100 bg-blue-50/30 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
               />
@@ -271,13 +263,17 @@ export default function IncomePage() {
             <Button variant="ghost" onClick={() => setEditOpen(false)} disabled={submitting}>
               Cancel
             </Button>
-            <Button onClick={onSubmitEdit} disabled={submitting || !editing?.id}>
+            <Button
+              onClick={onSubmitEdit}
+              disabled={submitting || !editing?.id}
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+            >
               {submitting ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Saving…
                 </>
               ) : (
-                "Save changes"
+                "Save Changes"
               )}
             </Button>
           </DialogFooter>
