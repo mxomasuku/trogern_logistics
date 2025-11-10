@@ -13,9 +13,9 @@ export function VehiclePicker({
   onPick: (vehicleId: string) => void;
 }) {
   return (
-    <Card>
+    <Card className="border-0 shadow-none bg-white rounded-xl ring-1 ring-black/5">
       <CardHeader className="pb-2">
-        <CardTitle>Select a Vehicle to Compute KPIs</CardTitle>
+        <CardTitle className="text-blue-700">Select a Vehicle to Compute KPIs</CardTitle>
       </CardHeader>
       <CardContent>
         {loading ? (
@@ -25,7 +25,10 @@ export function VehiclePicker({
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
             {vehicles.map((v) => (
-              <div key={v.id} className="rounded-lg border p-3 flex items-center justify-between">
+              <div
+                key={v.id}
+                className="rounded-lg ring-1 ring-black/5 bg-white p-3 flex items-center justify-between"
+              >
                 <div className="min-w-0">
                   <div className="text-sm font-medium truncate">{v.plateNumber}</div>
                   <div className="text-xs text-muted-foreground truncate">

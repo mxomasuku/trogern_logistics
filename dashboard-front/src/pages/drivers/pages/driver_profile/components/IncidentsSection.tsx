@@ -1,3 +1,4 @@
+// src/pages/drivers/components/IncidentsSection.tsx
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 export type DriverIncident = {
@@ -38,35 +39,37 @@ export function IncidentsSection({
   incidents: DriverIncident[];
 }) {
   return (
-    <div className="space-y-3">
-      <h3 className="text-sm font-medium text-muted-foreground">{title}</h3>
+    <div className="space-y-2">
+      <h3 className="text-sm font-medium text-blue-700/80">{title}</h3>
       {loading ? (
         <div className="text-sm text-muted-foreground py-6">Loading incidents…</div>
       ) : incidents.length === 0 ? (
         <div className="text-sm text-muted-foreground">No incidents recorded.</div>
       ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Date</TableHead>
-              <TableHead>Type</TableHead>
-              <TableHead>Severity</TableHead>
-              <TableHead>Notes</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {incidents.slice(0, 10).map((ev) => (
-              <TableRow key={ev.id ?? ev.date}>
-                <TableCell>{toDateInputValue(ev.date) || "—"}</TableCell>
-                <TableCell className="capitalize">{ev.type || "—"}</TableCell>
-                <TableCell className="capitalize">{ev.severity || "—"}</TableCell>
-                <TableCell className="truncate max-w-[320px]" title={ev.notes}>
-                  {ev.notes || "—"}
-                </TableCell>
+        <div className="overflow-x-auto rounded-xl ring-1 ring-black/5 bg-white">
+          <Table className="min-w-[640px]">
+            <TableHeader>
+              <TableRow>
+                <TableHead>Date</TableHead>
+                <TableHead>Type</TableHead>
+                <TableHead>Severity</TableHead>
+                <TableHead>Notes</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody className="divide-y divide-slate-100 [&>*:nth-child(odd)]:bg-slate-50/40">
+              {incidents.slice(0, 10).map((ev) => (
+                <TableRow key={ev.id ?? ev.date}>
+                  <TableCell>{toDateInputValue(ev.date) || "—"}</TableCell>
+                  <TableCell className="capitalize">{ev.type || "—"}</TableCell>
+                  <TableCell className="capitalize">{ev.severity || "—"}</TableCell>
+                  <TableCell className="truncate max-w-[320px]" title={ev.notes}>
+                    {ev.notes || "—"}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       )}
     </div>
   );

@@ -1,3 +1,4 @@
+// src/pages/drivers/components/RawVehicleDataCard.tsx
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AlertTriangle } from "lucide-react";
 import { Kpi } from "./Kpi";
@@ -33,14 +34,13 @@ export function RawVehicleDataCard({
     mileageMismatch ? Math.max(0, currentVehicleMileage - latestLogMileage) : 0;
 
   return (
-    <Card>
+    <Card className="border-0 shadow-none bg-white rounded-xl ring-1 ring-black/5">
       <CardHeader className="pb-2">
-        <CardTitle>Raw Vehicle Data</CardTitle>
+        <CardTitle className="text-blue-700">Raw Vehicle Data</CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
-        {/* mismatch banner */}
         {loadingVehicle || loadingKpis ? null : mileageMismatch ? (
-          <div className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 p-3 text-amber-800">
+          <div className="flex items-start gap-2 rounded-md ring-1 ring-amber-300 bg-amber-50 p-3 text-amber-800">
             <AlertTriangle className="h-4 w-4 mt-0.5" />
             <div className="text-sm">
               <div className="font-semibold">Possible missing income logs</div>
@@ -60,41 +60,29 @@ export function RawVehicleDataCard({
           <Kpi
             label="Mileage on start"
             value={
-              loadingKpis
-                ? "…"
-                : isFiniteNum(kpis?.mileageOnStart)
-                ? `${kpis!.mileageOnStart.toLocaleString()} km`
-                : "—"
+              loadingKpis ? "…" :
+              isFiniteNum(kpis?.mileageOnStart) ? `${kpis!.mileageOnStart.toLocaleString()} km` : "—"
             }
           />
           <Kpi
             label="Latest mileage (from logs)"
             value={
-              loadingKpis
-                ? "…"
-                : isFiniteNum(kpis?.latestMileage)
-                ? `${kpis!.latestMileage.toLocaleString()} km`
-                : "—"
+              loadingKpis ? "…" :
+              isFiniteNum(kpis?.latestMileage) ? `${kpis!.latestMileage.toLocaleString()} km` : "—"
             }
           />
           <Kpi
             label="Vehicle current mileage"
             value={
-              loadingVehicle
-                ? "…"
-                : isFiniteNum(currentVehicleMileage)
-                ? `${currentVehicleMileage.toLocaleString()} km`
-                : "—"
+              loadingVehicle ? "…" :
+              isFiniteNum(currentVehicleMileage) ? `${currentVehicleMileage.toLocaleString()} km` : "—"
             }
           />
           <Kpi
             label="Covered since start"
             value={
-              loadingKpis
-                ? "…"
-                : isFiniteNum(kpis?.coveredKmSinceStart)
-                ? `${kpis!.coveredKmSinceStart.toLocaleString()} km`
-                : "—"
+              loadingKpis ? "…" :
+              isFiniteNum(kpis?.coveredKmSinceStart) ? `${kpis!.coveredKmSinceStart.toLocaleString()} km` : "—"
             }
           />
         </div>

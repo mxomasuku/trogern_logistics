@@ -1,3 +1,4 @@
+// src/pages/drivers/components/PerKmCard.tsx
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Kpi } from "./Kpi";
 import type { DriverKpiResult } from "@/types/types";
@@ -9,9 +10,9 @@ function formatPerKm(n?: number | null) {
 
 export function PerKmCard({ kpis, loading }: { kpis: DriverKpiResult | null; loading: boolean }) {
   return (
-    <Card>
+    <Card className="border-0 shadow-none bg-white rounded-xl ring-1 ring-black/5">
       <CardHeader className="pb-2">
-        <CardTitle>Per-km Performance</CardTitle>
+        <CardTitle className="text-blue-700">Per-km Performance</CardTitle>
       </CardHeader>
       <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <Kpi label="Earnings per km (total)" value={loading ? "…" : formatPerKm(kpis?.earningsPerKmTotal)} />

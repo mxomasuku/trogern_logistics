@@ -62,10 +62,8 @@ export default function DriverProfile() {
   const [allVehicles, setAllVehicles] = useState<Vehicle[]>([]);
   const [loadingVehiclesList, setLoadingVehiclesList] = useState<boolean>(false);
 
-  // NEW: controls whether the picker is visible when driver is inactive/unassigned
   const [showPicker, setShowPicker] = useState<boolean>(false);
 
-  // Load driver
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -94,13 +92,11 @@ export default function DriverProfile() {
     return () => { cancelled = true; };
   }, [driverId, navigate]);
 
-  // Load income, incidents, vehicles list, assigned vehicle, and KPIs (if assigned & active)
   useEffect(() => {
     let cancelled = false;
     (async () => {
       if (!driver) return;
 
-      // Income
       try {
         setLoadingIncome(true);
         const result = await getIncomeLogsByDriverId(driver.id);
@@ -111,18 +107,15 @@ export default function DriverProfile() {
         if (!cancelled) setLoadingIncome(false);
       }
 
-      // Incidents
       try {
         setLoadingIncidents(true);
         const evts = await getDriverIncidents(driver.id!);
         if (!cancelled) setIncidents(evts || []);
       } catch {
-        /* ignore */
       } finally {
         if (!cancelled) setLoadingIncidents(false);
       }
 
-      // Vehicles list for the picker
       try {
         setLoadingVehiclesList(true);
         const vehicles = await getVehicles();
@@ -134,7 +127,6 @@ export default function DriverProfile() {
         if (!cancelled) setLoadingVehiclesList(false);
       }
 
-      // Assigned vehicle (if any)
       const vehicleId = (driver.assignedVehicleId ?? "").toString();
       if (vehicleId) {
         try {
@@ -151,14 +143,9 @@ export default function DriverProfile() {
         setVehicle(null);
       }
 
-      // Decide if picker should show by default (before any manual KPI run)
       const needsPicker = driver.status !== "active" || !driver.assignedVehicleId;
-      if (!cancelled) {
-        // If we already have KPIs (e.g., after user selected a vehicle), keep picker hidden
-        setShowPicker(needsPicker && !kpis);
-      }
+      if (!cancelled) setShowPicker(needsPicker && !kpis);
 
-      // KPIs for assigned vehicle (only if active + assigned)
       setKpiError(null);
       try {
         setLoadingKpis(true);
@@ -166,7 +153,7 @@ export default function DriverProfile() {
           const result = await getDriverKpis(driver.id!, vehicleId);
           if (!cancelled) {
             setKpis(result);
-            setShowPicker(false); // hide picker; we have KPIs for assigned vehicle
+            setShowPicker(false);
           }
         } else {
           if (!cancelled) setKpis(null);
@@ -187,7 +174,6 @@ export default function DriverProfile() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [driver]);
 
-  /** Let user run KPIs for any vehicle from the picker */
   async function runKpisFor(vehicleId: string) {
     if (!driver) return;
     setKpiError(null);
@@ -197,7 +183,7 @@ export default function DriverProfile() {
       setKpis(result);
       const v = await getVehicle(vehicleId).catch(() => null);
       setVehicle(v || null);
-      setShowPicker(false); // <-- HIDE PICKER after success
+      setShowPicker(false);
       toast.success("KPIs loaded");
     } catch (e: any) {
       const msg = e?.message || "Failed to load KPIs";
@@ -212,7 +198,6 @@ export default function DriverProfile() {
     }
   }
 
-  // Allow user to change vehicle (show picker again, clear KPIs)
   function onChangeVehicle() {
     setKpis(null);
     setKpiError(null);
@@ -222,9 +207,7 @@ export default function DriverProfile() {
   const shouldShowKpis =
     !!driver &&
     (
-      // If driver is active & has assigned, or
       (driver.status === "active" && !!driver.assignedVehicleId) ||
-      // if user manually picked a vehicle and KPIs were loaded:
       (!!kpis && !showPicker)
     );
 
@@ -233,14 +216,18 @@ export default function DriverProfile() {
   return (
     <div className="mx-auto max-w-6xl space-y-4">
       <div className="flex items-center gap-2">
-        <Button variant="ghost" onClick={() => navigate(-1)}>
+        <Button
+          variant="ghost"
+          onClick={() => navigate(-1)}
+          className="text-blue-700 hover:bg-blue-50 hover:text-blue-800"
+        >
           <ArrowLeft className="mr-2 h-4 w-4" /> Back
         </Button>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Driver Profile</CardTitle>
+      <Card className="border-0 shadow-none bg-white rounded-2xl ring-1 ring-black/5">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-xl font-semibold text-blue-700">Driver Profile</CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
           {loadingDriver ? (
@@ -252,7 +239,7 @@ export default function DriverProfile() {
           ) : (
             <>
               {/* Identity & Assignment */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <InfoCard
                   title="Identity"
                   rows={[
@@ -274,7 +261,7 @@ export default function DriverProfile() {
                 />
               </div>
 
-              {/* Vehicle picker (only when needed AND visible) */}
+              {/* Vehicle picker */}
               {needsPicker && showPicker && (
                 <VehiclePicker
                   loading={loadingVehiclesList}
@@ -283,9 +270,9 @@ export default function DriverProfile() {
                 />
               )}
 
-              {/* A little toolbar to show selected vehicle & allow changing */}
+              {/* Selected vehicle toolbar */}
               {needsPicker && !showPicker && (kpis || vehicle) && (
-                <div className="flex items-center justify-between rounded-lg border p-3">
+                <div className="flex items-center justify-between rounded-lg ring-1 ring-black/5 bg-white p-3">
                   <div className="text-sm">
                     Showing KPIs for:{" "}
                     <span className="font-medium">
@@ -301,7 +288,7 @@ export default function DriverProfile() {
               {/* KPI Section */}
               {shouldShowKpis ? (
                 kpiError ? (
-                  <Card>
+                  <Card className="border-0 shadow-none bg-white rounded-xl ring-1 ring-black/5">
                     <CardHeader className="pb-2">
                       <CardTitle>KPIs</CardTitle>
                     </CardHeader>
@@ -331,16 +318,7 @@ export default function DriverProfile() {
               ) : null}
 
               {/* Recent income logs */}
-              <div className="space-y-3">
-                <h3 className="text-sm font-medium text-muted-foreground">Recent Income</h3>
-                {loadingIncome ? (
-                  <div className="flex items-center justify-center py-6 text-sm text-muted-foreground">
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading income…
-                  </div>
-                ) : (
-                  <DriverIncomeLogs incomeLogs={incomeLogs} />
-                )}
-              </div>
+              <DriverIncomeLogs incomeLogs={incomeLogs} />
 
               {/* Incidents */}
               <IncidentsSection loading={loadingIncidents} incidents={incidents} />
