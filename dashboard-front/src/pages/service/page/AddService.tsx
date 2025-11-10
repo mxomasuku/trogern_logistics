@@ -1,3 +1,4 @@
+// src/pages/service/AddServicePage.tsx
 'use client';
 
 import { useEffect, useMemo, useState } from "react";
@@ -22,6 +23,17 @@ import { DialogFooter } from "@/components/ui/dialog";
 import { CircleDollarSign, ArrowLeft, Loader2, Search } from "lucide-react";
 import { toast } from "sonner";
 
+/* ---------- styles ---------- */
+function baseInputClasses() {
+  return [
+    "h-10 rounded-lg",
+    "border-0 bg-blue-50/60",
+    "text-gray-800 placeholder:text-blue-300",
+    "focus-visible:ring-2 focus-visible:ring-sky-400 focus-visible:ring-offset-0",
+  ].join(" ");
+}
+const labelCls = "mb-1 inline-block text-sm text-blue-900/80";
+
 /* Local lightweight types */
 type CatalogItem = {
   id?: string;
@@ -29,7 +41,6 @@ type CatalogItem = {
   value: string;
   expectedLifespanMileage: number | null;
   expectedLifespanDays: number | null;
-  // kind exists on backend but we only show the name here
   kind?: "consumable" | "labour" | "license" | "other";
 };
 
@@ -69,7 +80,11 @@ export default function AddServicePage() {
   const [catalogSearch, setCatalogSearch] = useState("");
 
   const serviceTotal = useMemo(
-    () => serviceItems.reduce((sum, it) => sum + (Number(it.cost) || 0) * (Number(it.quantity) || 0), 0),
+    () =>
+      serviceItems.reduce(
+        (sum, it) => sum + (Number(it.cost) || 0) * (Number(it.quantity) || 0),
+        0
+      ),
     [serviceItems]
   );
 
@@ -116,7 +131,6 @@ export default function AddServicePage() {
         if (cancelled) return;
 
         setSelectedVehicleId(rec.vehicleId ?? "");
-        // Backend returns ISO string; normalize for date input.
         setServiceDate(toDateInputValue(tsLikeToDate(rec.date)));
         setMechanicName(rec.mechanic ?? "");
         setServiceNotes(rec.notes ?? "");
@@ -138,31 +152,40 @@ export default function AddServicePage() {
       }
     })();
 
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [editId]);
 
   /* Catalog helpers */
   const filteredCatalog = useMemo(() => {
     const q = catalogSearch.trim().toLowerCase();
     if (!q) return catalog;
-    return catalog.filter((it) => `${it.name ?? ""} ${it.value ?? ""}`.toLowerCase().includes(q));
+    return catalog.filter((it) =>
+      `${it.name ?? ""} ${it.value ?? ""}`.toLowerCase().includes(q)
+    );
   }, [catalog, catalogSearch]);
 
   const isItemSelected = (it: CatalogItem) =>
-    serviceItems.some(li => li.name === it.name && (li.value ?? "") === (it.value ?? ""));
+    serviceItems.some(
+      (li) => li.name === it.name && (li.value ?? "") === (it.value ?? "")
+    );
 
   const toggleCatalogItem = (it: CatalogItem, checked: boolean) => {
     setServiceItems((prev) => {
-      const exists = prev.find(li => li.name === it.name && (li.value ?? "") === (it.value ?? ""));
+      const exists = prev.find(
+        (li) => li.name === it.name && (li.value ?? "") === (it.value ?? "")
+      );
       if (checked && !exists) {
-        // add a minimal line; user will fill in unit/qty/cost
         return [
           { name: it.name, unit: "", quantity: 1, cost: 0, value: it.value },
           ...prev,
         ];
       }
       if (!checked && exists) {
-        return prev.filter(li => !(li.name === it.name && (li.value ?? "") === (it.value ?? "")));
+        return prev.filter(
+          (li) => !(li.name === it.name && (li.value ?? "") === (it.value ?? ""))
+        );
       }
       return prev;
     });
@@ -170,10 +193,12 @@ export default function AddServicePage() {
 
   /* Line item helpers */
   const updateItemAtIndex = (index: number, patch: Partial<LineItem>) =>
-    setServiceItems(prev => prev.map((it, i) => (i === index ? { ...it, ...patch } : it)));
+    setServiceItems((prev) =>
+      prev.map((it, i) => (i === index ? { ...it, ...patch } : it))
+    );
 
   const removeItemAtIndex = (index: number) =>
-    setServiceItems(prev => prev.filter((_, i) => i !== index));
+    setServiceItems((prev) => prev.filter((_, i) => i !== index));
 
   /* Submit */
   const onSubmit = async () => {
@@ -219,7 +244,10 @@ export default function AddServicePage() {
       }
       navigate("/service/records");
     } catch (e: any) {
-      toast.error(e?.message ?? (editId ? "Failed to update service record" : "Failed to add service record"));
+      toast.error(
+        e?.message ??
+          (editId ? "Failed to update service record" : "Failed to add service record")
+      );
     } finally {
       setSubmitting(false);
     }
@@ -227,22 +255,30 @@ export default function AddServicePage() {
 
   /* UI */
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 mx-auto max-w-6xl">
+      {/* Back */}
       <div className="flex items-center gap-2">
-        <Button variant="ghost" onClick={() => navigate(-1)}>
+        <Button
+          variant="ghost"
+          onClick={() => navigate(-1)}
+          className="text-blue-700 hover:bg-blue-50 hover:text-blue-800"
+        >
           <ArrowLeft className="mr-2 h-4 w-4" /> Back
         </Button>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>{editId ? "Edit Service Record" : "Add Service Record"}</CardTitle>
+      {/* Shell */}
+      <Card className="border-0 shadow-none bg-white rounded-2xl ring-1 ring-black/5">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-xl font-semibold text-blue-700">
+            {editId ? "Edit Service Record" : "Add Service Record"}
+          </CardTitle>
         </CardHeader>
 
-        <CardContent className="space-y-6">
-          {/* Vehicle selector — simple radios, 3 per row, no borders */}
+        <CardContent className="space-y-8">
+          {/* Vehicle selector */}
           <div className="space-y-2">
-            <Label className="text-sm">Select Vehicle</Label>
+            <Label className={labelCls}>Select Vehicle</Label>
 
             {vehiclesLoading ? (
               <div className="flex items-center justify-center p-6 text-sm text-muted-foreground">
@@ -251,24 +287,31 @@ export default function AddServicePage() {
             ) : vehiclesError ? (
               <div className="p-2 text-sm text-red-600">{vehiclesError}</div>
             ) : vehicles.length === 0 ? (
-              <div className="p-2 text-sm text-muted-foreground">No active vehicles found.</div>
+              <div className="p-2 text-sm text-muted-foreground">
+                No active vehicles found.
+              </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-y-2 gap-x-4">
                 {vehicles.map((v) => {
                   const id = (v as any).id ?? v.plateNumber;
                   const selected = selectedVehicleId === id;
                   return (
-                    <label key={id} className="flex items-center gap-2 cursor-pointer select-none">
+                    <label
+                      key={id}
+                      className="flex items-center gap-2 cursor-pointer select-none"
+                    >
                       <input
                         type="radio"
                         name="vehicle"
-                        className="h-4 w-4 accent-primary"
+                        className="h-4 w-4 accent-sky-600"
                         checked={selected}
                         onChange={() => setSelectedVehicleId(id)}
                       />
                       <span className="text-sm">
-                        <span className="font-medium">{v.plateNumber}</span>{" "}
-                        <span className="text-muted-foreground">
+                        <span className="font-medium text-gray-800">
+                          {v.plateNumber}
+                        </span>{" "}
+                        <span className="text-blue-900/70">
                           {v.make} {v.model} {v.year ? `(${v.year})` : ""}
                         </span>
                       </span>
@@ -289,22 +332,44 @@ export default function AddServicePage() {
 
           {!prefilling && (
             <>
-              {/* Core fields — compact 3 per row (condition removed) */}
+              {/* Core fields */}
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                <Field label="Date" type="date" value={serviceDate} onChange={setServiceDate} required />
-                <Field label="Mechanic" value={mechanicName} onChange={setMechanicName} />
-                <Field label="Service Mileage (km)" type="number" value={serviceMileage} onChange={setServiceMileage} placeholder="e.g. 182340" required />
-                <Field label="Notes" value={serviceNotes} onChange={setServiceNotes} placeholder="optional" />
+                <Field
+                  label="Date"
+                  type="date"
+                  value={serviceDate}
+                  onChange={setServiceDate}
+                  required
+                />
+                <Field
+                  label="Mechanic"
+                  value={mechanicName}
+                  onChange={setMechanicName}
+                />
+                <Field
+                  label="Service Mileage (km)"
+                  type="number"
+                  value={serviceMileage}
+                  onChange={setServiceMileage}
+                  placeholder="e.g. 182340"
+                  required
+                />
+                <Field
+                  label="Notes"
+                  value={serviceNotes}
+                  onChange={setServiceNotes}
+                  placeholder="optional"
+                />
               </div>
 
-              {/* Catalog — simple checkboxes, 3 per row, name only, no borders */}
+              {/* Catalog */}
               <div className="space-y-2">
-                <Label className="text-sm">Add Items from Catalog</Label>
+                <Label className={labelCls}>Add Items from Catalog</Label>
 
                 <div className="relative md:w-96">
-                  <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Search className="absolute left-2 top-2.5 h-4 w-4 text-blue-300" />
                   <Input
-                    className="pl-8"
+                    className={`${baseInputClasses()} pl-8`}
                     placeholder="Search items…"
                     value={catalogSearch}
                     onChange={(e) => setCatalogSearch(e.target.value)}
@@ -316,21 +381,31 @@ export default function AddServicePage() {
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading items…
                   </div>
                 ) : filteredCatalog.length === 0 ? (
-                  <div className="p-2 text-sm text-muted-foreground">No items found.</div>
+                  <div className="p-2 text-sm text-muted-foreground">
+                    No items found.
+                  </div>
                 ) : (
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-y-2 gap-x-4">
                     {filteredCatalog.map((it) => {
                       const checked = isItemSelected(it);
                       const key = (it as any).id ?? `${it.name}-${it.value}`;
                       return (
-                        <label key={key} className="flex items-center gap-2 cursor-pointer select-none">
+                        <label
+                          key={key}
+                          className="flex items-center gap-2 cursor-pointer select-none"
+                        >
                           <input
                             type="checkbox"
-                            className="h-4 w-4 accent-primary"
+                            className="h-4 w-4 accent-sky-600"
                             checked={checked}
                             onChange={(e) => toggleCatalogItem(it, e.target.checked)}
                           />
-                          <span className="text-sm truncate" title={it.name}>{it.name}</span>
+                          <span
+                            className="text-sm truncate text-gray-800"
+                            title={it.name}
+                          >
+                            {it.name}
+                          </span>
                         </label>
                       );
                     })}
@@ -340,7 +415,7 @@ export default function AddServicePage() {
 
               {/* Editable line items */}
               <div className="space-y-2">
-                <div className="hidden md:grid grid-cols-12 gap-1 text-xs font-medium text-muted-foreground px-1 pb-1">
+                <div className="hidden md:grid grid-cols-12 gap-1 text-[11px] font-medium text-blue-900/70 px-1 pb-1">
                   <div className="col-span-4">Item</div>
                   <div className="col-span-2">Unit</div>
                   <div className="col-span-2">Qty</div>
@@ -349,52 +424,80 @@ export default function AddServicePage() {
                 </div>
 
                 {serviceItems.map((item, index) => {
-                  const lineTotal = (Number(item.cost) || 0) * (Number(item.quantity) || 0);
+                  const lineTotal =
+                    (Number(item.cost) || 0) * (Number(item.quantity) || 0);
                   return (
                     <div
                       key={index}
-                      className="grid grid-cols-2 md:grid-cols-12 gap-1 items-center rounded-md p-2"
+                      className="grid grid-cols-2 md:grid-cols-12 gap-2 items-center rounded-lg p-2 bg-white ring-1 ring-black/5"
                     >
                       <div className="col-span-2 md:col-span-4">
-                        <Label className="md:hidden text-xs text-muted-foreground">Item</Label>
+                        <Label className="md:hidden text-xs text-blue-900/70">
+                          Item
+                        </Label>
                         <Input
                           value={item.name}
-                          onChange={(e) => updateItemAtIndex(index, { name: e.target.value })}
+                          onChange={(e) =>
+                            updateItemAtIndex(index, { name: e.target.value })
+                          }
                           placeholder="Item"
+                          className={baseInputClasses()}
                         />
                       </div>
                       <div className="col-span-1 md:col-span-2">
-                        <Label className="md:hidden text-xs text-muted-foreground">Unit</Label>
+                        <Label className="md:hidden text-xs text-blue-900/70">
+                          Unit
+                        </Label>
                         <Input
                           value={item.unit}
-                          onChange={(e) => updateItemAtIndex(index, { unit: e.target.value })}
+                          onChange={(e) =>
+                            updateItemAtIndex(index, { unit: e.target.value })
+                          }
                           placeholder="each / litre / set"
+                          className={baseInputClasses()}
                         />
                       </div>
                       <div className="col-span-1 md:col-span-2">
-                        <Label className="md:hidden text-xs text-muted-foreground">Qty</Label>
+                        <Label className="md:hidden text-xs text-blue-900/70">
+                          Qty
+                        </Label>
                         <Input
                           type="number"
                           value={String(item.quantity ?? 1)}
                           min={1}
                           inputMode="numeric"
-                          onChange={(e) => updateItemAtIndex(index, { quantity: Number(e.target.value) })}
+                          onChange={(e) =>
+                            updateItemAtIndex(index, {
+                              quantity: Number(e.target.value),
+                            })
+                          }
+                          className={baseInputClasses()}
                         />
                       </div>
                       <div className="col-span-1 md:col-span-2">
-                        <Label className="md:hidden text-xs text-muted-foreground">Unit Cost</Label>
+                        <Label className="md:hidden text-xs text-blue-900/70">
+                          Unit Cost
+                        </Label>
                         <Input
                           type="number"
                           value={String(item.cost ?? 0)}
                           min={0}
                           step={0.01}
                           inputMode="decimal"
-                          onChange={(e) => updateItemAtIndex(index, { cost: Number(e.target.value) })}
+                          onChange={(e) =>
+                            updateItemAtIndex(index, {
+                              cost: Number(e.target.value),
+                            })
+                          }
+                          className={baseInputClasses()}
                         />
                       </div>
                       <div className="col-span-1 md:col-span-2 flex items-center justify-between md:justify-end gap-2">
-                        <div className="text-xs md:text-sm font-medium">
-                          {lineTotal.toLocaleString(undefined, { style: "currency", currency: "USD" })}
+                        <div className="text-xs md:text-sm font-semibold text-sky-800 bg-sky-50 rounded-md px-2 py-0.5">
+                          {lineTotal.toLocaleString(undefined, {
+                            style: "currency",
+                            currency: "USD",
+                          })}
                         </div>
                         <Button
                           size="icon"
@@ -412,7 +515,7 @@ export default function AddServicePage() {
                 })}
 
                 {serviceItems.length === 0 && (
-                  <div className="text-sm text-muted-foreground py-4 text-center">
+                  <div className="text-sm text-slate-500 py-4 text-center">
                     Tick items above to add them here.
                   </div>
                 )}
@@ -422,23 +525,35 @@ export default function AddServicePage() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <div className="md:col-span-2" />
                 <div className="flex md:justify-end items-center">
-                  <div className="w-full md:w-auto rounded-md border px-3 py-2 text-sm flex items-center justify-between md:justify-normal gap-2">
-                    <span className="flex items-center gap-2 text-muted-foreground">
+                  <div className="w-full md:w-auto rounded-lg bg-white ring-1 ring-black/5 px-3 py-2 text-sm flex items-center justify-between md:justify-normal gap-2">
+                    <span className="flex items-center gap-2 text-blue-900/70">
                       <CircleDollarSign className="h-4 w-4" />
                       Total
                     </span>
-                    <span className="font-semibold">
-                      {serviceTotal.toLocaleString(undefined, { style: "currency", currency: "USD" })}
+                    <span className="font-semibold text-gray-800">
+                      {serviceTotal.toLocaleString(undefined, {
+                        style: "currency",
+                        currency: "USD",
+                      })}
                     </span>
                   </div>
                 </div>
               </div>
 
               <DialogFooter className="mt-2">
-                <Button variant="ghost" onClick={() => navigate("/service")} disabled={submitting} className="w-full md:w-auto">
+                <Button
+                  variant="ghost"
+                  onClick={() => navigate("/service")}
+                  disabled={submitting}
+                  className="w-full md:w-auto text-blue-700 hover:bg-blue-50 hover:text-blue-800"
+                >
                   Cancel
                 </Button>
-                <Button onClick={onSubmit} disabled={submitting} className="w-full md:w-auto">
+                <Button
+                  onClick={onSubmit}
+                  disabled={submitting}
+                  className="w-full md:w-auto bg-gradient-to-r from-blue-500 via-sky-500 to-indigo-500 hover:from-blue-600 hover:via-sky-600 hover:to-indigo-600 text-white shadow-sm"
+                >
                   {submitting ? (
                     <>
                       <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Saving…
@@ -474,7 +589,7 @@ function Field({
 }) {
   return (
     <div>
-      <Label className="mb-1 inline-block text-sm">
+      <Label className={labelCls}>
         {label}
         {required && <span className="text-red-600"> *</span>}
       </Label>
@@ -483,7 +598,7 @@ function Field({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="h-10"
+        className={baseInputClasses()}
       />
     </div>
   );
