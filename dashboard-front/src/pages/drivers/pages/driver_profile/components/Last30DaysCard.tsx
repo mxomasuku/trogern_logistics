@@ -1,3 +1,4 @@
+// src/pages/drivers/components/Last30DaysCard.tsx
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Kpi } from "./Kpi";
 import type { DriverKpiResult } from "@/types/types";
@@ -9,9 +10,9 @@ function fmtMoney(n?: number | null, currency = "USD") {
 
 export function Last30DaysCard({ kpis, loading }: { kpis: DriverKpiResult | null; loading: boolean }) {
   return (
-    <Card>
+    <Card className="border-0 shadow-none bg-white rounded-xl ring-1 ring-black/5">
       <CardHeader className="pb-2">
-        <CardTitle>Last 30 days</CardTitle>
+        <CardTitle className="text-blue-700">Last 30 days</CardTitle>
       </CardHeader>
       <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <Kpi label="Income (gross)" value={loading ? "…" : fmtMoney(kpis?.income30dGross)} />

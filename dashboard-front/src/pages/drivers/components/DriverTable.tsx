@@ -1,5 +1,6 @@
 // src/pages/drivers/components/DriverTable.tsx
 import { useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { Pencil, Mail, Phone, IdCard } from "lucide-react";
 import type { Driver } from "@/types/types";
 import { Button } from "@/components/ui/button";
@@ -18,8 +19,9 @@ type Props = {
   onDelete: (id: string) => void;
 };
 
-export function DriverTable({ drivers, onEdit, onDelete }: Props) {
+export function DriverTable({ drivers, onEdit }: Props) {
   const rows = useMemo(() => drivers ?? [], [drivers]);
+  const navigate = useNavigate();
 
   return (
     <div className="rounded-xl bg-white ring-1 ring-black/5">
@@ -59,7 +61,8 @@ export function DriverTable({ drivers, onEdit, onDelete }: Props) {
               {rows.map((d) => (
                 <TableRow
                   key={d.id}
-                  className="odd:bg-slate-50 hover:bg-blue-50/70 transition-colors"
+                  onClick={() => navigate(`/drivers/profile?id=${d.id}`)} // 👈 restored click handler
+                  className="odd:bg-slate-50 hover:bg-blue-50/70 transition-colors cursor-pointer"
                 >
                   {/* Driver */}
                   <TableCell className="align-middle py-2 sm:py-3">
@@ -120,7 +123,10 @@ export function DriverTable({ drivers, onEdit, onDelete }: Props) {
                       </span>
 
                       {/* Actions for mobile */}
-                      <div className="sm:hidden flex items-center gap-1 ml-1">
+                      <div
+                        className="sm:hidden flex items-center gap-1 ml-1"
+                        onClick={(e) => e.stopPropagation()} // stops row click from firing
+                      >
                         <Button
                           variant="ghost"
                           size="icon"
@@ -136,7 +142,10 @@ export function DriverTable({ drivers, onEdit, onDelete }: Props) {
                   </TableCell>
 
                   {/* Actions (sm+) */}
-                  <TableCell className="hidden sm:table-cell align-middle py-2 sm:py-3">
+                  <TableCell
+                    className="hidden sm:table-cell align-middle py-2 sm:py-3"
+                    onClick={(e) => e.stopPropagation()} // prevent bubbling to row click
+                  >
                     <div className="flex justify-end gap-1 sm:gap-2">
                       <Button
                         variant="ghost"

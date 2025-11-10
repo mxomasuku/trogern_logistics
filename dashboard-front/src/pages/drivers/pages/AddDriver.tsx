@@ -1,7 +1,7 @@
 // src/pages/drivers/AddDriverPage.tsx
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { addDriver, updateDriver, getDrivers, type NewDriver} from "@/api/drivers";
+import { addDriver, updateDriver, getDrivers, type NewDriver } from "@/api/drivers";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -10,7 +10,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Loader2, ArrowLeft, Save } from "lucide-react";
 import { toast } from "sonner";
 import type { Driver } from "@/types/types";
-
 
 export default function AddDriver() {
   const navigate = useNavigate();
@@ -30,8 +29,6 @@ export default function AddDriver() {
   const [status, setStatus] = useState<NewDriver["status"]>("inactive");
   const [experienceYears, setExperienceYears] = useState<number>(0);
   const [assignedVehicleId, setAssignedVehicleId] = useState("");
-
-  // nested
   const [nextOfKinName, setNextOfKinName] = useState("");
   const [nextOfKinRelationship, setNextOfKinRelationship] = useState("");
   const [nextOfKinPhone, setNextOfKinPhone] = useState("");
@@ -47,7 +44,6 @@ export default function AddDriver() {
       if (!editId) return;
       setLoadingPrefill(true);
       try {
-        // If you later add getDriverById(editId), use that here.
         const list = await getDrivers();
         const found = list.find((d) => d.id === editId);
         if (!found) {
@@ -76,7 +72,6 @@ export default function AddDriver() {
     setContact(driver.contact ?? "");
     setEmail(driver.email ?? "");
     setAddress(driver.address ?? "");
-    // ensure date input gets YYYY-MM-DD
     setDob(driver.dob ? driver.dob.slice(0, 10) : "");
     setGender((driver.gender as NewDriver["gender"]) ?? "Male");
     setStatus((driver.status as NewDriver["status"]) ?? "inactive");
@@ -144,16 +139,23 @@ export default function AddDriver() {
   return (
     <div className="mx-auto max-w-5xl space-y-4">
       <div className="flex items-center gap-2">
-        <Button variant="ghost" onClick={() => navigate(-1)}>
+        <Button
+          variant="ghost"
+          onClick={() => navigate(-1)}
+          className="text-blue-700 hover:bg-blue-50 hover:text-blue-800"
+        >
           <ArrowLeft className="mr-2 h-4 w-4" /> Back
         </Button>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>{editId ? "Edit Driver" : "Add Driver"}</CardTitle>
+      <Card className="border-0 shadow-none bg-white rounded-2xl ring-1 ring-black/5">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-xl font-semibold text-blue-700">
+            {editId ? "Edit Driver" : "Add Driver"}
+          </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-6">
+
+        <CardContent className="space-y-8">
           {loadingPrefill ? (
             <div className="flex items-center justify-center py-12 text-sm text-muted-foreground">
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -189,7 +191,12 @@ export default function AddDriver() {
               {/* Assignment & Status */}
               <Section title="Assignment & Status">
                 <Grid two>
-                  <TextField label="Assigned vehicle" value={assignedVehicleId} onChange={setAssignedVehicleId} placeholder="plate or id" />
+                  <TextField
+                    label="Assigned vehicle"
+                    value={assignedVehicleId}
+                    onChange={setAssignedVehicleId}
+                    placeholder="plate or id"
+                  />
                   <SelectField
                     label="Status"
                     value={status}
@@ -213,10 +220,19 @@ export default function AddDriver() {
               </Section>
 
               <div className="flex justify-end gap-2">
-                <Button variant="ghost" onClick={() => navigate("/drivers")} disabled={saving}>
+                <Button
+                  variant="ghost"
+                  onClick={() => navigate("/drivers")}
+                  disabled={saving}
+                  className="text-blue-700 hover:bg-blue-50 hover:text-blue-800"
+                >
                   Cancel
                 </Button>
-                <Button onClick={handleSave} disabled={saving}>
+                <Button
+                  onClick={handleSave}
+                  disabled={saving}
+                  className="bg-gradient-to-r from-blue-500 via-sky-500 to-indigo-500 hover:from-blue-600 hover:via-sky-600 hover:to-indigo-600 text-white shadow-sm"
+                >
                   {saving ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving…
@@ -241,7 +257,7 @@ export default function AddDriver() {
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="space-y-3">
-      <h3 className="text-sm font-medium text-muted-foreground">{title}</h3>
+      <h3 className="text-xs font-medium text-blue-700/80 tracking-wide">{title}</h3>
       {children}
     </div>
   );
@@ -262,6 +278,12 @@ function Grid({
   return <div className={`grid grid-cols-1 ${cols} gap-4`}>{children}</div>;
 }
 
+function baseInputClasses() {
+  // subtle blue surfaces, no heavy borders, crisp focus ring
+  return "h-10 rounded-lg border-0 bg-blue-50/60 text-blue-950 placeholder:text-blue-300 " +
+         "focus-visible:ring-2 focus-visible:ring-sky-400 focus-visible:ring-offset-0";
+}
+
 function TextField({
   label,
   value,
@@ -278,12 +300,18 @@ function TextField({
   required?: boolean;
 }) {
   return (
-    <div>
-      <Label className="mb-1 inline-block">
+    <div className="space-y-1">
+      <Label className="text-sm text-blue-900/80">
         {label}
         {required && <span className="text-red-600"> *</span>}
       </Label>
-      <Input type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} />
+      <Input
+        type={type}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        className={baseInputClasses()}
+      />
     </div>
   );
 }
@@ -306,8 +334,8 @@ function NumberField({
   required?: boolean;
 }) {
   return (
-    <div>
-      <Label className="mb-1 inline-block">
+    <div className="space-y-1">
+      <Label className="text-sm text-blue-900/80">
         {label}
         {required && <span className="text-red-600"> *</span>}
       </Label>
@@ -318,11 +346,11 @@ function NumberField({
         min={min}
         max={max}
         step={step}
+        className={baseInputClasses()}
       />
     </div>
   );
 }
-
 function SelectField<T extends string>({
   label,
   value,
@@ -335,15 +363,33 @@ function SelectField<T extends string>({
   items: T[];
 }) {
   return (
-    <div>
-      <Label className="mb-1 inline-block">{label}</Label>
+    <div className="space-y-1">
+      <Label className="text-sm text-blue-900/80">{label}</Label>
       <Select value={value} onValueChange={onValueChange}>
-        <SelectTrigger>
+        {/* keep trigger as-is, or make it solid by swapping bg-blue-50/60 -> bg-white */}
+        <SelectTrigger className={baseInputClasses().replace("bg-blue-50/60", "bg-white")}>
           <SelectValue placeholder="Select…" />
         </SelectTrigger>
-        <SelectContent>
+
+        {/* solid, non-transparent dropdown */}
+        <SelectContent
+          className="
+            bg-white text-blue-950
+            border-0 ring-1 ring-black/5 shadow-xl
+            backdrop-blur-0
+            rounded-lg
+          "
+        >
           {items.map((opt) => (
-            <SelectItem key={opt} value={opt} className="capitalize">
+            <SelectItem
+              key={opt}
+              value={opt}
+              className="
+                capitalize
+                focus:bg-blue-50 focus:text-blue-900
+                data-[state=checked]:bg-blue-100 data-[state=checked]:text-blue-900
+              "
+            >
               {opt}
             </SelectItem>
           ))}

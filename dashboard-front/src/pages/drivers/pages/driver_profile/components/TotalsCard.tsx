@@ -1,3 +1,4 @@
+// src/pages/drivers/components/TotalsCard.tsx
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Kpi } from "./Kpi";
 import type { DriverKpiResult } from "@/types/types";
@@ -9,9 +10,9 @@ function fmtMoney(n?: number | null, currency = "USD") {
 
 export function TotalsCard({ kpis, loading }: { kpis: DriverKpiResult | null; loading: boolean }) {
   return (
-    <Card>
+    <Card className="border-0 shadow-none bg-white rounded-xl ring-1 ring-black/5">
       <CardHeader className="pb-2">
-        <CardTitle>Totals</CardTitle>
+        <CardTitle className="text-blue-700">Totals</CardTitle>
       </CardHeader>
       <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <Kpi label="Total net" value={loading ? "…" : fmtMoney(kpis?.totalNet)} />
