@@ -1,29 +1,51 @@
-// src/pages/drivers/DriverProfile.tsx
+// src/pages/drivers/pages/DriverProfile.tsx
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
-  ArrowLeft, Loader2, Mail, Phone, User, Car, IdCard, MapPin, BadgeCheck, Activity
+  ArrowLeft, Loader2, Mail, Phone, User, Car, IdCard, MapPin, BadgeCheck, Activity,
 } from "lucide-react";
 import { toast } from "sonner";
-import { getIncomeLogsByDriverId } from "@/api/income";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 
-import type { Driver, IncomeLog, Vehicle } from "@/types/types";
+// APIs
 import { getDrivers } from "@/api/drivers";
-import { getVehicle, getVehicles } from "@/api/vehicles";
+import { getIncomeLogsByDriverId } from "@/api/income";
+import { getVehicles, getVehicle } from "@/api/vehicles";
 import { getDriverKpis } from "@/api/kpis";
+
+// UI
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+
+// Types
+import type { Driver, IncomeLog, Vehicle } from "@/types/types";
 import type { DriverKpiResult } from "@/types/types";
 
+// Local shared components (drivers/pages/components)
+import { DriverHeader } from "./components/DriverHeader";
+import { DriverKpiLayout } from "./components/DriverKpiLayout";
+
+// KPI cards (drivers/pages/components/cards)
+import {
+  TotalsCard,
+  Last30DaysCard,
+  AveragesCard,
+  PerKmCard,
+  RawVehicleDataCard,
+} from "./components/cards";
+
+// Reused existing driver components (keep your originals/paths)
 import { InfoCard } from "./components/InfoCard";
-import { RawVehicleDataCard } from "./components/RawVehicleDataCard";
-import { TotalsCard } from "./components/TotalsCard";
-import { Last30DaysCard } from "./components/Last30DaysCard";
-import { PerKmCard } from "./components/PerKmCard";
-import { AveragesCard } from "./components/AveragesCard";
-import { IncidentsSection, type DriverIncident } from "./components/IncidentsSection";
 import { VehiclePicker } from "./components/VehiclePicker";
 import DriverIncomeLogs from "./components/DriverIncomeLogs";
+import { IncidentsSection, type DriverIncident } from "./components/IncidentsSection";
+
+// -----------------------------------------------------------------------------
+// Helpers
+
+function useQueryId() {
+  const { search } = useLocation();
+  return useMemo(() => new URLSearchParams(search).get("id") ?? "", [search]);
+}
 
 async function getDriverIncidents(driverId: string): Promise<DriverIncident[]> {
   try {
@@ -31,41 +53,44 @@ async function getDriverIncidents(driverId: string): Promise<DriverIncident[]> {
     if (!res.ok) return [];
     const json = await res.json();
     if (!json?.isSuccessful) return [];
-    return json.data as DriverIncident[];
+    return (json.data ?? []) as DriverIncident[];
   } catch {
     return [];
   }
 }
 
+// -----------------------------------------------------------------------------
+// Main
+
 export default function DriverProfile() {
   const navigate = useNavigate();
-  const { search } = useLocation();
-  const params = useMemo(() => new URLSearchParams(search), [search]);
-  const driverId = params.get("id");
+  const driverId = useQueryId();
 
   const [driver, setDriver] = useState<Driver | null>(null);
-  const [loadingDriver, setLoadingDriver] = useState<boolean>(true);
+  const [loadingDriver, setLoadingDriver] = useState(true);
 
   const [incomeLogs, setIncomeLogs] = useState<IncomeLog[]>([]);
-  const [loadingIncome, setLoadingIncome] = useState<boolean>(true);
+  const [loadingIncome, setLoadingIncome] = useState(true);
 
   const [incidents, setIncidents] = useState<DriverIncident[]>([]);
-  const [loadingIncidents, setLoadingIncidents] = useState<boolean>(true);
+  const [loadingIncidents, setLoadingIncidents] = useState(true);
 
   const [kpis, setKpis] = useState<DriverKpiResult | null>(null);
-  const [loadingKpis, setLoadingKpis] = useState<boolean>(true);
+  const [loadingKpis, setLoadingKpis] = useState(true);
   const [kpiError, setKpiError] = useState<string | null>(null);
 
   const [vehicle, setVehicle] = useState<Vehicle | null>(null);
-  const [loadingVehicle, setLoadingVehicle] = useState<boolean>(false);
+  const [loadingVehicle, setLoadingVehicle] = useState(false);
 
   const [allVehicles, setAllVehicles] = useState<Vehicle[]>([]);
-  const [loadingVehiclesList, setLoadingVehiclesList] = useState<boolean>(false);
+  const [loadingVehiclesList, setLoadingVehiclesList] = useState(false);
 
-  const [showPicker, setShowPicker] = useState<boolean>(false);
+  // show picker if driver inactive or unassigned
+  const [showPicker, setShowPicker] = useState(false);
 
+  // Load driver shell
   useEffect(() => {
-    let cancelled = false;
+    let dead = false;
     (async () => {
       try {
         if (!driverId) {
@@ -75,102 +100,108 @@ export default function DriverProfile() {
         }
         setLoadingDriver(true);
         const list = await getDrivers();
-        const found = list.find((d) => d.id === driverId);
+        if (dead) return;
+        const found = list.find((d) => d.id === driverId) ?? null;
         if (!found) {
           toast.error("Driver not found");
           navigate("/drivers");
           return;
         }
-        if (!cancelled) setDriver(found);
+        setDriver(found);
       } catch (e: any) {
         toast.error(e?.message ?? "Failed to load driver");
         navigate("/drivers");
       } finally {
-        if (!cancelled) setLoadingDriver(false);
+        if (!dead) setLoadingDriver(false);
       }
     })();
-    return () => { cancelled = true; };
+    return () => { dead = true; };
   }, [driverId, navigate]);
 
+  // Once driver known, load deps
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      if (!driver) return;
+    if (!driver) return;
+    let dead = false;
 
+    (async () => {
+      // income logs
       try {
         setLoadingIncome(true);
-        const result = await getIncomeLogsByDriverId(driver.id);
-        if (!cancelled) setIncomeLogs(result);
+        const logs = await getIncomeLogsByDriverId(driver.id);
+        if (!dead) setIncomeLogs(logs);
       } catch (e: any) {
-        toast.error(e?.message ?? "Failed to load income");
+        !dead && toast.error(e?.message ?? "Failed to load income");
       } finally {
-        if (!cancelled) setLoadingIncome(false);
+        !dead && setLoadingIncome(false);
       }
 
+      // incidents
       try {
         setLoadingIncidents(true);
-        const evts = await getDriverIncidents(driver.id!);
-        if (!cancelled) setIncidents(evts || []);
-      } catch {
+        const evts = await getDriverIncidents(driver.id);
+        if (!dead) setIncidents(evts);
       } finally {
-        if (!cancelled) setLoadingIncidents(false);
+        !dead && setLoadingIncidents(false);
       }
 
+      // vehicle list for picker
       try {
         setLoadingVehiclesList(true);
-        const vehicles = await getVehicles();
-        if (!cancelled) setAllVehicles(vehicles || []);
-      } catch (e: any) {
-        console.warn("Failed to load vehicles list:", e);
-        if (!cancelled) setAllVehicles([]);
+        const vs = await getVehicles();
+        if (!dead) setAllVehicles(vs || []);
+      } catch {
+        !dead && setAllVehicles([]);
       } finally {
-        if (!cancelled) setLoadingVehiclesList(false);
+        !dead && setLoadingVehiclesList(false);
       }
 
-      const vehicleId = (driver.assignedVehicleId ?? "").toString();
-      if (vehicleId) {
+      // assigned vehicle (if any)
+      const vId = (driver.assignedVehicleId ?? "").toString();
+      if (vId) {
         try {
           setLoadingVehicle(true);
-          const v = await getVehicle(vehicleId);
-          if (!cancelled) setVehicle(v || null);
-        } catch (e: any) {
-          console.warn("Vehicle load failed:", e);
-          if (!cancelled) setVehicle(null);
+          const v = await getVehicle(vId);
+          if (!dead) setVehicle(v || null);
+        } catch {
+          !dead && setVehicle(null);
         } finally {
-          if (!cancelled) setLoadingVehicle(false);
+          !dead && setLoadingVehicle(false);
         }
       } else {
-        setVehicle(null);
+        !dead && setVehicle(null);
       }
 
+      // decide initial picker
       const needsPicker = driver.status !== "active" || !driver.assignedVehicleId;
-      if (!cancelled) setShowPicker(needsPicker && !kpis);
+      if (!dead) setShowPicker(needsPicker && !kpis);
 
+      // preload KPIs if active + assigned
       setKpiError(null);
       try {
         setLoadingKpis(true);
-        if (vehicleId && driver.status === "active") {
-          const result = await getDriverKpis(driver.id!, vehicleId);
-          if (!cancelled) {
-            setKpis(result);
+        if (vId && driver.status === "active") {
+          const res = await getDriverKpis(driver.id, vId);
+          if (!dead) {
+            setKpis(res);
             setShowPicker(false);
           }
         } else {
-          if (!cancelled) setKpis(null);
+          !dead && setKpis(null);
         }
       } catch (e: any) {
-        const message = e?.message || "";
-        if (message.toLowerCase().includes("no income logs")) {
-          setKpiError("No income logs to compute KPI. Driver never used this vehicle.");
+        const msg = e?.message ?? "";
+        if (msg.toLowerCase().includes("no income")) {
+          !dead && setKpiError("No income logs to compute KPI. Driver never used this vehicle.");
         } else {
-          toast.error(message || "Failed to load KPIs");
+          !dead && toast.error(msg || "Failed to load KPIs");
         }
-        if (!cancelled) setKpis(null);
+        !dead && setKpis(null);
       } finally {
-        if (!cancelled) setLoadingKpis(false);
+        !dead && setLoadingKpis(false);
       }
     })();
-    return () => { cancelled = true; };
+
+    return () => { dead = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [driver]);
 
@@ -179,15 +210,15 @@ export default function DriverProfile() {
     setKpiError(null);
     setLoadingKpis(true);
     try {
-      const result = await getDriverKpis(driver.id!, vehicleId);
-      setKpis(result);
+      const res = await getDriverKpis(driver.id, vehicleId);
+      setKpis(res);
       const v = await getVehicle(vehicleId).catch(() => null);
       setVehicle(v || null);
       setShowPicker(false);
       toast.success("KPIs loaded");
     } catch (e: any) {
       const msg = e?.message || "Failed to load KPIs";
-      if (msg.toLowerCase().includes("no income logs")) {
+      if (msg.toLowerCase().includes("no income")) {
         setKpiError("No income logs to compute KPI. Driver never used this vehicle.");
       } else {
         toast.error(msg);
@@ -206,126 +237,156 @@ export default function DriverProfile() {
 
   const shouldShowKpis =
     !!driver &&
-    (
-      (driver.status === "active" && !!driver.assignedVehicleId) ||
-      (!!kpis && !showPicker)
-    );
+    ((driver.status === "active" && !!driver.assignedVehicleId) || (!!kpis && !showPicker));
 
   const needsPicker = !!driver && (driver.status !== "active" || !driver.assignedVehicleId);
 
+  // ---------------------------------------------------------------------------
+
+  if (loadingDriver) {
+    return (
+      <div className="mx-auto max-w-6xl space-y-4">
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            onClick={() => navigate(-1)}
+            className="text-blue-700 hover:bg-blue-50"
+          >
+            <ArrowLeft className="mr-2 h-4 w-4" /> Back
+          </Button>
+        </div>
+        <div className="flex justify-center py-16">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        </div>
+      </div>
+    );
+  }
+
+  if (!driver) {
+    return (
+      <div className="mx-auto max-w-6xl space-y-4">
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            onClick={() => navigate("/drivers")}
+            className="text-blue-700 hover:bg-blue-50"
+          >
+            <ArrowLeft className="mr-2 h-4 w-4" /> Back
+          </Button>
+        </div>
+        <Card className="bg-white border-0 shadow-none ring-1 ring-black/5 rounded-2xl">
+          <CardContent className="py-10 text-center text-sm text-muted-foreground">
+            Driver not found.
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="mx-auto max-w-6xl space-y-4">
-      <div className="flex items-center gap-2">
-        <Button
-          variant="ghost"
-          onClick={() => navigate(-1)}
-          className="text-blue-700 hover:bg-blue-50 hover:text-blue-800"
-        >
-          <ArrowLeft className="mr-2 h-4 w-4" /> Back
-        </Button>
+      {/* Header */}
+      <DriverHeader
+        name={driver.name ?? "Driver"}
+        status={driver.status}
+        vehicleId={driver.assignedVehicleId ?? null}
+        onBack={() => navigate(-1)}
+      />
+
+      {/* Identity & Assignment */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <InfoCard
+            title="Identity"
+            rows={[
+              { icon: <User className="h-4 w-4" />, label: "Name", value: driver.name },
+              { icon: <Phone className="h-4 w-4" />, label: "Contact", value: driver.contact || "—" },
+              { icon: <Mail className="h-4 w-4" />, label: "Email", value: driver.email || "—" },
+              { icon: <IdCard className="h-4 w-4" />, label: "License", value: driver.licenseNumber || "—" },
+              { icon: <MapPin className="h-4 w-4" />, label: "Address", value: driver.address || "—" },
+            ]}
+        />
+        <InfoCard
+            title="Assignment"
+            rows={[
+              { icon: <Car className="h-4 w-4" />, label: "Vehicle", value: driver.assignedVehicleId || "—" },
+              { icon: <BadgeCheck className="h-4 w-4" />, label: "Status", value: driver.status || "—" },
+              { icon: <Activity className="h-4 w-4" />, label: "Experience (yrs)", value: String(driver.experienceYears ?? "—") },
+              { icon: <User className="h-4 w-4" />, label: "Next of kin", value: driver.nextOfKin?.name || "—" },
+            ]}
+        />
       </div>
 
-      <Card className="border-0 shadow-none bg-white rounded-2xl ring-1 ring-black/5">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-xl font-semibold text-blue-700">Driver Profile</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          {loadingDriver ? (
-            <div className="flex items-center justify-center py-10 text-sm text-muted-foreground">
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading driver…
-            </div>
-          ) : !driver ? (
-            <div className="text-sm text-muted-foreground">Driver not found.</div>
-          ) : (
-            <>
-              {/* Identity & Assignment */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <InfoCard
-                  title="Identity"
-                  rows={[
-                    { icon: <User className="h-4 w-4" />, label: "Name", value: driver.name },
-                    { icon: <Phone className="h-4 w-4" />, label: "Contact", value: driver.contact || "—" },
-                    { icon: <Mail className="h-4 w-4" />, label: "Email", value: driver.email || "—" },
-                    { icon: <IdCard className="h-4 w-4" />, label: "License", value: driver.licenseNumber || "—" },
-                    { icon: <MapPin className="h-4 w-4" />, label: "Address", value: driver.address || "—" },
-                  ]}
-                />
-                <InfoCard
-                  title="Assignment"
-                  rows={[
-                    { icon: <Car className="h-4 w-4" />, label: "Vehicle", value: driver.assignedVehicleId || "—" },
-                    { icon: <BadgeCheck className="h-4 w-4" />, label: "Status", value: driver.status || "—" },
-                    { icon: <Activity className="h-4 w-4" />, label: "Experience (yrs)", value: String(driver.experienceYears ?? "—") },
-                    { icon: <User className="h-4 w-4" />, label: "Next of kin", value: driver.nextOfKin?.name || "—" },
-                  ]}
-                />
-              </div>
+      {/* Show vehicle picker if needed */}
+      {needsPicker && showPicker && (
+        <VehiclePicker
+          loading={loadingVehiclesList}
+          vehicles={allVehicles}
+          onPick={runKpisFor}
+        />
+      )}
 
-              {/* Vehicle picker */}
-              {needsPicker && showPicker && (
-                <VehiclePicker
-                  loading={loadingVehiclesList}
-                  vehicles={allVehicles}
-                  onPick={runKpisFor}
-                />
-              )}
+      {/* Selected-vehicle toolbar when KPIs loaded via picker */}
+      {needsPicker && !showPicker && (kpis || vehicle) && (
+        <div className="flex items-center justify-between rounded-lg border border-gray-200/70 bg-white p-3">
+          <div className="text-sm">
+            Showing KPIs for:{" "}
+            <span className="font-medium">
+              {vehicle?.plateNumber || kpis?.vehicleId || "Selected vehicle"}
+            </span>
+          </div>
+          <Button size="sm" variant="secondary" onClick={onChangeVehicle}>
+            Change vehicle
+          </Button>
+        </div>
+      )}
 
-              {/* Selected vehicle toolbar */}
-              {needsPicker && !showPicker && (kpis || vehicle) && (
-                <div className="flex items-center justify-between rounded-lg ring-1 ring-black/5 bg-white p-3">
-                  <div className="text-sm">
-                    Showing KPIs for:{" "}
-                    <span className="font-medium">
-                      {vehicle?.plateNumber || kpis?.vehicleId || "Selected vehicle"}
-                    </span>
-                  </div>
-                  <Button size="sm" variant="secondary" onClick={onChangeVehicle}>
-                    Change vehicle
-                  </Button>
-                </div>
-              )}
+      {/* KPI section */}
+      {shouldShowKpis ? (
+        kpiError ? (
+          <Card className="bg-white border-0 shadow-none ring-1 ring-black/5 rounded-2xl">
+            <CardHeader className="pb-2"><CardTitle>KPIs</CardTitle></CardHeader>
+            <CardContent className="text-sm text-muted-foreground">{kpiError}</CardContent>
+          </Card>
+        ) : loadingKpis ? (
+          <div className="flex items-center justify-center py-10 text-sm text-muted-foreground">
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading KPIs…
+          </div>
+        ) : kpis ? (
+          <>
+            {/* Data sanity banner & raw facts */}
+            <RawVehicleDataCard
+              loadingKpis={false}
+              loadingVehicle={loadingVehicle}
+              driverVehicleId={driver.assignedVehicleId}
+              kpis={kpis}
+              vehicle={vehicle}
+            />
 
-              {/* KPI Section */}
-              {shouldShowKpis ? (
-                kpiError ? (
-                  <Card className="border-0 shadow-none bg-white rounded-xl ring-1 ring-black/5">
-                    <CardHeader className="pb-2">
-                      <CardTitle>KPIs</CardTitle>
-                    </CardHeader>
-                    <CardContent className="text-sm text-muted-foreground">
-                      {kpiError}
-                    </CardContent>
-                  </Card>
-                ) : loadingKpis ? (
-                  <div className="flex items-center justify-center py-10 text-sm text-muted-foreground">
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading KPIs…
-                  </div>
-                ) : kpis ? (
-                  <>
-                    <RawVehicleDataCard
-                      loadingKpis={false}
-                      loadingVehicle={loadingVehicle}
-                      driverVehicleId={driver.assignedVehicleId}
-                      kpis={kpis}
-                      vehicle={vehicle}
-                    />
-                    <TotalsCard kpis={kpis} loading={false} />
-                    <Last30DaysCard kpis={kpis} loading={false} />
-                    <PerKmCard kpis={kpis} loading={false} />
-                    <AveragesCard kpis={kpis} loading={false} />
-                  </>
-                ) : null
-              ) : null}
+            {/* KPI grid (same responsive behavior as VehicleProfile) */}
+            <DriverKpiLayout cols="md:grid-cols-2 xl:grid-cols-2" className="mt-2">
+              <TotalsCard kpis={kpis} loading={false} />
+              <Last30DaysCard kpis={kpis} loading={false} />
+              <AveragesCard kpis={kpis} loading={false} />
+              <PerKmCard kpis={kpis} loading={false} />
+            </DriverKpiLayout>
+          </>
+        ) : null
+      ) : null}
 
-              {/* Recent income logs */}
-              <DriverIncomeLogs incomeLogs={incomeLogs} />
+      {/* Recent Income */}
+      <div className="space-y-3">
 
-              {/* Incidents */}
-              <IncidentsSection loading={loadingIncidents} incidents={incidents} />
-            </>
-          )}
-        </CardContent>
-      </Card>
+        {loadingIncome ? (
+          <div className="flex items-center justify-center py-6 text-sm text-muted-foreground">
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading income…
+          </div>
+        ) : (
+          <DriverIncomeLogs incomeLogs={incomeLogs} />
+        )}
+      </div>
+
+      {/* Incidents */}
+      <IncidentsSection loading={loadingIncidents} incidents={incidents} />
     </div>
   );
 }

@@ -33,14 +33,14 @@ const DriverIncomeLogs = ({
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <Table className="min-w-[720px]">
+            <Table className="min-w-[700px]">
               <TableHeader>
                 <TableRow>
                   <TableHead>Cash date</TableHead>
                   <TableHead className="text-right">Amount</TableHead>
                   <TableHead className="text-right">Week-end km</TableHead>
                   <TableHead>Vehicle</TableHead>
-                  <TableHead>Note</TableHead>
+                
                 </TableRow>
               </TableHeader>
               <TableBody className="divide-y divide-slate-100 [&>*:nth-child(odd)]:bg-slate-50/40">
@@ -70,9 +70,7 @@ const DriverIncomeLogs = ({
                       <TableCell className="truncate max-w-[160px]" title={row.vehicle}>
                         {row.vehicle || "—"}
                       </TableCell>
-                      <TableCell className="truncate max-w-[240px]" title={row.note || ""}>
-                        {row.note || "—"}
-                      </TableCell>
+                   
                     </TableRow>
                   );
                 })}

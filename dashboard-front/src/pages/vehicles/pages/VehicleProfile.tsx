@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+// src/pages/vehicles/VehicleProfile.tsx
+import { useEffect, useMemo, useState, useDeferredValue } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowLeft, Loader2, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 
-// API
+// APIs
 import { getVehicle } from "@/api/vehicles";
 import { getServiceRecordsForVehicle } from "@/api/service";
 import { getIncomeLogsForVehicle } from "@/api/income";
@@ -11,15 +12,29 @@ import { getVehicleKpis } from "@/api/kpis";
 
 // UI
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+import { Card, CardContent } from "@/components/ui/card";
+
+// Shared local UI
+import { VehicleHeader } from "./components/VehicleHeader";
+import { VehicleKpiLayout } from "./components/VehicleKpiLayout";
+import { FilterBar } from "./components/FilterBar";
+
+// KPI cards (already created)
+import {
+  OverviewCard,
+  Financial30dCard,
+  FinancialLifetimeCard,
+  Operations30dCard,
+  MaintenanceCard,
+} from "./components/cards";
+
+// Tables
+import VehicleServiceLogs from "../components/VehicleServiceLogs";
+import VehicleIncomeLogs from "../components/VehicleIncomeLogs";
 
 // Types & utils
 import type { Vehicle, IncomeLog, ServiceRecord, VehicleKpiResponse } from "@/types/types";
-import { toJsDate, fmtDate } from "@/lib/utils";
-
-import VehicleServiceLogs from "../components/VehicleServiceLogs";
-import VehicleIncomeLogs from "../components/VehicleIncomeLogs";
+import { toJsDate } from "@/lib/utils";
 
 // -----------------------------------------------------------------------------
 // Hook: read ?id=...
@@ -29,23 +44,23 @@ function useQueryId() {
 }
 
 // -----------------------------------------------------------------------------
-// Hooks: Data & KPIs
-
+// Hook: Data loader
 function useVehicleProfileData(vehicleId: string) {
   const navigate = useNavigate();
   const [vehicle, setVehicle] = useState<Vehicle | null>(null);
   const [serviceRecords, setServiceRecords] = useState<(ServiceRecord & { id: string })[]>([]);
   const [incomeLogs, setIncomeLogs] = useState<IncomeLog[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       if (!vehicleId) {
-        toast.error("Vehicle id missing");
+        toast.error("Vehicle ID missing");
         navigate("/vehicles");
         return;
       }
+
       try {
         setLoading(true);
         const v = await getVehicle(vehicleId);
@@ -53,19 +68,14 @@ function useVehicleProfileData(vehicleId: string) {
         setVehicle(v);
 
         const [svc, inc] = await Promise.all([
-          getServiceRecordsForVehicle(vehicleId).catch((e: unknown) => {
-            console.warn("Service load failed:", e);
-            return [] as any[];
-          }),
-          getIncomeLogsForVehicle(vehicleId).catch((e: unknown) => {
-            console.warn("Income load failed:", e);
-            return [] as any[];
-          }),
+          getServiceRecordsForVehicle(vehicleId).catch(() => [] as any[]),
+          getIncomeLogsForVehicle(vehicleId).catch(() => [] as any[]),
         ]);
-        if (cancelled) return;
 
-        setServiceRecords(Array.isArray(svc) ? (svc as any) : []);
-        setIncomeLogs(Array.isArray(inc) ? (inc as any) : []);
+        if (!cancelled) {
+          setServiceRecords(Array.isArray(svc) ? (svc as any) : []);
+          setIncomeLogs(Array.isArray(inc) ? (inc as any) : []);
+        }
       } catch (e: any) {
         toast.error(e?.message ?? "Failed to load vehicle profile");
         navigate("/vehicles");
@@ -73,6 +83,7 @@ function useVehicleProfileData(vehicleId: string) {
         if (!cancelled) setLoading(false);
       }
     })();
+
     return () => {
       cancelled = true;
     };
@@ -81,6 +92,8 @@ function useVehicleProfileData(vehicleId: string) {
   return { vehicle, serviceRecords, incomeLogs, loading } as const;
 }
 
+// -----------------------------------------------------------------------------
+// Hook: KPIs
 function useVehicleKpis(vehicleId: string) {
   const [kpis, setKpis] = useState<VehicleKpiResponse | null>(null);
   const [kpisLoading, setKpisLoading] = useState(true);
@@ -92,17 +105,19 @@ function useVehicleKpis(vehicleId: string) {
       if (!vehicleId) return;
       try {
         setKpisLoading(true);
+        setKpisError(null);
         const data = await getVehicleKpis(vehicleId);
-        if (cancelled) return;
-        setKpis(data);
+        if (!cancelled) setKpis(data);
       } catch (e: any) {
-        if (cancelled) return;
-        console.warn("KPIs load failed:", e);
-        setKpisError(e?.message ?? "Failed to load KPIs");
+        if (!cancelled) {
+          setKpis(null);
+          setKpisError(e?.message ?? "Failed to load KPIs");
+        }
       } finally {
         if (!cancelled) setKpisLoading(false);
       }
     })();
+
     return () => {
       cancelled = true;
     };
@@ -111,86 +126,74 @@ function useVehicleKpis(vehicleId: string) {
   return { kpis, kpisLoading, kpisError } as const;
 }
 
-
-function PageHeader({ plate, makeModel, status, onBack }: { plate: string; makeModel: string; status?: string; onBack: () => void }) {
-  return (
-    <div className="flex items-center justify-between">
-      <div className="flex items-center gap-2">
-        <Button variant="ghost" onClick={onBack}>
-          <ArrowLeft className="mr-2 h-4 w-4" /> Back
-        </Button>
-        <h1 className="text-xl font-semibold">
-          {plate}
-          <span className="ml-2 text-muted-foreground font-normal">{makeModel}</span>
-        </h1>
-      </div>
-      {status && (
-        <div className="text-sm text-muted-foreground">
-          Status: <span className="capitalize">{status}</span>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function Kpi({ label, value, hint }: { label: string; value: ReactNode; hint?: string }) {
-  return (
-    <div className="rounded-lg border p-3">
-      <div className="text-xs text-muted-foreground">{label}</div>
-      <div className="text-lg font-semibold">{value}</div>
-      {hint ? <div className="text-[11px] text-muted-foreground/80">{hint}</div> : null}
-    </div>
-  );
-}
-
-function KpiGroup({ title, children }: { title: string; children: ReactNode }) {
-  return (
-    <Card>
-      <CardHeader className="pb-2">
-        <CardTitle>{title}</CardTitle>
-      </CardHeader>
-      <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-3">{children}</CardContent>
-    </Card>
-  );
-}
-
-function FilterBar({ value, onChange }: { value: string; onChange: (v: string) => void }) {
-  return (
-    <div className="flex items-center justify-between">
-      <div className="w-full md:w-72">
-        <Input
-          placeholder="Filter details…"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-        />
-      </div>
-    </div>
-  );
-}
-
-
+// -----------------------------------------------------------------------------
+// Main
 
 export default function VehicleProfile() {
   const navigate = useNavigate();
   const vehicleId = useQueryId();
 
   const { vehicle, serviceRecords, incomeLogs, loading } = useVehicleProfileData(vehicleId);
-  const { kpis, kpisLoading } = useVehicleKpis(vehicleId);
-  const [filterText, setFilterText] = useState<string>("");
+  const { kpis, kpisLoading, kpisError } = useVehicleKpis(vehicleId);
+  const [filterText, setFilterText] = useState("");
+  const deferredFilter = useDeferredValue(filterText);
 
-
-  const makeModel = vehicle ? `${vehicle.make} ${vehicle.model} ${vehicle.year ? `(${vehicle.year})` : ""}` : "";
+  const makeModel = vehicle
+    ? `${vehicle.make} ${vehicle.model} ${vehicle.year ? `(${vehicle.year})` : ""}`
+    : "";
   const purchasedDate = toJsDate((vehicle as any)?.datePurchased) ?? null;
 
   const isLoading = loading || kpisLoading;
 
-  // ---------- UI ----------
+  // Apply filter to tables (plate, notes, amounts, types, etc.)
+  const filteredService = useMemo(() => {
+    const q = deferredFilter.trim().toLowerCase();
+    if (!q) return serviceRecords;
+    return serviceRecords.filter((r) =>
+      [
+        r.type,
+        r.notes,
+   
+        r.serviceMileage,
+        r.cost,
+        r.itemsChanged?.map(item => item.name).join(","),
+      ]
+        .filter(Boolean)
+        .some((x) => String(x).toLowerCase().includes(q))
+    );
+  }, [serviceRecords, deferredFilter]);
+
+  const filteredIncome = useMemo(() => {
+    const q = deferredFilter.trim().toLowerCase();
+    if (!q) return incomeLogs;
+    return incomeLogs.filter((row) =>
+      [
+        row.type,
+        row.vehicle,
+        row.note,
+        row.amount,
+        row.weekEndingMileage,
+      ]
+        .filter(Boolean)
+        .some((x) => String(x).toLowerCase().includes(q))
+    );
+  }, [incomeLogs, deferredFilter]);
+
+  // -----------------------------------------------------------------------------
+  // Loading / Not found
+
   if (isLoading) {
     return (
-      <div className="mx-auto max-w-6xl">
-        <div className="flex items-center gap-2 mb-4">
-          <Button variant="ghost" onClick={() => navigate(-1)}>
-            <ArrowLeft className="mr-2 h-4 w-4" /> Back
+      <div className="mx-auto max-w-6xl space-y-4">
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            onClick={() => navigate(-1)}
+            className="text-blue-700 hover:bg-blue-50"
+            aria-label="Go back"
+          >
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back
           </Button>
         </div>
         <div className="flex justify-center py-16">
@@ -202,84 +205,69 @@ export default function VehicleProfile() {
 
   if (!vehicle) {
     return (
-      <div className="mx-auto max-w-6xl">
-        <div className="flex items-center gap-2 mb-4">
-          <Button variant="ghost" onClick={() => navigate("/vehicles")}>
-            <ArrowLeft className="mr-2 h-4 w-4" /> Back
+      <div className="mx-auto max-w-6xl space-y-4">
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            onClick={() => navigate("/vehicles")}
+            className="text-blue-700 hover:bg-blue-50"
+            aria-label="Go back to vehicles"
+          >
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back
           </Button>
         </div>
-        <Card>
-          <CardContent className="py-10 text-center text-sm text-muted-foreground">Vehicle not found.</CardContent>
+        <Card className="bg-white border-0 shadow-none ring-1 ring-black/5 rounded-2xl">
+          <CardContent className="py-10 text-center text-sm text-muted-foreground">
+            Vehicle not found.
+          </CardContent>
         </Card>
       </div>
     );
   }
 
-  // Slices (guarded)
-  const lifetime = kpis?.kpis.lifetime;
-  const last30 = kpis?.kpis.last30Days;
+  // -----------------------------------------------------------------------------
+  // Page
 
   return (
     <div className="mx-auto max-w-6xl space-y-4">
       {/* Header */}
-      <PageHeader
+      <VehicleHeader
         plate={vehicle.plateNumber}
         makeModel={makeModel}
         status={vehicle.status}
         onBack={() => navigate(-1)}
       />
 
-      {/* GROUP: Overview */}
-      <KpiGroup title="Overview">
-        <Kpi label="Assigned driver" value={vehicle.assignedDriverName || "—"} />
-        <Kpi label="Route" value={vehicle.route || "—"} />
-        <Kpi label="Purchased" value={fmtDate(purchasedDate)} />
-        <Kpi
-          label="Purchase price"
-          value={
-            vehicle.price != null
-              ? vehicle.price.toLocaleString(undefined, { style: "currency", currency: "USD" })
-              : "—"
-          }
-        />
-        <Kpi label="Current mileage" value={`${vehicle.currentMileage?.toLocaleString?.() ?? "—"} km`} />
-        <Kpi label="Distance travelled" value={lifetime ? `${(lifetime.distanceTravelledKm ?? 0).toLocaleString()} km` : "—"} />
-        <Kpi label="Days since purchase" value={kpis?.meta.daysSincePurchase ?? "—"} />
-      </KpiGroup>
+      {/* Optional KPI error banner */}
+      {kpisError ? (
+        <Card className="bg-amber-50 text-amber-800 border-amber-200">
+          <CardContent className="py-3">
+            <div className="flex items-start gap-2">
+              <AlertTriangle className="h-4 w-4 mt-0.5" />
+              <div className="text-sm">
+                <div className="font-semibold">Some metrics may be unavailable</div>
+                <div className="opacity-90">{kpisError}</div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
 
-      {/* GROUP: Financial (30d + Lifetime) */}
-      <KpiGroup title="Financial (30d)">
-        <Kpi label="Income (30d)" value={last30 ? last30.totalIncome.toLocaleString(undefined, { style: "currency", currency: "USD" }) : "—"} />
-        <Kpi label="Expense (30d)" value={last30 ? last30.totalExpense.toLocaleString(undefined, { style: "currency", currency: "USD" }) : "—"} />
-        <Kpi label="Net (30d)" value={last30 ? last30.netEarnings.toLocaleString(undefined, { style: "currency", currency: "USD" }) : "—"} />
-      </KpiGroup>
+      {/* KPI grid (tablet layout on desktop) */}
+      <VehicleKpiLayout cols="md:grid-cols-2 xl:grid-cols-2">
+        <OverviewCard vehicle={vehicle} kpis={kpis} purchasedDate={purchasedDate} />
+        <Financial30dCard kpis={kpis} />
+        <FinancialLifetimeCard kpis={kpis} />
+        <Operations30dCard kpis={kpis} />
+        <MaintenanceCard vehicle={vehicle} serviceRecords={serviceRecords} />
+      </VehicleKpiLayout>
 
-      <KpiGroup title="Financial (Lifetime)">
-        <Kpi label="Total Income" value={lifetime ? lifetime.totalIncome.toLocaleString(undefined, { style: "currency", currency: "USD" }) : "—"} />
-        <Kpi label="Total Expense" value={lifetime ? lifetime.totalExpense.toLocaleString(undefined, { style: "currency", currency: "USD" }) : "—"} />
-        <Kpi label="Total Net" value={lifetime ? lifetime.netEarnings.toLocaleString(undefined, { style: "currency", currency: "USD" }) : "—"} />
-      </KpiGroup>
-
-      {/* GROUP: Operations (30d) */}
-      <KpiGroup title="Operations (30d)">
-        <Kpi label="Revenue / km" value={last30?.revenuePerKm != null ? last30.revenuePerKm.toFixed(3) : "—"} />
-        <Kpi label="Cost / km" value={last30?.costPerKm != null ? last30.costPerKm.toFixed(3) : "—"} />
-        <Kpi label="Profit / km" value={last30?.profitPerKm != null ? last30.profitPerKm.toFixed(3) : "—"} />
-        <Kpi label="Distance (30d)" value={last30 ? `${(last30.distanceTravelledKm ?? 0).toLocaleString()} km` : "—"} />
-      </KpiGroup>
-
-      {/* GROUP: Maintenance */}
-      <KpiGroup title="Maintenance">
-        <Kpi label="Last service" value={fmtDate(toJsDate((vehicle as any)?.lastServiceDate))} />
-        <Kpi label="Service records" value={serviceRecords.length} />
-      </KpiGroup>
-
-      {/* Filter for details */}
+      {/* Filter + details */}
       <FilterBar value={filterText} onChange={setFilterText} />
 
-      {/* Tables */}
-      <VehicleServiceLogs filteredService={serviceRecords} />
-      <VehicleIncomeLogs filteredIncome={incomeLogs} />
+      <VehicleServiceLogs filteredService={filteredService} />
+      <VehicleIncomeLogs filteredIncome={filteredIncome} />
     </div>
   );
 }
