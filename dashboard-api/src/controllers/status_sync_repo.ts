@@ -109,49 +109,155 @@ export async function clearDriverVehicleAssignment(driverId: string): Promise<vo
   await batch.commit();
 }
 
-/* ----------------------------------------------------------------------------
- * DRIVER → VEHICLE cascade
- *  - Map vehicle status from driver status.
- *  - If driver is not 'active', clear assignments both ways.
- * ------------------------------------------------------------------------- */
-export async function cascadeVehicleStatusFromDriver(driverId: string): Promise<void> {
+// EDITED SIGNATURE
+export async function updateVehicleStatusFromDriver(
+  driverId: string,
+  previousVehicleId?: string | null
+): Promise<void> {
+  // Load the UPDATED driver (after patch)
   const driverSnapshot = await driversCollection.doc(driverId).get();
   if (!driverSnapshot.exists) return;
 
-  const driver = driverSnapshot.data() as { status?: string; assignedVehicleId?: string | null; assignedVehicle?: string | null };
+  const driver = driverSnapshot.data() as Driver;
+
   const driverStatus = normDriverStatus(driver.status);
   if (!driverStatus) return;
 
-  const vehicleId = (driver.assignedVehicleId ?? driver.assignedVehicle ?? '').toString().trim();
+  // EDITED: normalise previous and new vehicle ids
+  const prevId =
+    typeof previousVehicleId === "string" && previousVehicleId.trim()
+      ? previousVehicleId.trim()
+      : null;
 
-  // If driver not active → clear assignments both ways (idempotent)
-  if (driverStatus !== 'active' && vehicleId) {
-    await clearDriverVehicleAssignment(driverId);
+  const newVehicleIdRaw = (driver.assignedVehicleId ?? "").toString();
+  const nextId = newVehicleIdRaw.trim() || null;
+
+  const mappedVehicleStatus = DRIVER_TO_VEHICLE[driverStatus] ?? null;
+
+  console.log(
+    "[updateVehicleStatusFromDriver] driver",
+    driverId,
+    "status:",
+    driverStatus,
+    "previousVehicleId:",
+    prevId,
+    "newVehicleId:",
+    nextId
+  );
+  // EDITED END
+
+  // -------- Case 1: driver is NOT active → clear assignments on any linked vehicles --------
+  if (driverStatus !== "active") {
+    const vehicleIds = Array.from(
+      new Set(
+        [prevId, nextId].filter(
+          (v): v is string => typeof v === "string" && v.length > 0
+        )
+      )
+    );
+
+    if (!vehicleIds.length) return;
+
+    for (const vid of vehicleIds) {
+      const vehicleRef = vehiclesCollection.doc(vid);
+      const snap = await vehicleRef.get();
+      if (!snap.exists) continue;
+
+      const patch: any = {
+        assignedDriverId: "",
+        assignedDriverName: "",
+        updatedAt: FirestoreTimestamp.now(),
+      };
+
+      // If you want vehicle status to reflect driver's non-active state
+      if (mappedVehicleStatus) {
+        patch.status = mappedVehicleStatus;
+      }
+
+      console.log(
+        "[updateVehicleStatusFromDriver] clearing vehicle assignment for",
+        vid,
+        "patch:",
+        patch
+      );
+
+      await vehicleRef.update(patch);
+    }
+
+    return;
   }
 
-  // If there is still a vehicle linked (some schemas keep both name & id; the clear above handles both),
-  // map and update vehicle status if needed.
-  if (!vehicleId) return;
+  // -------- Case 2: driver is ACTIVE --------
 
-  const mappedVehicleStatus = DRIVER_TO_VEHICLE[driverStatus];
+  // 2a) If they had a previous vehicle and changed vehicles, detach from previous
+  if (prevId && prevId !== nextId) {
+    const prevRef = vehiclesCollection.doc(prevId);
+    const prevSnap = await prevRef.get();
+    if (prevSnap.exists) {
+      const prevPatch: any = {
+        assignedDriverId: "",
+        assignedDriverName: "",
+        updatedAt: FirestoreTimestamp.now(),
+      };
 
-  const vehicleRef = vehiclesCollection.doc(vehicleId);
+      console.log(
+        "[updateVehicleStatusFromDriver] detaching driver from previous vehicle",
+        prevId,
+        "patch:",
+        prevPatch
+      );
+
+      await prevRef.update(prevPatch);
+    } else {
+      console.log(
+        "[updateVehicleStatusFromDriver] previous vehicle not found when detaching",
+        prevId
+      );
+    }
+  }
+
+  // 2b) If there is no current vehicle, nothing more to do
+  if (!nextId) {
+    console.log(
+      "[updateVehicleStatusFromDriver] active driver but no assigned vehicle, done"
+    );
+    return;
+  }
+
+  // 2c) Attach / sync current vehicle
+  const vehicleRef = vehiclesCollection.doc(nextId);
   const vehicleSnapshot = await vehicleRef.get();
-  if (!vehicleSnapshot.exists) return;
+  if (!vehicleSnapshot.exists) {
+    console.log(
+      "[updateVehicleStatusFromDriver] current vehicle not found for id",
+      nextId
+    );
+    return;
+  }
 
   const vehicle = vehicleSnapshot.data() as { status?: string | null };
-  const current = normVehicleStatus(vehicle.status);
+  const currentVehicleStatus = normVehicleStatus(vehicle.status);
 
-  // Update only if different
-  if (current !== mappedVehicleStatus) {
-    await vehicleRef.update({
-      status: mappedVehicleStatus,
-      updatedAt: FirestoreTimestamp.now(),
-    });
+  const vehiclePatch: any = {
+    assignedDriverId: driverId,
+    assignedDriverName: driver.name,
+    updatedAt: FirestoreTimestamp.now(),
+  };
+
+  if (mappedVehicleStatus && currentVehicleStatus !== mappedVehicleStatus) {
+    vehiclePatch.status = mappedVehicleStatus;
   }
-}
 
-const getDocInTx = async (
+  console.log(
+    "[updateVehicleStatusFromDriver] updating current vehicle",
+    nextId,
+    "patch:",
+    vehiclePatch
+  );
+
+  await vehicleRef.update(vehiclePatch);
+}
+const getDocInFirebaseTransaction = async (
   tx: FirebaseFirestore.Transaction,
   ref: FirebaseFirestore.DocumentReference
 ): Promise<FirebaseFirestore.DocumentSnapshot> => {
@@ -160,52 +266,184 @@ const getDocInTx = async (
   return (tx.get(ref) as unknown) as Promise<FirebaseFirestore.DocumentSnapshot>;
 };
 
-export async function cascadeDriverStatusFromVehicle(vehicleId: string) {
+export async function updateDriverStatusFromVehicle(
+  vehicleId: string,
+  previousDriverId?: string | null,
+  newDriverId?: string | null
+): Promise<void> {
   await db.runTransaction(async (tx: FirebaseFirestore.Transaction) => {
-    const vRef = vehiclesCollection.doc(vehicleId);
-    const vSnap = await getDocInTx(tx, vRef);               // ✅ always a DocumentSnapshot
-    if (!vSnap.exists) return;
+    const vehicleRef = vehiclesCollection.doc(vehicleId);
+    const vehicleSnapshot = await getDocInFirebaseTransaction(tx, vehicleRef);
 
-    const v = vSnap.data() as Vehicle;
-    const driverId = (v as any).assignedDriver as string | null;
+    if (!vehicleSnapshot.exists) {
+      console.log("[updateDriverStatusFromVehicle] vehicle not found", vehicleId);
+      return;
+    }
 
-    if (!driverId) return; // nothing to sync
+    const vehicle = vehicleSnapshot.data() as Vehicle;
+    const vehicleStatus = (vehicle as any).status;
 
-    const dRef = driversRef.doc(driverId);
-    const dSnap = await getDocInTx(tx, dRef);               // ✅ always a DocumentSnapshot
-    if (!dSnap.exists) return;
+    const prevId =
+      typeof previousDriverId === "string" && previousDriverId.trim()
+        ? previousDriverId.trim()
+        : null;
+    const nextId =
+      typeof newDriverId === "string" && newDriverId.trim()
+        ? newDriverId.trim()
+        : null;
 
-    const d = dSnap.data() as Driver;
-    const driverPatch: Partial<Driver> & { updatedAt: string } = {
+    console.log(
+      "[updateDriverStatusFromVehicle] vehicle",
+      vehicleId,
+      "status:",
+      vehicleStatus,
+      "previousDriverId:",
+      prevId,
+      "newDriverId:",
+      nextId
+    );
+
+    // 1) Vehicle is INACTIVE → mark previous driver inactive + clear vehicle
+    if (vehicleStatus === "inactive") {
+      if (!prevId) {
+        console.log(
+          "[updateDriverStatusFromVehicle] inactive vehicle but no previous driver, nothing to do"
+        );
+        return;
+      }
+
+      const driverRef = driversRef.doc(prevId);
+      const driverSnapshot = await getDocInFirebaseTransaction(tx, driverRef);
+      if (!driverSnapshot.exists) {
+        console.log(
+          "[updateDriverStatusFromVehicle] previous driver not found for id",
+          prevId
+        );
+        return;
+      }
+
+      const driver = driverSnapshot.data() as Driver;
+
+      const driverPatch: Partial<Driver> & { updatedAt: string } = {
+        updatedAt: new Date().toISOString(),
+        status: "inactive" as any,
+        assignedVehicleId: "",
+      };
+
+      if (
+        driver.mileageOnEnd === undefined ||
+        driver.mileageOnEnd === null
+      ) {
+        driverPatch.mileageOnEnd = (vehicle as any).currentMileage ?? null;
+      }
+
+      const needsStartStamp =
+        driver.mileageOnStart === undefined ||
+        driver.mileageOnStart === null ||
+        (typeof driver.mileageOnStart === "number" &&
+          driver.mileageOnStart <= 0);
+
+      if (needsStartStamp) {
+        driverPatch.mileageOnStart = (vehicle as any).currentMileage ?? 0;
+      }
+
+      console.log(
+        "[updateDriverStatusFromVehicle] marking previous driver inactive",
+        prevId,
+        "patch:",
+        driverPatch
+      );
+
+      tx.update(driverRef, driverPatch);
+      return;
+    }
+
+    // 2) Vehicle is ACTIVE (or anything else) → attach / reassign
+    // 2a) If previous driver exists and is different from new, detach old one
+    if (prevId && prevId !== nextId) {
+      const prevRef = driversRef.doc(prevId);
+      const prevSnap = await getDocInFirebaseTransaction(tx, prevRef);
+      if (prevSnap.exists) {
+        const prevDriver = prevSnap.data() as Driver;
+        const prevPatch: Partial<Driver> & { updatedAt: string } = {
+          updatedAt: new Date().toISOString(),
+          assignedVehicleId: "",
+        };
+
+        if (
+          prevDriver.mileageOnEnd === undefined ||
+          prevDriver.mileageOnEnd === null
+        ) {
+          prevPatch.mileageOnEnd = (vehicle as any).currentMileage ?? null;
+        }
+
+        console.log(
+          "[updateDriverStatusFromVehicle] detaching previous driver",
+          prevId,
+          "patch:",
+          prevPatch
+        );
+
+        tx.update(prevRef, prevPatch);
+      } else {
+        console.log(
+          "[updateDriverStatusFromVehicle] previous driver not found when detaching",
+          prevId
+        );
+      }
+    }
+
+    // 2b) Attach / update new driver
+    if (!nextId) {
+      console.log(
+        "[updateDriverStatusFromVehicle] active vehicle but no new driver, nothing to attach"
+      );
+      return;
+    }
+
+    const newRef = driversRef.doc(nextId);
+    const newSnap = await getDocInFirebaseTransaction(tx, newRef);
+    if (!newSnap.exists) {
+      console.log(
+        "[updateDriverStatusFromVehicle] new driver not found for id",
+        nextId
+      );
+      return;
+    }
+
+    const newDriver = newSnap.data() as Driver;
+
+    const newPatch: Partial<Driver> & { updatedAt: string } = {
       updatedAt: new Date().toISOString(),
       assignedVehicleId: vehicleId,
     };
 
-    // Seed mileageOnStart if missing/zeroish
-    const needsStartStamp =
-      d.mileageOnStart === undefined ||
-      d.mileageOnStart === null ||
-      (typeof d.mileageOnStart === "number" && d.mileageOnStart <= 0);
-
-    if (needsStartStamp) {
-      driverPatch.mileageOnStart = (v as any).currentMileage ?? 0;
+    if (newDriver.status !== "active") {
+      newPatch.status = "active" as any;
     }
 
-    // Reflect vehicle status onto driver + mileageOnEnd
-    if ((v as any).status === "inactive") {
-      driverPatch.status = "inactive" as any; // tighten if you have VehicleStatus/Driver.status types
-      if (d.mileageOnEnd === undefined || d.mileageOnEnd === null) {
-        driverPatch.mileageOnEnd = (v as any).currentMileage ?? null;
-      }
-    } else {
-      if (d.status !== "active") driverPatch.status = "active";
-      driverPatch.mileageOnEnd = null;
+    const newNeedsStartStamp =
+      newDriver.mileageOnStart === undefined ||
+      newDriver.mileageOnStart === null ||
+      (typeof newDriver.mileageOnStart === "number" &&
+        newDriver.mileageOnStart <= 0);
+
+    if (newNeedsStartStamp) {
+      newPatch.mileageOnStart = (vehicle as any).currentMileage ?? 0;
     }
 
-    tx.update(dRef, driverPatch);
+    newPatch.mileageOnEnd = null;
+
+    console.log(
+      "[updateDriverStatusFromVehicle] attaching/updating new driver",
+      nextId,
+      "patch:",
+      newPatch
+    );
+
+    tx.update(newRef, newPatch);
   });
 }
-
 
 type AssignDriverResult =
   | { ok: true }

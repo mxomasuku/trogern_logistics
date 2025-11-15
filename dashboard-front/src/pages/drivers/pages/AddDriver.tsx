@@ -1,15 +1,19 @@
 // src/pages/drivers/AddDriverPage.tsx
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react"; // EDITED
 import { useLocation, useNavigate } from "react-router-dom";
 import { addDriver, updateDriver, getDrivers, type NewDriver } from "@/api/drivers";
+import { getAllInactiveVehicles, getVehicle } from "@/api/vehicles"; // EDITED
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, ArrowLeft, Save } from "lucide-react";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"; // EDITED
+import { Loader2, ArrowLeft, Save, AlertCircle } from "lucide-react"; // EDITED
 import { toast } from "sonner";
 import type { Driver } from "@/types/types";
+
+type VehicleOption = { id: string; label: string }; // EDITED
 
 export default function AddDriver() {
   const navigate = useNavigate();
@@ -28,7 +32,9 @@ export default function AddDriver() {
   const [gender, setGender] = useState<NewDriver["gender"]>("Male");
   const [status, setStatus] = useState<NewDriver["status"]>("inactive");
   const [experienceYears, setExperienceYears] = useState<number>(0);
-  const [assignedVehicleId, setAssignedVehicleId] = useState("");
+
+  const [assignedVehicleId, setAssignedVehicleId] = useState(""); // EDITED
+
   const [nextOfKinName, setNextOfKinName] = useState("");
   const [nextOfKinRelationship, setNextOfKinRelationship] = useState("");
   const [nextOfKinPhone, setNextOfKinPhone] = useState("");
@@ -36,6 +42,14 @@ export default function AddDriver() {
 
   const [saving, setSaving] = useState(false);
   const [loadingPrefill, setLoadingPrefill] = useState<boolean>(!!editId);
+
+  // vehicle assignment support
+  const [vehicles, setVehicles] = useState<VehicleOption[]>([]); // EDITED
+  const [vehiclesLoading, setVehiclesLoading] = useState(false); // EDITED
+  const vehicleRequired = status === "active"; // EDITED
+  const vehicleMissing = vehicleRequired && !assignedVehicleId; // EDITED
+  const [showVehicleError, setShowVehicleError] = useState(false); // EDITED
+  const vehicleSectionRef = useRef<HTMLDivElement | null>(null); // EDITED
 
   // Prefill if editing
   useEffect(() => {
@@ -76,12 +90,112 @@ export default function AddDriver() {
     setGender((driver.gender as NewDriver["gender"]) ?? "Male");
     setStatus((driver.status as NewDriver["status"]) ?? "inactive");
     setExperienceYears(Number(driver.experienceYears ?? 0));
-    setAssignedVehicleId(driver.assignedVehicleId ?? "");
+    setAssignedVehicleId(driver.assignedVehicleId ?? ""); // EDITED
     setNextOfKinName(driver.nextOfKin?.name ?? "");
     setNextOfKinRelationship(driver.nextOfKin?.relationship ?? "");
     setNextOfKinPhone(driver.nextOfKin?.phone ?? "");
     setEmergencyContact(driver.emergencyContact ?? "");
   };
+
+  // load vehicles when driver status requires a vehicle
+  useEffect(() => { // EDITED
+    let cancelled = false;
+    (async () => {
+      if (!vehicleRequired) {
+        setVehicles([]);
+        // keep assignedVehicleId so an already-linked active vehicle
+        // can still show as selected if status toggles back to active // EDITED
+        setShowVehicleError(false);
+        return;
+      }
+
+      setVehiclesLoading(true);
+      try {
+        const list = await getAllInactiveVehicles();
+        if (cancelled) return;
+
+        let mapped: VehicleOption[] = (list || [])
+          .map((v: any) => {
+            const id = v.id ?? v.plateNumber ?? "";
+            const label = v.plateNumber
+              ? `${v.plateNumber} – ${v.make ?? ""} ${v.model ?? ""}`.trim()
+              : id;
+            return { id, label };
+          })
+          .filter((v: VehicleOption) => v.id && v.label);
+
+        // ensure currently assigned vehicle is present, even if it's not inactive // EDITED
+        if (assignedVehicleId && !mapped.find((v) => v.id === assignedVehicleId)) {
+          try {
+            const existingVehicle: any = await getVehicle(assignedVehicleId);
+            if (existingVehicle) {
+              const id =
+                existingVehicle.id ??
+                existingVehicle.plateNumber ??
+                assignedVehicleId;
+              const label = existingVehicle.plateNumber
+                ? `${existingVehicle.plateNumber} – ${
+                    existingVehicle.make ?? ""
+                  } ${existingVehicle.model ?? ""}`.trim()
+                : id;
+              mapped = [{ id, label }, ...mapped];
+            }
+          } catch (err) {
+            console.warn(
+              "[AddDriver] failed to load assigned vehicle",
+              assignedVehicleId,
+              err
+            );
+          }
+        }
+
+        if (!cancelled) {
+          setVehicles(mapped);
+        }
+      } catch (e) {
+        if (!cancelled) toast.error("Failed to load vehicles");
+      } finally {
+        if (!cancelled) setVehiclesLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status, assignedVehicleId]); // EDITED
+
+  useEffect(() => {
+    if (!vehicleRequired) setShowVehicleError(false);
+  }, [vehicleRequired]); // EDITED
+
+  // disable Save when required fields are missing
+  const requiredComplete = useMemo(
+    () => {
+      if (!name) return false;
+      if (!licenseNumber) return false;
+      if (!nationalId) return false;
+      if (!contact) return false;
+      if (!dob) return false;
+      if (!nextOfKinName) return false;
+      if (!nextOfKinPhone) return false;
+      if (!emergencyContact) return false;
+      if (status === "active" && !assignedVehicleId) return false;
+      return true;
+    },
+    [
+      name,
+      licenseNumber,
+      nationalId,
+      contact,
+      dob,
+      nextOfKinName,
+      nextOfKinPhone,
+      emergencyContact,
+      status,
+      assignedVehicleId,
+    ],
+  );
 
   const handleSave = async () => {
     const missing: string[] = [];
@@ -96,6 +210,13 @@ export default function AddDriver() {
 
     if (missing.length) {
       toast.error(`Missing: ${missing.join(", ")}`);
+      return;
+    }
+
+    if (vehicleRequired && !assignedVehicleId) {
+      setShowVehicleError(true);
+      vehicleSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      toast.error("Assign a vehicle before saving an active driver.");
       return;
     }
 
@@ -142,6 +263,7 @@ export default function AddDriver() {
         <Button
           variant="ghost"
           onClick={() => navigate(-1)}
+          disabled={saving}
           className="text-blue-700 hover:bg-blue-50 hover:text-blue-800"
         >
           <ArrowLeft className="mr-2 h-4 w-4" /> Back
@@ -191,31 +313,116 @@ export default function AddDriver() {
               {/* Assignment & Status */}
               <Section title="Assignment & Status">
                 <Grid two>
-                  <TextField
-                    label="Assigned vehicle"
-                    value={assignedVehicleId}
-                    onChange={setAssignedVehicleId}
-                    placeholder="plate or id"
-                  />
                   <SelectField
                     label="Status"
                     value={status}
-                    onValueChange={(v) => setStatus(v as NewDriver["status"])}
+                    onValueChange={(v) => {
+                      setStatus(v as NewDriver["status"]);
+                      if (v === "active" && !assignedVehicleId) {
+                        setShowVehicleError(true);
+                        vehicleSectionRef.current?.scrollIntoView({
+                          behavior: "smooth",
+                          block: "center",
+                        });
+                      } else {
+                        setShowVehicleError(false);
+                      }
+                    }}
                     items={["active", "inactive", "suspended"]}
                   />
-                  <NumberField label="Experience (years)" value={experienceYears} onChange={setExperienceYears} min={0} />
+
+                  <NumberField
+                    label="Experience (years)"
+                    value={experienceYears}
+                    onChange={setExperienceYears}
+                    min={0}
+                  />
                 </Grid>
+
+                <div ref={vehicleSectionRef} className="mt-3">
+                  <Label className="text-sm text-blue-900/80">
+                    Assign vehicle{" "}
+                    {vehicleRequired ? (
+                      <span className="text-red-600">*</span>
+                    ) : (
+                      <span className="text-slate-400">(enable by setting status to “active”)</span>
+                    )}
+                  </Label>
+
+                  {vehiclesLoading ? (
+                    <div className="mt-1 text-sm text-slate-500">Loading vehicles…</div>
+                  ) : !vehicleRequired ? (
+                    <div className="mt-1 text-sm text-slate-500">
+                      Set status to “active” to choose a vehicle.
+                    </div>
+                  ) : vehicles.length === 0 ? (
+                    <div className="mt-1 text-sm text-slate-500">
+                      No inactive vehicles available.
+                    </div>
+                  ) : (
+                    <div
+                      className={[
+                        "mt-2 rounded-xl p-3 ring-1 bg-white",
+                        vehicleRequired && showVehicleError && vehicleMissing
+                          ? "ring-red-400"
+                          : "ring-black/5",
+                      ].join(" ")}
+                    >
+                      <RadioGroup
+                        value={assignedVehicleId}
+                        onValueChange={(val) => {
+                          setAssignedVehicleId(val);
+                          setShowVehicleError(false);
+                        }}
+                        className="space-y-2"
+                      >
+                        {vehicles.map((v) => (
+                          <div key={v.id} className="flex items-center space-x-2">
+                            <RadioGroupItem
+                              value={v.id}
+                              id={`veh-${v.id}`}
+                              disabled={!vehicleRequired}
+                            />
+                            <Label
+                              htmlFor={`veh-${v.id}`}
+                              className={!vehicleRequired ? "text-slate-400" : "text-slate-800"}
+                            >
+                              {v.label}{" "}
+                              <span className="text-xs text-slate-500">({v.id})</span>
+                            </Label>
+                          </div>
+                        ))}
+                      </RadioGroup>
+
+                      {vehicleRequired && showVehicleError && vehicleMissing && (
+                        <div className="mt-2 flex items-center text-sm text-red-600">
+                          <AlertCircle className="mr-1 h-4 w-4" />
+                          Please select a vehicle to save an active driver.
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
               </Section>
 
               {/* Emergency & Next of Kin */}
               <Section title="Emergency & Next of kin">
                 <Grid three>
                   <TextField label="Next of kin (name)" value={nextOfKinName} onChange={setNextOfKinName} required />
-                  <TextField label="Relationship" value={nextOfKinRelationship} onChange={setNextOfKinRelationship} />
+                  <TextField
+                    label="Relationship"
+                    value={nextOfKinRelationship}
+                    onChange={setNextOfKinRelationship}
+                  />
                   <TextField label="Next of kin (phone)" value={nextOfKinPhone} onChange={setNextOfKinPhone} required />
                 </Grid>
                 <Grid one>
-                  <TextField label="Emergency contact" value={emergencyContact} onChange={setEmergencyContact} required />
+                  <TextField
+                    label="Emergency contact"
+                    value={emergencyContact}
+                    onChange={setEmergencyContact}
+                    required
+                  />
                 </Grid>
               </Section>
 
@@ -230,7 +437,7 @@ export default function AddDriver() {
                 </Button>
                 <Button
                   onClick={handleSave}
-                  disabled={saving}
+                  disabled={saving || !requiredComplete}
                   className="bg-gradient-to-r from-blue-500 via-sky-500 to-indigo-500 hover:from-blue-600 hover:via-sky-600 hover:to-indigo-600 text-white shadow-sm"
                 >
                   {saving ? (
@@ -279,9 +486,10 @@ function Grid({
 }
 
 function baseInputClasses() {
-  // subtle blue surfaces, no heavy borders, crisp focus ring
-  return "h-10 rounded-lg border-0 bg-blue-50/60 text-blue-950 placeholder:text-blue-300 " +
-         "focus-visible:ring-2 focus-visible:ring-sky-400 focus-visible:ring-offset-0";
+  return (
+    "h-10 rounded-lg border-0 bg-blue-50/60 text-blue-950 placeholder:text-blue-300 " +
+    "focus-visible:ring-2 focus-visible:ring-sky-400 focus-visible:ring-offset-0"
+  );
 }
 
 function TextField({
@@ -351,6 +559,7 @@ function NumberField({
     </div>
   );
 }
+
 function SelectField<T extends string>({
   label,
   value,
@@ -366,17 +575,14 @@ function SelectField<T extends string>({
     <div className="space-y-1">
       <Label className="text-sm text-blue-900/80">{label}</Label>
       <Select value={value} onValueChange={onValueChange}>
-        {/* keep trigger as-is, or make it solid by swapping bg-blue-50/60 -> bg-white */}
         <SelectTrigger className={baseInputClasses().replace("bg-blue-50/60", "bg-white")}>
           <SelectValue placeholder="Select…" />
         </SelectTrigger>
 
-        {/* solid, non-transparent dropdown */}
         <SelectContent
           className="
             bg-white text-blue-950
             border-0 ring-1 ring-black/5 shadow-xl
-            backdrop-blur-0
             rounded-lg
           "
         >

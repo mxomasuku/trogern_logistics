@@ -1,9 +1,8 @@
 // src/pages/income/IncomePage.tsx
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { listIncomeLogs, updateIncomeLog } from "@/api/income";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import {
   Dialog,
@@ -13,16 +12,16 @@ import {
   DialogFooter,
   DialogOverlay,
 } from "@/components/ui/dialog";
-import { Loader2, Plus, List, ArrowLeft } from "lucide-react";
+import { Loader2, List } from "lucide-react";
 import { toast } from "sonner";
 import { IncomeList } from "./components/IncomeList";
 import type { IncomeLog, LedgerType } from "@/types/types";
 import { toDateInputValue } from "@/lib/utils";
+import { PageHeader } from "@/layouts/HomeLayout/Components/PageHeader";
 
 export default function IncomePage() {
   const [items, setItems] = useState<IncomeLog[]>([]);
   const [loading, setLoading] = useState(true);
-  const navigate = useNavigate();
   const [showList, setShowList] = useState(false);
 
   // Edit modal state
@@ -131,23 +130,17 @@ export default function IncomePage() {
     }
   };
 
-  // ---------------------------------------------------------------------------
-
   return (
-    <div className="mx-auto  space-y-4">
- 
-
+    <div className="mx-auto space-y-4">
       {/* Main Income Card */}
       <Card className="bg-white border-0 shadow-none ring-1 ring-black/5 rounded-2xl">
-        <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-       <CardTitle className="text-xl font-semibold text-blue-700">
-            Income <span className="text-sky-500">Management</span>
-          </CardTitle>
-          <div className="flex items-center gap-2">
-            <Button onClick={() => navigate("/income/add")} className="bg-blue-600 hover:bg-blue-700 text-white">
-              <Plus className="h-4 w-4 mr-2" />
-              Add Income
-            </Button>
+        <PageHeader
+          titleMain="Income"
+          titleAccent="Management"
+          enableSearch={false}
+          addLabel="Add Income"
+          addTo="/income/add"
+          rightExtras={
             <Button
               variant={showList ? "secondary" : "outline"}
               onClick={() => setShowList((v) => !v)}
@@ -156,8 +149,8 @@ export default function IncomePage() {
               <List className="h-4 w-4 mr-2" />
               {showList ? "Hide List" : "View List"}
             </Button>
-          </div>
-        </CardHeader>
+          }
+        />
 
         {showList && (
           <CardContent>

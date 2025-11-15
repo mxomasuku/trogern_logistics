@@ -8,7 +8,7 @@ import {
 } from '../interfaces/interfaces';
 const { db, admin } = require('../config/firebase');
 import { success, failure } from '../utils/apiResponse';
-import { cascadeDriverStatusFromVehicle } from './status_sync_repo';
+import { updateDriverStatusFromVehicle} from './status_sync_repo';
 import { assignDriverToVehicleOnAdd } from './status_sync_repo';
 
 // ---------- Firestore refs & helpers ----------
@@ -368,6 +368,7 @@ export const addVehicle = async (req: Request<{}, {}, VehicleCreateDTO>, res: Re
 };
 
 // PUT /api/v1/vehicles/:id
+// PUT /api/v1/vehicles/:id
 export const updateVehicle = async (
   req: Request<{ id: string }, {}, VehicleUpdateDTO>,
   res: Response
@@ -376,7 +377,7 @@ export const updateVehicle = async (
   if (!parsed.ok) {
     return res
       .status(400)
-      .json(failure('VALIDATION_ERROR', 'Validation failed', { fields: parsed.errors }));
+      .json(failure("VALIDATION_ERROR", "Validation failed", { fields: parsed.errors }));
   }
 
   try {
@@ -385,18 +386,48 @@ export const updateVehicle = async (
     const existingSnap = await vehicleRef.get();
 
     if (!existingSnap.exists) {
-      return res.status(404).json(failure('NOT_FOUND', 'Vehicle not found', { id: vehicleId }));
+      return res
+        .status(404)
+        .json(failure("NOT_FOUND", "Vehicle not found", { id: vehicleId }));
     }
 
+    const existingVehicle = existingSnap.data() as Vehicle;
+
+    // EDITED: capture previous and new driver ids explicitly
+    const previousDriverIdRaw =
+      (existingVehicle as any).assignedDriverId ??
+      (existingVehicle as any).assignedDriver ??
+      null;
+
+    const newDriverIdRaw =
+      (parsed.value as any).assignedDriverId ??
+      (parsed.value as any).assignedDriver ??
+      null;
+
+    const previousDriverId =
+      typeof previousDriverIdRaw === "string" && previousDriverIdRaw.trim()
+        ? previousDriverIdRaw.trim()
+        : null;
+
+    const newDriverId =
+      typeof newDriverIdRaw === "string" && newDriverIdRaw.trim()
+        ? newDriverIdRaw.trim()
+        : null;
+    // EDITED END
+
     await vehicleRef.update(parsed.value);
+
+    // EDITED: pass both previous and new driver ids
+    await updateDriverStatusFromVehicle(vehicleId, previousDriverId, newDriverId);
+    // EDITED END
+
     const updatedSnap = await vehicleRef.get();
-await cascadeDriverStatusFromVehicle(vehicleId);
     return res.status(200).json(success(vehicleDocToJson(updatedSnap)));
   } catch (error: any) {
-    console.error('Error updating vehicle:', error);
+    console.error("Error updating vehicle:", error);
     return res
       .status(500)
-      .json(failure('SERVER_ERROR', 'Failed to update vehicle', error.message));
+      .json(failure("SERVER_ERROR", "Failed to update vehicle", error.message));
   }
 };
 
@@ -442,6 +473,30 @@ export const getAllActiveVehicles = async (req: Request, res: Response) => {
       .status(500)
       .json(
         failure("SERVER_ERROR", "Failed to fetch active vehicles", error.message)
+      );
+  }
+};
+
+export const getAllInactiveVehicles = async (req: Request, res: Response) => {
+  try {
+    const snapshot = await vehiclesCollection
+      .where("status", "==", "inactive")
+      .get();
+
+       console.log("vehicles", snapshot);
+    const vehicles = snapshot.docs.map((doc) => ({
+      ...doc.data(),
+    }));
+
+   
+
+    return res.status(200).json(success(vehicles));
+  } catch (error: any) {
+    console.error("Error fetching inactive vehicles:", error);
+    return res
+      .status(500)
+      .json(
+        failure("SERVER_ERROR", "Failed to fetch inactive vehicles", error.message)
       );
   }
 };

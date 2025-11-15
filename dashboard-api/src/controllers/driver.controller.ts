@@ -3,7 +3,7 @@ const { db, admin} = require('../config/firebase');
 import type { QueryDocumentSnapshot, Transaction } from 'firebase-admin/firestore';
 import { success, failure } from '../utils/apiResponse';
 import { Driver, Vehicle } from '../interfaces/interfaces';
-import { cascadeVehicleStatusFromDriver } from './status_sync_repo';
+import { updateVehicleStatusFromDriver} from './status_sync_repo';
 const driversRef = db.collection('drivers');
 const nowTs = () => admin.firestore.Timestamp.now();
 const vehiclesCollection = db.collection("vehicles");
@@ -162,24 +162,49 @@ export const addDriver = async (
 };
 
 
+// EDITED VERSION
 export const updateDriver = async (req: Request, res: Response) => {
   const { id } = req.params;
   const patch = { ...req.body, updatedAt: new Date().toISOString() };
 
   try {
-    await driversRef.doc(id).set(patch, { merge: true })
-    await cascadeVehicleStatusFromDriver(id);;
+    const driverRef = driversRef.doc(id);                          // EDITED
+    const existingSnap = await driverRef.get();                    // EDITED
+
+    if (!existingSnap.exists) {                                    // EDITED
+      return res
+        .status(404)
+        .json(failure("NOT_FOUND", "Driver not found", { id }));
+    }
+
+    const existingDriver = existingSnap.data() as Driver;          // EDITED
+
+    // EDITED: capture previous vehicle id BEFORE we write the patch
+    const previousVehicleIdRaw =
+      (existingDriver as any).assignedVehicleId ??
+      (existingDriver as any).assignedVehicle ??
+      null;
+
+    const previousVehicleId =
+      typeof previousVehicleIdRaw === "string" && previousVehicleIdRaw.trim()
+        ? previousVehicleIdRaw.trim()
+        : null;
+    // EDITED END
+
+    await driverRef.set(patch, { merge: true });
+
+    // EDITED: let helper see the previous vehicle id
+    await updateVehicleStatusFromDriver(id, previousVehicleId);
+    // EDITED END
+
     return res.status(200).json(success({ id, ...patch }));
-
-
   } catch (error: any) {
-    console.error('Error updating driver:', error);
+    console.error("Error updating driver:", error);
     return res
       .status(500)
-      .json(failure('SERVER_ERROR', 'Failed to update driver', error.message));
+      .json(failure("SERVER_ERROR", "Failed to update driver", error.message));
   }
 };
-
 
 export const deleteDriver = async (req: Request, res: Response) => {
   const { id } = req.params;
@@ -334,31 +359,30 @@ const getDocInTx = async (
 };
 
 export async function reconcileDriverVehicleAssignment(driverId: string) {
-  // Pre-read driver (we re-read inside txn too)
+
   const driverPre = await driversRef.doc(driverId).get();
   if (!driverPre.exists) return;
 
   const driver = driverPre.data() as Driver;
 
   const newVehicleId = driver.assignedVehicleId || null;
-  const isDriverActive =
-    (driver.status === "active" || driver.isActive === true) && !!newVehicleId;
+  const isDriverActive = (driver.status === "active" || driver.isActive === true) && !!newVehicleId;
 
   // QuerySnapshot -> only use .empty / .docs
-  const oldVehicleQuerySnap = await vehiclesCollection
+  const oldVehicleQuerySnapshot = await vehiclesCollection
     .where("assignedDriverId", "==", driverId)
     .get();
 
   await db.runTransaction(async (tx: FirebaseFirestore.Transaction) => {
     // Re-fetch driver inside txn
-    const dRef = driversRef.doc(driverId);
-    const dSnap = await getDocInTx(tx, dRef);
-    if (!dSnap.exists) return;
-    const d = dSnap.data() as Driver;
+    const driverRef = driversRef.doc(driverId);
+    const driverSnapshot = await getDocInTx(tx, driverRef);
+    if (!driverSnapshot.exists) return;
+    const driver = driverSnapshot.data() as Driver;
 
     // If driver points to a vehicle, fetch it as a DocumentSnapshot
-    let vRef: FirebaseFirestore.DocumentReference | null = null;
-    let vSnap: FirebaseFirestore.DocumentSnapshot | null = null;
+    let vehicleRef: FirebaseFirestore.DocumentReference | null = null;
+    let vehicleSnapshot: FirebaseFirestore.DocumentSnapshot | null = null;
 
     if (newVehicleId) {
       const ref = vehiclesCollection.doc(newVehicleId);
@@ -366,7 +390,7 @@ export async function reconcileDriverVehicleAssignment(driverId: string) {
 
       if (!snap.exists) {
         // Driver points to a non-existent vehicle -> clear link and bail
-        tx.update(dRef, {
+        tx.update(driverRef, {
           assignedVehicleId: null,
           updatedAt: new Date().toISOString(),
         });
@@ -374,12 +398,12 @@ export async function reconcileDriverVehicleAssignment(driverId: string) {
       }
 
       // promote to outer vars
-      vRef = ref;
-      vSnap = snap;
+      vehicleRef = ref;
+      vehicleSnapshot = snap;
     }
 
     // 1) Detach this driver from any *other* vehicles that still reference them
-    for (const doc of oldVehicleQuerySnap.docs) {
+    for (const doc of oldVehicleQuerySnapshot.docs) {
       if (!newVehicleId || doc.id !== newVehicleId) {
         tx.update(doc.ref, {
           assignedDriverId: null,
@@ -389,26 +413,27 @@ export async function reconcileDriverVehicleAssignment(driverId: string) {
     }
 
     // 2) Active driver + valid target vehicle -> attach & seed mileageOnStart if needed
-    if (isDriverActive && vRef && vSnap) {
-      const v = vSnap.data() as Vehicle;
+    if (isDriverActive && vehicleRef && vehicleSnapshot) {
+      const v = vehicleSnapshot.data() as Vehicle;
 
       const vehiclePatch: Partial<Vehicle> & { updatedAt: FirebaseFirestore.Timestamp } = {
         assignedDriverId: driverId,
+    
         updatedAt: nowTs(),
       };
       if ((v as any).status === "inactive") {
         // adjust if your VehicleStatus differs
         (vehiclePatch as any).status = "active";
       }
-      tx.update(vRef, vehiclePatch);
+      tx.update(vehicleRef, vehiclePatch);
 
       const needsStartStamp =
-        d.mileageOnStart === undefined ||
-        d.mileageOnStart === null ||
-        (typeof d.mileageOnStart === "number" && d.mileageOnStart <= 0);
+        driver.mileageOnStart === undefined ||
+        driver.mileageOnStart === null ||
+        (typeof driver.mileageOnStart === "number" && driver.mileageOnStart <= 0);
 
       const driverPatch: Partial<Driver> & { updatedAt: string } = {
-        assignedVehicleId: vRef.id,
+        assignedVehicleId: vehicleRef.id,
         mileageOnEnd: null, // new stint starts -> clear end
         updatedAt: new Date().toISOString(),
       };
@@ -416,24 +441,24 @@ export async function reconcileDriverVehicleAssignment(driverId: string) {
         driverPatch.mileageOnStart = (v as any).currentMileage ?? 0;
       }
 
-      tx.update(dRef, driverPatch);
+      tx.update(driverRef, driverPatch);
       return; // done
     }
 
     // 3) Otherwise (inactive / no vehicle): detach and stamp mileageOnEnd once
     let currentVehicleForEnd: FirebaseFirestore.DocumentReference | null = null;
 
-    if (vRef && vSnap) {
+    if (vehicleRef && vehicleSnapshot) {
       // Driver points to a vehicle but isn't active -> detach from that vehicle
-      currentVehicleForEnd = vRef;
-      tx.update(vRef, {
+      currentVehicleForEnd = vehicleRef;
+      tx.update(vehicleRef, {
         assignedDriver: null,
         status: "inactive" as any, // optional: reflect no-driver state
         updatedAt: nowTs(),
       });
-    } else if (!newVehicleId && !oldVehicleQuerySnap.empty) {
+    } else if (!newVehicleId && !oldVehicleQuerySnapshot.empty) {
       // Driver no longer points to any vehicle, but some vehicle still references them -> clear it
-      const first = oldVehicleQuerySnap.docs[0];
+      const first = oldVehicleQuerySnapshot.docs[0];
       currentVehicleForEnd = first.ref;
       tx.update(first.ref, {
         assignedDriver: null,
@@ -452,14 +477,14 @@ export async function reconcileDriverVehicleAssignment(driverId: string) {
           updatedAt: new Date().toISOString(),
         };
 
-        if (d.mileageOnEnd === undefined || d.mileageOnEnd === null) {
+        if (driver.mileageOnEnd === undefined || driver.mileageOnEnd === null) {
           driverEndPatch.mileageOnEnd = (curV as any).currentMileage ?? null;
         }
-        if (d.assignedVehicleId) {
+        if (driver.assignedVehicleId) {
           driverEndPatch.assignedVehicleId = null;
         }
 
-        tx.update(dRef, driverEndPatch);
+        tx.update(driverRef, driverEndPatch);
       }
     }
   });
@@ -467,20 +492,20 @@ export async function reconcileDriverVehicleAssignment(driverId: string) {
 
 export async function cascadeDriverStatusFromVehicle(vehicleId: string) {
   await db.runTransaction(async (tx: FirebaseFirestore.Transaction) => {
-    const vRef = vehiclesCollection.doc(vehicleId);
-    const vSnap = await getDocInTx(tx, vRef);               // ✅ always a DocumentSnapshot
-    if (!vSnap.exists) return;
+    const vehicleRef = vehiclesCollection.doc(vehicleId);
+    const vehicleSnapshot  = await getDocInTx(tx, vehicleRef);               // ✅ always a DocumentSnapshot
+    if (!vehicleSnapshot.exists) return;
 
-    const v = vSnap.data() as Vehicle;
-    const driverId = (v as any).assignedDriver as string | null;
+    const vehicle = vehicleSnapshot.data() as Vehicle;
+    const driverId = (vehicle  as any).assignedDriver as string | null;
 
     if (!driverId) return; // nothing to sync
 
-    const dRef = driversRef.doc(driverId);
-    const dSnap = await getDocInTx(tx, dRef);               // ✅ always a DocumentSnapshot
-    if (!dSnap.exists) return;
+    const driverRef = driversRef.doc(driverId);
+    const driverSnapshot = await getDocInTx(tx, driverRef);               // ✅ always a DocumentSnapshot
+    if (!driverSnapshot.exists) return;
 
-    const d = dSnap.data() as Driver;
+    const driver = driverSnapshot.data() as Driver;
     const driverPatch: Partial<Driver> & { updatedAt: string } = {
       updatedAt: new Date().toISOString(),
       assignedVehicleId: vehicleId,
@@ -488,25 +513,25 @@ export async function cascadeDriverStatusFromVehicle(vehicleId: string) {
 
     // Seed mileageOnStart if missing/zeroish
     const needsStartStamp =
-      d.mileageOnStart === undefined ||
-      d.mileageOnStart === null ||
-      (typeof d.mileageOnStart === "number" && d.mileageOnStart <= 0);
+      driver.mileageOnStart === undefined ||
+      driver.mileageOnStart === null ||
+      (typeof driver.mileageOnStart === "number" && driver.mileageOnStart <= 0);
 
     if (needsStartStamp) {
-      driverPatch.mileageOnStart = (v as any).currentMileage ?? 0;
+      driverPatch.mileageOnStart = (vehicle  as any).currentMileage ?? 0;
     }
 
     // Reflect vehicle status onto driver + mileageOnEnd
-    if ((v as any).status === "inactive") {
+    if ((vehicle as any).status === "inactive") {
       driverPatch.status = "inactive" as any; // tighten if you have VehicleStatus/Driver.status types
-      if (d.mileageOnEnd === undefined || d.mileageOnEnd === null) {
-        driverPatch.mileageOnEnd = (v as any).currentMileage ?? null;
+      if (driver.mileageOnEnd === undefined || driver.mileageOnEnd === null) {
+        driverPatch.mileageOnEnd = (vehicle as any).currentMileage ?? null;
       }
     } else {
-      if (d.status !== "active") driverPatch.status = "active";
+      if (driver.status !== "active") driverPatch.status = "active";
       driverPatch.mileageOnEnd = null;
     }
 
-    tx.update(dRef, driverPatch);
+    tx.update(driverRef, driverPatch);
   });
 }

@@ -44,7 +44,7 @@ const VehicleServiceLogs = ({ filteredService }: VehicleServiceLogsProps) => {
               </TableHeader>
 
               <TableBody className="divide-y divide-slate-100">
-                {filteredService.map((r, idx) => {
+                {filteredService.map((r, ) => {
                   const date = fmtDate(tsLikeToDate(r.date));
                   const isHighCost = typeof r.cost === "number" && r.cost > 500;
                   const costClass = isHighCost

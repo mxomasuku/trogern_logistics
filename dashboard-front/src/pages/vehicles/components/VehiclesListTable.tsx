@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil} from "lucide-react";
 import type { Vehicle } from "@/types/types";
 import { useNavigate } from "react-router-dom";
 
@@ -14,7 +14,7 @@ type VehiclesTableProps = {
   cn?: (...args: any[]) => string; // optional classnames helper
 };
 
-export function VehiclesListTable({ vehicles, onEdit, onDelete, cn }: VehiclesTableProps) {
+export function VehiclesListTable({ vehicles, onEdit,  cn }: VehiclesTableProps) {
   const navigate = useNavigate();
   const cx = cn ?? ((...args: any[]) => args.filter(Boolean).join(" "));
 
