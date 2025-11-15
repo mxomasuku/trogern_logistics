@@ -2,9 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { getDrivers, deleteDriver } from "@/api/drivers";
 import { useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -15,10 +13,11 @@ import {
   AlertDialogTitle,
   AlertDialogOverlay,
 } from "@/components/ui/alert-dialog";
-import { Loader2, Plus, Search } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { DriverTable } from "./components/DriverTable";
 import type { Driver } from "@/types/types";
+import { PageHeader } from "@/layouts/HomeLayout/Components/PageHeader";
 
 export default function DriversPage() {
   const [drivers, setDrivers] = useState<Driver[]>([]);
@@ -74,74 +73,18 @@ export default function DriversPage() {
   return (
     <div className="space-y-6">
       <Card className="bg-white shadow-none border-0 rounded-2xl">
-        <CardHeader className="pb-0">
-          {/* Title */}
-          <CardTitle className="text-xl font-semibold text-blue-700">
-            Driver <span className="text-sky-500">Management</span>
-          </CardTitle>
-
-          {/* Controls stacked under title */}
-          <div className="mt-3 flex items-center gap-2">
-            {/* Search (compact, sm+ only) */}
-            <div className="relative hidden sm:block">
-              <Search className="absolute left-2 top-2.5 h-4 w-4 text-blue-400" />
-              <Input
-                className="h-9 pl-8 w-52 rounded-md border-0 bg-blue-50 text-blue-900 placeholder:text-blue-300 focus-visible:ring-2 focus-visible:ring-sky-400"
-                placeholder="Search drivers…"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
-            </div>
-
-            {/* Add button (compact label on sm+, icon-only on xs) */}
-            <Button
-              onClick={() => navigate("/drivers/add")}
-              size="sm"
-              className="hidden sm:inline-flex bg-gradient-to-r from-blue-500 via-sky-500 to-indigo-500 
-                         hover:from-blue-600 hover:via-sky-600 hover:to-indigo-600 
-                         text-white shadow-sm rounded-md"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Add Driver
-            </Button>
-
-            {/* Mobile icon-only toggles */}
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="sm:hidden h-9 w-9 text-blue-600 hover:bg-blue-50"
-              aria-label="Search"
-              onClick={() => setShowSearchMobile((v) => !v)}
-            >
-              <Search className="h-5 w-5" />
-            </Button>
-            <Button
-              type="button"
-              size="icon"
-              className="sm:hidden h-9 w-9 bg-blue-600 hover:bg-blue-700 text-white"
-              aria-label="Add driver"
-              onClick={() => navigate("/drivers/add")}
-            >
-              <Plus className="h-5 w-5" />
-            </Button>
-          </div>
-
-          {/* Mobile search reveal */}
-          {showSearchMobile && (
-            <div className="mt-2 sm:hidden">
-              <div className="relative">
-                <Search className="absolute left-2 top-2.5 h-4 w-4 text-blue-400" />
-                <Input
-                  className="h-9 pl-8 w-full rounded-md border-0 bg-blue-50 text-blue-900 placeholder:text-blue-300 focus-visible:ring-2 focus-visible:ring-sky-400"
-                  placeholder="Search drivers…"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                />
-              </div>
-            </div>
-          )}
-        </CardHeader>
+        <PageHeader
+          titleMain="Driver"
+          titleAccent="Management"
+          enableSearch
+          searchPlaceholder="Search drivers…"
+          searchValue={search}
+          onSearchChange={setSearch}
+          showSearchMobile={showSearchMobile}
+          setShowSearchMobile={setShowSearchMobile}
+          addLabel="Add Driver"
+          addTo="/drivers/add"
+        />
 
         <CardContent className="mt-4 p-0 overflow-visible">
           {loading ? (

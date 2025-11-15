@@ -43,3 +43,13 @@ export async function getAllActiveVehicles(): Promise<Vehicle[]> {
     return data.data;
 }
 
+export async function getAllInactiveVehicles(): Promise<Vehicle[]> {
+  const {data} = await http.get<{isSuccessful: boolean; data: Vehicle[]}>(
+    `/vehicles/inactive`,
+
+  )
+  if(!data?.isSuccessful) throw new Error("Failed to get vehicles")
+
+    return data.data;
+}
+
