@@ -39,7 +39,7 @@ export interface Vehicle {
   updatedAt?: FirebaseFirestore.Timestamp;
 }
 
-// Payloads coming from the client (strings for dates)
+
 export interface VehicleCreateDTO {
   plateNumber: string;
   make: string;
@@ -61,24 +61,19 @@ export interface VehicleCreateDTO {
 export type VehicleUpdateDTO = Partial<VehicleCreateDTO>;
 
 
-// src/interfaces/interfaces.ts
 
 export type ServiceItemKind = "consumable" | "labour" | "license" | "other";
 
 
 export interface ServiceItem {
-  kind: ServiceItemKind;                       // ✅ store for easy querying
+  kind: ServiceItemKind;                    
   name: string;
   value: string;
   unit: string;
   quantity: number;
   cost: number;
-
-  // core service context
   date: FirebaseFirestore.Timestamp;
   vehicleMileage: number;
-
-  // derived only when lifespan present; absent for labour/etc.
   expectedLifespanMileage?: number;
   expectedLifespanDays?: number;
   serviceDueMileage?: number;
@@ -97,26 +92,26 @@ export interface ServiceItemPrime {
 export interface ServiceItemDTO {
   name: string;
   cost: number;
-  date: string;             // ISO string (not used when embedded in ServiceRecordDTO.itemsChanged)
+  date: string;            
   value: string;
-  vehicleMileage: number;   // per unit
+  vehicleMileage: number;   
   quantity: number | string;
   unit: string;
 }
 
 export interface ServiceRecord {
   vehicleId: string;
-  date: FirebaseFirestore.Timestamp;       // when serviced
+  date: FirebaseFirestore.Timestamp;   
   mechanic: string;
   cost: number;
-  serviceMileage: number;                  // odometer at service time                     // e.g. "good", "requires attention"
-  itemsChanged: ServiceItem[];             // not embedded (kept for backward compat), we store in subcollection
+  serviceMileage: number;                                   
+  itemsChanged: ServiceItem[];            
   notes: string | null;
   createdAt?: FirebaseFirestore.Timestamp;
   updatedAt?: FirebaseFirestore.Timestamp;
 }
 
-// DTO from client (dates as strings)
+
 export interface ServiceRecordDTO {
   date: string;                // ISO
   vehicleId: string;
