@@ -1,19 +1,22 @@
-/**
- * Import function triggers from their respective submodules:
- *
- * import {onCall} from "firebase-functions/v2/https";
- * import {onDocumentWritten} from "firebase-functions/v2/firestore";
- *
- * See a full list of supported triggers at https://firebase.google.com/docs/functions
- */
+import * as v2 from "firebase-functions/v2";
+import * as v1 from "firebase-functions/v1";
 
-import {onRequest} from "firebase-functions/v2/https";
-import * as logger from "firebase-functions/logger";
+export const helloWord = v2.https.onRequest((request, response) => {
+type Indexable = {[key: string] : string};
+const name = request.params[0].replace("/", "");
+const items: Indexable = {lamp: "This is a lamp", chair: "Good chair"};
 
-// Start writing functions
-// https://firebase.google.com/docs/functions/typescript
+const message = items[name];
 
-// export const helloWorld = onRequest((request, response) => {
-//   logger.info("Hello logs!", {structuredData: true});
-//   response.send("Hello from Firebase!");
-// });
+response.send(`<h1>${message}</h1>`);
+});
+
+type Sku = {name: string; usd: number; eur?: number};
+const USD_TO_UER0 = 0.93;
+export const createMonthlySummaries = v1.firestore.document('items/{sku}').onCreate(
+    snapshot => {
+        const data = snapshot.data() as Sku;
+        const eur = data.usd * USD_TO_UER0;
+   return snapshot.ref.set({eur, ...data}, {merge: true});
+    }
+)
