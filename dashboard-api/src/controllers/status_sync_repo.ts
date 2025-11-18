@@ -1,24 +1,38 @@
 // src/repos/status-sync.repo.ts
-const { db } = require('../config/firebase');
-import { Timestamp as FirestoreTimestamp } from 'firebase-admin/firestore';
-import { Driver, Vehicle } from '../interfaces/interfaces';
-const driversRef = db.collection('drivers');
-const vehiclesCollection: FirebaseFirestore.CollectionReference = db.collection('vehicles');
-const driversCollection: FirebaseFirestore.CollectionReference = db.collection('drivers');
+const { db } = require("../config/firebase");
+import { Timestamp as FirestoreTimestamp } from "firebase-admin/firestore";
+import { Driver, Vehicle } from "../interfaces/interfaces";
+
+const driversRef = db.collection("drivers");
+const vehiclesCollection: FirebaseFirestore.CollectionReference =
+  db.collection("vehicles");
+const driversCollection: FirebaseFirestore.CollectionReference =
+  db.collection("drivers");
 
 /** Canonical status strings */
-type DriverStatus = 'active' | 'inactive' | 'suspended';
-type VehicleStatus = 'active' | 'inactive' | 'maintenance' | 'retired';
+type DriverStatus = "active" | "inactive" | "suspended";
+type VehicleStatus = "active" | "inactive" | "maintenance" | "retired";
 
 /** Normalize any incoming status to a safe lowercased union (fallback: undefined) */
 function normDriverStatus(status?: string | null): DriverStatus | undefined {
-  const normalisedStatus = (status ?? '').toLowerCase();
-  if (normalisedStatus === 'active' || normalisedStatus === 'inactive' || normalisedStatus === 'suspended') return normalisedStatus;
+  const normalisedStatus = (status ?? "").toLowerCase();
+  if (
+    normalisedStatus === "active" ||
+    normalisedStatus === "inactive" ||
+    normalisedStatus === "suspended"
+  )
+    return normalisedStatus;
   return undefined;
 }
 function normVehicleStatus(status?: string | null): VehicleStatus | undefined {
-  const normalisedStatus = (status ?? '').toLowerCase();
-  if (normalisedStatus === 'active' || normalisedStatus === 'inactive' || normalisedStatus === 'maintenance' || normalisedStatus === 'retired') return normalisedStatus;
+  const normalisedStatus = (status ?? "").toLowerCase();
+  if (
+    normalisedStatus === "active" ||
+    normalisedStatus === "inactive" ||
+    normalisedStatus === "maintenance" ||
+    normalisedStatus === "retired"
+  )
+    return normalisedStatus;
   return undefined;
 }
 
@@ -29,34 +43,39 @@ function normVehicleStatus(status?: string | null): VehicleStatus | undefined {
  * it’s fine as long as we only write when the target value would actually change.
  */
 const DRIVER_TO_VEHICLE: Record<DriverStatus, VehicleStatus> = {
-  active: 'active',
-  inactive: 'inactive',
-  suspended: 'inactive', // you can pick 'maintenance' if you prefer
+  active: "active",
+  inactive: "inactive",
+  suspended: "inactive", // you can pick 'maintenance' if you prefer
 };
 
 const VEHICLE_TO_DRIVER: Record<VehicleStatus, DriverStatus> = {
-  active: 'active',
-  inactive: 'inactive',
-  maintenance: 'suspended', // or 'inactive' if that fits better
-  retired: 'inactive',
+  active: "active",
+  inactive: "inactive",
+  maintenance: "suspended", // or 'inactive' if that fits better
+  retired: "inactive",
 };
 
 /* ----------------------------------------------------------------------------
  * Shared helpers: clear assignments both ways (idempotent)
  * ------------------------------------------------------------------------- */
 
-export async function clearVehicleDriverAssignment(vehicleId: string): Promise<void> {
+export async function clearVehicleDriverAssignment(
+  vehicleId: string
+): Promise<void> {
   const vehicleRef = vehiclesCollection.doc(vehicleId);
   const vehicleSnapshot = await vehicleRef.get();
   if (!vehicleSnapshot.exists) return;
 
-  const vehicle = vehicleSnapshot.data() as {
+  const vehicle = vehicleSnapshot.data() as Vehicle & {
+    companyId?: string;
     assignedDriverId?: string | null;
     assignedDriver?: string | null;
   };
 
+  // HIGHLIGHT: capture company scope from vehicle
+  const vehicleCompanyId = (vehicle as any).companyId ?? null;
   const driverId: string | undefined =
-    (vehicle as Vehicle).assignedDriverId || undefined;
+    (vehicle as any).assignedDriverId || undefined;
 
   const batch = db.batch();
 
@@ -68,31 +87,44 @@ export async function clearVehicleDriverAssignment(vehicleId: string): Promise<v
 
   if (driverId) {
     const driverRef = driversCollection.doc(driverId);
-    batch.update(driverRef, {
-      assignedVehicleId: null,
-      updatedAt: FirestoreTimestamp.now(),
-    });
+    const driverSnapshot = await driverRef.get();
+
+    if (driverSnapshot.exists) {
+      const driver = driverSnapshot.data() as Driver & { companyId?: string };
+
+      // HIGHLIGHT: only clear driver link if same company
+      if ((driver as any).companyId === vehicleCompanyId) {
+        batch.update(driverRef, {
+          assignedVehicleId: null,
+          updatedAt: FirestoreTimestamp.now(),
+        });
+      }
+    }
   }
 
   await batch.commit();
 }
 
-export async function clearDriverVehicleAssignment(driverId: string): Promise<void> {
+export async function clearDriverVehicleAssignment(
+  driverId: string
+): Promise<void> {
   const driverRef = driversCollection.doc(driverId);
   const driverSnapshot = await driverRef.get();
   if (!driverSnapshot.exists) return;
 
-  const driver = driverSnapshot.data() as {
+  const driver = driverSnapshot.data() as Driver & {
+    companyId?: string;
     assignedVehicleId?: string | null;
     assignedVehicle?: string | null;
   };
 
+  // HIGHLIGHT: capture company scope from driver
+  const driverCompanyId = (driver as any).companyId ?? null;
   const vehicleId: string | undefined =
-    (driver as Driver).assignedVehicleId || undefined;
+    (driver as any).assignedVehicleId || undefined;
 
   const batch = db.batch();
 
-  
   batch.update(driverRef, {
     assignedVehicleId: null,
     updatedAt: FirestoreTimestamp.now(),
@@ -100,10 +132,19 @@ export async function clearDriverVehicleAssignment(driverId: string): Promise<vo
 
   if (vehicleId) {
     const vehicleRef = vehiclesCollection.doc(vehicleId);
-    batch.update(vehicleRef, {
-      assignedDriverId: null,
-      updatedAt: FirestoreTimestamp.now(),
-    });
+    const vehicleSnapshot = await vehicleRef.get();
+
+    if (vehicleSnapshot.exists) {
+      const vehicle = vehicleSnapshot.data() as Vehicle & { companyId?: string };
+
+      // HIGHLIGHT: only clear vehicle link if same company
+      if ((vehicle as any).companyId === driverCompanyId) {
+        batch.update(vehicleRef, {
+          assignedDriverId: null,
+          updatedAt: FirestoreTimestamp.now(),
+        });
+      }
+    }
   }
 
   await batch.commit();
@@ -118,12 +159,15 @@ export async function updateVehicleStatusFromDriver(
   const driverSnapshot = await driversCollection.doc(driverId).get();
   if (!driverSnapshot.exists) return;
 
-  const driver = driverSnapshot.data() as Driver;
+  const driver = driverSnapshot.data() as Driver & { companyId?: string };
 
   const driverStatus = normDriverStatus(driver.status);
   if (!driverStatus) return;
 
-  // EDITED: normalise previous and new vehicle ids
+  // HIGHLIGHT: company scope from driver
+  const driverCompanyId = (driver as any).companyId ?? null;
+
+  // normalise previous and new vehicle ids
   const prevId =
     typeof previousVehicleId === "string" && previousVehicleId.trim()
       ? previousVehicleId.trim()
@@ -142,9 +186,10 @@ export async function updateVehicleStatusFromDriver(
     "previousVehicleId:",
     prevId,
     "newVehicleId:",
-    nextId
+    nextId,
+    "companyId:",
+    driverCompanyId
   );
-  // EDITED END
 
   // -------- Case 1: driver is NOT active → clear assignments on any linked vehicles --------
   if (driverStatus !== "active") {
@@ -163,13 +208,24 @@ export async function updateVehicleStatusFromDriver(
       const snap = await vehicleRef.get();
       if (!snap.exists) continue;
 
+      const vehicle = snap.data() as Vehicle & { companyId?: string };
+
+      // HIGHLIGHT: only touch vehicles in the same company
+      if ((vehicle as any).companyId !== driverCompanyId) {
+        console.log(
+          "[updateVehicleStatusFromDriver] skip vehicle",
+          vid,
+          "company mismatch"
+        );
+        continue;
+      }
+
       const patch: any = {
         assignedDriverId: "",
         assignedDriverName: "",
         updatedAt: FirestoreTimestamp.now(),
       };
 
-      // If you want vehicle status to reflect driver's non-active state
       if (mappedVehicleStatus) {
         patch.status = mappedVehicleStatus;
       }
@@ -189,25 +245,36 @@ export async function updateVehicleStatusFromDriver(
 
   // -------- Case 2: driver is ACTIVE --------
 
-  // 2a) If they had a previous vehicle and changed vehicles, detach from previous
+  // 2a) detach from previous vehicle if different
   if (prevId && prevId !== nextId) {
     const prevRef = vehiclesCollection.doc(prevId);
     const prevSnap = await prevRef.get();
     if (prevSnap.exists) {
-      const prevPatch: any = {
-        assignedDriverId: "",
-        assignedDriverName: "",
-        updatedAt: FirestoreTimestamp.now(),
-      };
+      const prevVehicle = prevSnap.data() as Vehicle & { companyId?: string };
 
-      console.log(
-        "[updateVehicleStatusFromDriver] detaching driver from previous vehicle",
-        prevId,
-        "patch:",
-        prevPatch
-      );
+      // HIGHLIGHT: enforce same-company
+      if ((prevVehicle as any).companyId === driverCompanyId) {
+        const prevPatch: any = {
+          assignedDriverId: "",
+          assignedDriverName: "",
+          updatedAt: FirestoreTimestamp.now(),
+        };
 
-      await prevRef.update(prevPatch);
+        console.log(
+          "[updateVehicleStatusFromDriver] detaching driver from previous vehicle",
+          prevId,
+          "patch:",
+          prevPatch
+        );
+
+        await prevRef.update(prevPatch);
+      } else {
+        console.log(
+          "[updateVehicleStatusFromDriver] skip detaching from previous vehicle",
+          prevId,
+          "company mismatch"
+        );
+      }
     } else {
       console.log(
         "[updateVehicleStatusFromDriver] previous vehicle not found when detaching",
@@ -235,8 +302,18 @@ export async function updateVehicleStatusFromDriver(
     return;
   }
 
-  const vehicle = vehicleSnapshot.data() as { status?: string | null };
+  const vehicle = vehicleSnapshot.data() as Vehicle & { companyId?: string };
   const currentVehicleStatus = normVehicleStatus(vehicle.status);
+
+  // HIGHLIGHT: enforce same-company
+  if ((vehicle as any).companyId !== driverCompanyId) {
+    console.log(
+      "[updateVehicleStatusFromDriver] skip attaching vehicle",
+      nextId,
+      "company mismatch"
+    );
+    return;
+  }
 
   const vehiclePatch: any = {
     assignedDriverId: driverId,
@@ -257,13 +334,12 @@ export async function updateVehicleStatusFromDriver(
 
   await vehicleRef.update(vehiclePatch);
 }
+
 const getDocInFirebaseTransaction = async (
   tx: FirebaseFirestore.Transaction,
   ref: FirebaseFirestore.DocumentReference
 ): Promise<FirebaseFirestore.DocumentSnapshot> => {
-  // Admin SDK Transaction#get only returns DocumentSnapshot,
-  // but we cast anyway to disambiguate if web types sneak in.
-  return (tx.get(ref) as unknown) as Promise<FirebaseFirestore.DocumentSnapshot>;
+  return tx.get(ref) as unknown as Promise<FirebaseFirestore.DocumentSnapshot>;
 };
 
 export async function updateDriverStatusFromVehicle(
@@ -276,12 +352,18 @@ export async function updateDriverStatusFromVehicle(
     const vehicleSnapshot = await getDocInFirebaseTransaction(tx, vehicleRef);
 
     if (!vehicleSnapshot.exists) {
-      console.log("[updateDriverStatusFromVehicle] vehicle not found", vehicleId);
+      console.log(
+        "[updateDriverStatusFromVehicle] vehicle not found",
+        vehicleId
+      );
       return;
     }
 
-    const vehicle = vehicleSnapshot.data() as Vehicle;
+    const vehicle = vehicleSnapshot.data() as Vehicle & { companyId?: string };
     const vehicleStatus = (vehicle as any).status;
+
+    // HIGHLIGHT: company scope from vehicle
+    const vehicleCompanyId = (vehicle as any).companyId ?? null;
 
     const prevId =
       typeof previousDriverId === "string" && previousDriverId.trim()
@@ -300,7 +382,9 @@ export async function updateDriverStatusFromVehicle(
       "previousDriverId:",
       prevId,
       "newDriverId:",
-      nextId
+      nextId,
+      "companyId:",
+      vehicleCompanyId
     );
 
     // 1) Vehicle is INACTIVE → mark previous driver inactive + clear vehicle
@@ -322,7 +406,17 @@ export async function updateDriverStatusFromVehicle(
         return;
       }
 
-      const driver = driverSnapshot.data() as Driver;
+      const driver = driverSnapshot.data() as Driver & { companyId?: string };
+
+      // HIGHLIGHT: enforce same-company
+      if ((driver as any).companyId !== vehicleCompanyId) {
+        console.log(
+          "[updateDriverStatusFromVehicle] skip inactivating driver",
+          prevId,
+          "company mismatch"
+        );
+        return;
+      }
 
       const driverPatch: Partial<Driver> & { updatedAt: string } = {
         updatedAt: new Date().toISOString(),
@@ -359,32 +453,44 @@ export async function updateDriverStatusFromVehicle(
     }
 
     // 2) Vehicle is ACTIVE (or anything else) → attach / reassign
+
     // 2a) If previous driver exists and is different from new, detach old one
     if (prevId && prevId !== nextId) {
       const prevRef = driversRef.doc(prevId);
       const prevSnap = await getDocInFirebaseTransaction(tx, prevRef);
       if (prevSnap.exists) {
-        const prevDriver = prevSnap.data() as Driver;
-        const prevPatch: Partial<Driver> & { updatedAt: string } = {
-          updatedAt: new Date().toISOString(),
-          assignedVehicleId: "",
-        };
+        const prevDriver = prevSnap.data() as Driver & { companyId?: string };
 
-        if (
-          prevDriver.mileageOnEnd === undefined ||
-          prevDriver.mileageOnEnd === null
-        ) {
-          prevPatch.mileageOnEnd = (vehicle as any).currentMileage ?? null;
+        // HIGHLIGHT: enforce same-company
+        if ((prevDriver as any).companyId === vehicleCompanyId) {
+          const prevPatch: Partial<Driver> & { updatedAt: string } = {
+            updatedAt: new Date().toISOString(),
+            assignedVehicleId: "",
+          };
+
+          if (
+            prevDriver.mileageOnEnd === undefined ||
+            prevDriver.mileageOnEnd === null
+          ) {
+            prevPatch.mileageOnEnd =
+              (vehicle as any).currentMileage ?? null;
+          }
+
+          console.log(
+            "[updateDriverStatusFromVehicle] detaching previous driver",
+            prevId,
+            "patch:",
+            prevPatch
+          );
+
+          tx.update(prevRef, prevPatch);
+        } else {
+          console.log(
+            "[updateDriverStatusFromVehicle] skip detaching previous driver",
+            prevId,
+            "company mismatch"
+          );
         }
-
-        console.log(
-          "[updateDriverStatusFromVehicle] detaching previous driver",
-          prevId,
-          "patch:",
-          prevPatch
-        );
-
-        tx.update(prevRef, prevPatch);
       } else {
         console.log(
           "[updateDriverStatusFromVehicle] previous driver not found when detaching",
@@ -411,7 +517,17 @@ export async function updateDriverStatusFromVehicle(
       return;
     }
 
-    const newDriver = newSnap.data() as Driver;
+    const newDriver = newSnap.data() as Driver & { companyId?: string };
+
+    // HIGHLIGHT: enforce same-company
+    if ((newDriver as any).companyId !== vehicleCompanyId) {
+      console.log(
+        "[updateDriverStatusFromVehicle] skip attaching new driver",
+        nextId,
+        "company mismatch"
+      );
+      return;
+    }
 
     const newPatch: Partial<Driver> & { updatedAt: string } = {
       updatedAt: new Date().toISOString(),
@@ -456,17 +572,44 @@ export async function assignDriverToVehicleOnAdd(
 ): Promise<AssignDriverResult> {
   const now = new Date().toISOString();
   const driverRef = driversCollection.doc(driverId);
+  const vehicleRef = vehiclesCollection.doc(vehiclePlateId); // HIGHLIGHT
 
   try {
     await db.runTransaction(async (tx: FirebaseFirestore.Transaction) => {
+      // HIGHLIGHT: read vehicle inside tx for companyId
+      const vSnap = await tx.get(vehicleRef);
+      if (!vSnap.exists) {
+        throw {
+          http: 404,
+          code: "VEHICLE_NOT_FOUND",
+          message: "Vehicle not found",
+        };
+      }
+      const vehicle = vSnap.data() as Vehicle & { companyId?: string };
+      const vehicleCompanyId = (vehicle as any).companyId ?? null;
+
       const dSnap = await tx.get(driverRef);
       if (!dSnap.exists) {
-        throw { http: 404, code: "DRIVER_NOT_FOUND", message: "Driver not found" };
+        throw {
+          http: 404,
+          code: "DRIVER_NOT_FOUND",
+          message: "Driver not found",
+        };
       }
 
-      const d = dSnap.data() as any;
+      const d = dSnap.data() as Driver & { companyId?: string };
 
-  
+      // HIGHLIGHT: enforce same-company or set driver.companyId if missing
+      const driverCompanyId = (d as any).companyId ?? null;
+
+      if (driverCompanyId && vehicleCompanyId && driverCompanyId !== vehicleCompanyId) {
+        throw {
+          http: 409,
+          code: "COMPANY_MISMATCH",
+          message: "Driver belongs to a different company than vehicle",
+        };
+      }
+
       if (d?.assignedVehicleId && d.assignedVehicleId !== vehiclePlateId) {
         throw {
           http: 409,
@@ -475,12 +618,19 @@ export async function assignDriverToVehicleOnAdd(
         };
       }
 
-      tx.update(driverRef, {
+      const patch: any = {
         assignedVehicleId: vehiclePlateId,
         status: "active",
         mileageOnStart: Number(mileageOnStart || 0),
         updatedAt: now,
-      });
+      };
+
+      // HIGHLIGHT: if driver has no companyId yet but vehicle does, set it
+      if (!driverCompanyId && vehicleCompanyId) {
+        patch.companyId = vehicleCompanyId;
+      }
+
+      tx.update(driverRef, patch);
     });
 
     return { ok: true };
@@ -488,7 +638,6 @@ export async function assignDriverToVehicleOnAdd(
     if (err?.http && err?.code) {
       return { ok: false, http: err.http, code: err.code, message: err.message };
     }
-    // Unexpected error
     return {
       ok: false,
       http: 500,

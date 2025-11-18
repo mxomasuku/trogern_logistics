@@ -139,7 +139,7 @@ export default function IncomePage() {
           titleAccent="Management"
           enableSearch={false}
           addLabel="Add Income"
-          addTo="/income/add"
+          addTo="/app/income/add"
           rightExtras={
             <Button
               variant={showList ? "secondary" : "outline"}

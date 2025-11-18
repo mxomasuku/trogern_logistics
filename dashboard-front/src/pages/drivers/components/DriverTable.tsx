@@ -61,7 +61,7 @@ export function DriverTable({ drivers, onEdit }: Props) {
               {rows.map((d) => (
                 <TableRow
                   key={d.id}
-                  onClick={() => navigate(`/drivers/profile?id=${d.id}`)} // 👈 restored click handler
+                  onClick={() => navigate(`/app/drivers/profile?id=${d.id}`)} // 👈 restored click handler
                   className="odd:bg-slate-50 hover:bg-blue-50/70 transition-colors cursor-pointer"
                 >
                   {/* Driver */}

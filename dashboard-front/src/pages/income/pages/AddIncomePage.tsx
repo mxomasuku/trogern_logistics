@@ -157,7 +157,7 @@ export default function AddIncomePage() {
         await addIncomeLog(payload);
         toast.success("Income logged");
       }
-      navigate("/income");
+      navigate("/app/income");
     } catch (e: any) {
       toast.error(
         e?.message ?? (isEdit ? "Failed to update income" : "Failed to add income")
@@ -322,7 +322,7 @@ export default function AddIncomePage() {
               <div className="flex justify-end gap-2">
                 <Button
                   variant="ghost"
-                  onClick={() => navigate("/income")}
+                  onClick={() => navigate("/app/income")}
                   disabled={saving}
                   className="text-blue-700 hover:bg-blue-50 hover:text-blue-800"
                 >

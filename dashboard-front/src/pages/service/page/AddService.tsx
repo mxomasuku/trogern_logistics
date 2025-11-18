@@ -242,7 +242,7 @@ export default function AddServicePage() {
         await addServiceRecord(payload);
         toast.success("Service record added");
       }
-      navigate("/service/records");
+      navigate("/app/service/records");
     } catch (e: any) {
       toast.error(
         e?.message ??
@@ -543,7 +543,7 @@ export default function AddServicePage() {
               <DialogFooter className="mt-2">
                 <Button
                   variant="ghost"
-                  onClick={() => navigate("/service")}
+                  onClick={() => navigate("/app/service")}
                   disabled={submitting}
                   className="w-full md:w-auto text-blue-700 hover:bg-blue-50 hover:text-blue-800"
                 >

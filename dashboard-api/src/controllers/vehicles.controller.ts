@@ -8,12 +8,15 @@ import {
 } from '../interfaces/interfaces';
 const { db, admin } = require('../config/firebase');
 import { success, failure } from '../utils/apiResponse';
-import { updateDriverStatusFromVehicle} from './status_sync_repo';
+import { updateDriverStatusFromVehicle } from './status_sync_repo';
 import { assignDriverToVehicleOnAdd } from './status_sync_repo';
+
+// HIGHLIGHT: company context helper
+import { requireCompanyContext } from "../utils/companyContext";
 
 // ---------- Firestore refs & helpers ----------
 const vehiclesCollection: FirebaseFirestore.CollectionReference = db.collection('vehicles');
-const serviceRecordsCollection: FirebaseFirestore.CollectionReference = db.collection('service-records')
+const serviceRecordsCollection: FirebaseFirestore.CollectionReference = db.collection('service-records');
 const FirestoreTimestamp = admin.firestore.Timestamp;
 
 const nowTs = () => FirestoreTimestamp.now();
@@ -24,7 +27,6 @@ const parseDateToTs = (value?: string): FirebaseFirestore.Timestamp | undefined 
   if (Number.isNaN(milliseconds)) return undefined;
   return FirestoreTimestamp.fromMillis(milliseconds);
 };
-
 
 export async function upsertLastServiceDateIfNewer(
   vehicleId: string,
@@ -66,7 +68,6 @@ export async function recomputeLastServiceDateFromRecords(vehicleId: string): Pr
 export const normalizePlate = (plate?: string) =>
   (plate ?? "").trim().replace(/\s+/g, "").toUpperCase();
 
-
 // Runtime guards for enums
 const isVehicleStatus = (v: unknown): v is VehicleStatus =>
   v === 'active' || v === 'inactive' || v === 'maintenance' || v === 'retired';
@@ -85,7 +86,7 @@ function toVehicle(
   const make = (dto.make || '').trim();
   const model = (dto.model || '').trim();
   const year = Number(dto.year);
-  const deliveryMileage = Number(dto.deliveryMileage)
+  const deliveryMileage = Number(dto.deliveryMileage);
   const currentMileage = Number(dto.currentMileage);
   const price = Number(dto.price);
   const color = (dto.color ?? '').trim();
@@ -129,7 +130,8 @@ function toVehicle(
     currentMileage,
     createdAt: nowTs(),
     updatedAt: nowTs(),
-  };
+    // HIGHLIGHT: companyId is injected at controller layer, not here
+  } as any;
 
   return { ok: true, value };
 }
@@ -174,8 +176,6 @@ function toVehicleUpdate(
     if (!isVehicleStatus(status)) errors.push("status (one of: 'active'|'inactive'|'maintenance'|'retired')");
     else update.status = status;
   }
-  
-  
 
   if ('route' in dto) {
     const route = dto.route;
@@ -204,20 +204,21 @@ function toVehicleUpdate(
 
   if ('deliveryMileage' in dto) {
     const deliveryMileage = Number(dto.deliveryMileage);
-    if(!Number.isFinite(deliveryMileage) || deliveryMileage < 0)
+    if (!Number.isFinite(deliveryMileage) || deliveryMileage < 0)
       errors.push('deliveryMileage (non-negative number)');
     else update.deliveryMileage = deliveryMileage;
   }
 
-  if('price' in dto) {
+  if ('price' in dto) {
     const price = Number(dto.price);
-    if(!Number.isFinite(price) || price < 0)
+    if (!Number.isFinite(price) || price < 0)
       errors.push('price (non-negative number)');
-    else update.price = price
+    else update.price = price;
   }
 
   if (errors.length) return { ok: false, errors };
-  if (Object.keys(update).length === 0) return { ok: false, errors: ['No valid fields to update'] };
+  if (Object.keys(update).length === 0)
+    return { ok: false, errors: ['No valid fields to update'] };
 
   update.updatedAt = nowTs();
   return { ok: true, value: update };
@@ -225,10 +226,8 @@ function toVehicleUpdate(
 
 // ---------- Serialization ----------
 
-
-
 const vehicleDocToJson = (doc: FirebaseFirestore.DocumentSnapshot) => {
-  const data = doc.data() as Vehicle | undefined;
+  const data = doc.data() as (Vehicle & { companyId?: string }) | undefined;
   if (!data) return null;
 
   return {
@@ -250,15 +249,24 @@ const vehicleDocToJson = (doc: FirebaseFirestore.DocumentSnapshot) => {
     currentMileage: data.currentMileage,
     createdAt: data.createdAt,
     updatedAt: data.updatedAt,
+    companyId: data.companyId ?? null,
   };
 };
 
 // ---------- Controllers ----------
 
 // GET /api/v1/vehicles
-export const getAllVehicles = async (_req: Request, res: Response) => {
+export const getAllVehicles = async (req: Request, res: Response) => {
+  // HIGHLIGHT: scope by company
+  const ctx = await requireCompanyContext(req, res);
+  if (!ctx) return;
+  const { companyId } = ctx;
+
   try {
-    const snapshot = await vehiclesCollection.get();
+    const snapshot = await vehiclesCollection
+      .where("companyId", "==", companyId)
+      .get();
+
     const vehicles = snapshot.docs.map(vehicleDocToJson);
     return res.status(200).json(success(vehicles));
   } catch (error: any) {
@@ -271,12 +279,24 @@ export const getAllVehicles = async (_req: Request, res: Response) => {
 
 // GET /api/v1/vehicles/:id
 export const getVehicle = async (req: Request, res: Response) => {
+  // HIGHLIGHT: scope by company
+  const ctx = await requireCompanyContext(req, res);
+  if (!ctx) return;
+  const { companyId } = ctx;
+
   try {
     const vehicleId = req.params.id;
     const doc = await vehiclesCollection.doc(vehicleId).get();
 
     if (!doc.exists) {
       return res.status(404).json(failure('NOT_FOUND', 'Vehicle not found', { id: vehicleId }));
+    }
+
+    const data = doc.data() as Vehicle & { companyId?: string };
+    if (!data.companyId || data.companyId !== companyId) {
+      return res
+        .status(404)
+        .json(failure('NOT_FOUND', 'Vehicle not found in this company', { id: vehicleId }));
     }
 
     return res.status(200).json(success(vehicleDocToJson(doc)));
@@ -289,59 +309,84 @@ export const getVehicle = async (req: Request, res: Response) => {
 };
 
 // POST /api/v1/vehicles/add
-export const addVehicle = async (req: Request<{}, {}, VehicleCreateDTO>, res: Response) => {
+export const addVehicle = async (
+  req: Request<{}, {}, VehicleCreateDTO>,
+  res: Response
+) => {
+  // HIGHLIGHT: scope by company
+  const ctx = await requireCompanyContext(req, res);
+  if (!ctx) return;
+  const { companyId } = ctx;
+
   const result = toVehicle(req.body);
   if (!result.ok) {
     return res
       .status(400)
-      .json(failure("VALIDATION_ERROR", "Validation failed", { fields: result.errors }));
+      .json(
+        failure("VALIDATION_ERROR", "Validation failed", {
+          fields: result.errors,
+        })
+      );
   }
 
   try {
     const {
       plateNumber,
       currentMileage = 0,
-      assignedDriverId: rawAssignedDriverId, // optional
+      assignedDriverId: rawAssignedDriverId,
       ...rest
     } = result.value;
 
-    // Normalize (strip spaces + uppercase) and use as docId
     const plateId = normalizePlate(plateNumber);
     if (!plateId) {
-      return res
-        .status(400)
-        .json(
-          failure("VALIDATION_ERROR", "Invalid plate number", { fields: { plateNumber: "required" } })
-        );
+      return res.status(400).json(
+        failure("VALIDATION_ERROR", "Invalid plate number", {
+          fields: { plateNumber: "required" },
+        })
+      );
     }
 
     const docRef = vehiclesCollection.doc(plateId);
 
-    // Consistency check — block duplicates even if case/space differs
-    const existing = await docRef.get();
-    if (existing.exists) {
+    const existingSnap = await docRef.get();
+    if (existingSnap.exists) {
+      const existing = existingSnap.data() as { companyId?: string };
+      if (existing.companyId && existing.companyId !== companyId) {
+        // for now, we keep global docId = plate; multi-tenant v2 may change this
+        return res
+          .status(409)
+          .json(
+            failure(
+              "DUPLICATE_PLATE",
+              `Vehicle with plate "${plateId}" already exists in another company`
+            )
+          );
+      }
       return res
         .status(409)
-        .json(failure("DUPLICATE_PLATE", `Vehicle with plate "${plateId}" already exists`));
+        .json(
+          failure(
+            "DUPLICATE_PLATE",
+            `Vehicle with plate "${plateId}" already exists`
+          )
+        );
     }
 
-    const now = new Date().toISOString();
+    const nowIso = new Date().toISOString();
 
-    // Save canonical plate + (optional) original for audit
     const payload = {
       ...rest,
-      plateNumber: plateId,       // canonical
-      plateOriginal: plateNumber, // audit
+      plateNumber: plateId,
+      plateOriginal: plateNumber,
       currentMileage: Number(currentMileage || 0),
-      createdAt: now,
-      updatedAt: now,
+      createdAt: nowIso,
+      updatedAt: nowIso,
+      companyId, // HIGHLIGHT
     };
 
-    // Create vehicle first
     await docRef.set(payload);
     const createdSnap = await docRef.get();
 
-    // ── Driver assignment (optional) ─────────────────────────────────────────────
     const assignedDriverId = (rawAssignedDriverId ?? "").toString().trim();
     if (assignedDriverId) {
       const assign = await assignDriverToVehicleOnAdd(
@@ -350,11 +395,11 @@ export const addVehicle = async (req: Request<{}, {}, VehicleCreateDTO>, res: Re
         Number(currentMileage || 0)
       );
       if (!assign.ok) {
-        // If driver assignment fails, keep the vehicle but surface the driver error.
-        // You can also choose to roll back the vehicle creation if that’s your policy.
         return res
           .status(assign.http)
-          .json(failure(assign.code, assign.message, { plateNumber: plateId }));
+          .json(
+            failure(assign.code, assign.message, { plateNumber: plateId })
+          );
       }
     }
 
@@ -363,21 +408,35 @@ export const addVehicle = async (req: Request<{}, {}, VehicleCreateDTO>, res: Re
     console.error("Error adding vehicle:", error);
     return res
       .status(500)
-      .json(failure("SERVER_ERROR", "Failed to add vehicle", error?.message ?? String(error)));
+      .json(
+        failure(
+          "SERVER_ERROR",
+          "Failed to add vehicle",
+          error?.message ?? String(error)
+        )
+      );
   }
 };
 
-// PUT /api/v1/vehicles/:id
 // PUT /api/v1/vehicles/:id
 export const updateVehicle = async (
   req: Request<{ id: string }, {}, VehicleUpdateDTO>,
   res: Response
 ) => {
+  // HIGHLIGHT: scope by company
+  const ctx = await requireCompanyContext(req, res);
+  if (!ctx) return;
+  const { companyId } = ctx;
+
   const parsed = toVehicleUpdate(req.body);
   if (!parsed.ok) {
     return res
       .status(400)
-      .json(failure("VALIDATION_ERROR", "Validation failed", { fields: parsed.errors }));
+      .json(
+        failure("VALIDATION_ERROR", "Validation failed", {
+          fields: parsed.errors,
+        })
+      );
   }
 
   try {
@@ -388,12 +447,27 @@ export const updateVehicle = async (
     if (!existingSnap.exists) {
       return res
         .status(404)
-        .json(failure("NOT_FOUND", "Vehicle not found", { id: vehicleId }));
+        .json(
+          failure("NOT_FOUND", "Vehicle not found", { id: vehicleId })
+        );
     }
 
-    const existingVehicle = existingSnap.data() as Vehicle;
+    const existingVehicle = existingSnap.data() as Vehicle & {
+      companyId?: string;
+    };
 
-    // EDITED: capture previous and new driver ids explicitly
+    if (!existingVehicle.companyId || existingVehicle.companyId !== companyId) {
+      return res
+        .status(404)
+        .json(
+          failure(
+            "NOT_FOUND",
+            "Vehicle not found in this company",
+            { id: vehicleId }
+          )
+        );
+    }
+
     const previousDriverIdRaw =
       (existingVehicle as any).assignedDriverId ??
       (existingVehicle as any).assignedDriver ??
@@ -413,13 +487,14 @@ export const updateVehicle = async (
       typeof newDriverIdRaw === "string" && newDriverIdRaw.trim()
         ? newDriverIdRaw.trim()
         : null;
-    // EDITED END
 
     await vehicleRef.update(parsed.value);
 
-    // EDITED: pass both previous and new driver ids
-    await updateDriverStatusFromVehicle(vehicleId, previousDriverId, newDriverId);
-    // EDITED END
+    await updateDriverStatusFromVehicle(
+      vehicleId,
+      previousDriverId,
+      newDriverId
+    );
 
     const updatedSnap = await vehicleRef.get();
     return res.status(200).json(success(vehicleDocToJson(updatedSnap)));
@@ -427,44 +502,82 @@ export const updateVehicle = async (
     console.error("Error updating vehicle:", error);
     return res
       .status(500)
-      .json(failure("SERVER_ERROR", "Failed to update vehicle", error.message));
+      .json(
+        failure(
+          "SERVER_ERROR",
+          "Failed to update vehicle",
+          error.message
+        )
+      );
   }
 };
 
 // DELETE /api/v1/vehicles/:id
 export const deleteVehicle = async (req: Request, res: Response) => {
+  // HIGHLIGHT: scope by company
+  const ctx = await requireCompanyContext(req, res);
+  if (!ctx) return;
+  const { companyId } = ctx;
+
   try {
     const vehicleId = req.params.id;
     const vehicleRef = vehiclesCollection.doc(vehicleId);
     const existingSnap = await vehicleRef.get();
 
     if (!existingSnap.exists) {
-      return res.status(404).json(failure('NOT_FOUND', 'Vehicle not found', { id: vehicleId }));
+      return res
+        .status(404)
+        .json(
+          failure("NOT_FOUND", "Vehicle not found", { id: vehicleId })
+        );
+    }
+
+    const existingVehicle = existingSnap.data() as Vehicle & {
+      companyId?: string;
+    };
+    if (!existingVehicle.companyId || existingVehicle.companyId !== companyId) {
+      return res
+        .status(404)
+        .json(
+          failure(
+            "NOT_FOUND",
+            "Vehicle not found in this company",
+            { id: vehicleId }
+          )
+        );
     }
 
     await vehicleRef.delete();
     return res.status(200).json(success({ id: vehicleId }));
   } catch (error: any) {
-    console.error('Error deleting vehicle:', error);
+    console.error("Error deleting vehicle:", error);
     return res
       .status(500)
-      .json(failure('SERVER_ERROR', 'Failed to delete vehicle', error.message));
+      .json(
+        failure(
+          "SERVER_ERROR",
+          "Failed to delete vehicle",
+          error.message
+        )
+      );
   }
 };
 
-
 export const getAllActiveVehicles = async (req: Request, res: Response) => {
+  // HIGHLIGHT: scope by company
+  const ctx = await requireCompanyContext(req, res);
+  if (!ctx) return;
+  const { companyId } = ctx;
+
   try {
     const snapshot = await vehiclesCollection
+      .where("companyId", "==", companyId)
       .where("status", "==", "active")
       .get();
 
-       console.log("vehicles", snapshot);
     const vehicles = snapshot.docs.map((doc) => ({
       ...doc.data(),
     }));
-
-   
 
     return res.status(200).json(success(vehicles));
   } catch (error: any) {
@@ -472,23 +585,30 @@ export const getAllActiveVehicles = async (req: Request, res: Response) => {
     return res
       .status(500)
       .json(
-        failure("SERVER_ERROR", "Failed to fetch active vehicles", error.message)
+        failure(
+          "SERVER_ERROR",
+          "Failed to fetch active vehicles",
+          error.message
+        )
       );
   }
 };
 
 export const getAllInactiveVehicles = async (req: Request, res: Response) => {
+  // HIGHLIGHT: scope by company
+  const ctx = await requireCompanyContext(req, res);
+  if (!ctx) return;
+  const { companyId } = ctx;
+
   try {
     const snapshot = await vehiclesCollection
+      .where("companyId", "==", companyId)
       .where("status", "==", "inactive")
       .get();
 
-       console.log("vehicles", snapshot);
     const vehicles = snapshot.docs.map((doc) => ({
       ...doc.data(),
     }));
-
-   
 
     return res.status(200).json(success(vehicles));
   } catch (error: any) {
@@ -496,7 +616,11 @@ export const getAllInactiveVehicles = async (req: Request, res: Response) => {
     return res
       .status(500)
       .json(
-        failure("SERVER_ERROR", "Failed to fetch inactive vehicles", error.message)
+        failure(
+          "SERVER_ERROR",
+          "Failed to fetch inactive vehicles",
+          error.message
+        )
       );
   }
 };

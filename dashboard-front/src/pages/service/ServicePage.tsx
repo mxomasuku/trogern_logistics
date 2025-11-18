@@ -26,7 +26,7 @@ export default function ServiceHubPage() {
             label="Add Service"
             icon={<Wrench className="h-6 w-6 text-sky-600 group-hover:text-white transition-colors" />}
             gradient="from-blue-500 via-sky-500 to-indigo-500"
-            onClick={() => navigate("/service/add")}
+            onClick={() => navigate("/app/service/add")}
           />
 
           {/* View Records */}
@@ -35,7 +35,7 @@ export default function ServiceHubPage() {
             icon={<ListChecks className="h-6 w-6 text-sky-600 group-hover:text-white transition-colors" />}
             variant="secondary"
             gradient="from-sky-100 via-sky-50 to-white"
-            onClick={() => navigate("/service/records")}
+            onClick={() => navigate("/app/service/records")}
           />
 
           {/* Add Service Item */}

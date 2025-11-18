@@ -10,6 +10,7 @@ import vehicleRoutes from './routes/vehicles.routes';
 import driverRoutes from './routes/driver.routes';
 import authRoutes from './routes/auth.routes';
 import incomeRoutes from './routes/income.routes';
+import companyRoutes from './routes/companyRoutes';
 import serviceRoutes from './routes/service.routes'
 
 // Auth utils/middleware
@@ -72,11 +73,12 @@ app.use('/api/v1/auth', authRoutes);
 // ---- Session populate (attach req.user if valid cookie) ----
 app.use(verifySession);
 
-// ---- Protected routes ----
+app.use("/api/v1/companies", verifySessionCookie, companyRoutes);
 app.use('/api/v1/drivers', verifySessionCookie, driverRoutes);
 app.use('/api/v1/vehicles', verifySessionCookie, vehicleRoutes);
 app.use('/api/v1/income', verifySessionCookie, incomeRoutes);
 app.use('/api/v1/service', verifySessionCookie, serviceRoutes);
+
 
 // ---- Healthchecks (must be BEFORE 404) ----
 app.get('/healthz', (_req: Request, res: Response) => res.status(200).send('ok'));

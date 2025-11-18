@@ -1,9 +1,14 @@
 import {onDocumentCreated} from "firebase-functions/v2/firestore";
 import * as logger from "firebase-functions/logger";
 import {getFirestore, Timestamp} from "firebase-admin/firestore";
-import type {ServiceItemKind, ServiceItem, ServiceItemPrime,
-  ServiceRecord, VehicleServiceTrackerItemDoc, VehicleServiceTrackerSummary} from "./interfaces.js";
-
+import type {
+  ServiceItemKind,
+  ServiceItem,
+  ServiceItemPrime,
+  ServiceRecord,
+  VehicleServiceTrackerItemDoc,
+  VehicleServiceTrackerSummary,
+} from "./interfaces.js";
 
 function chunkArray<T>(array: T[], chunkSize: number): T[][] {
   const result: T[][] = [];
@@ -48,21 +53,24 @@ function computeDueValues(
   return {dueMileage, dueDate};
 }
 
+// HIGHLIGHT: pass companyId into catalog preload so it stays tenant-scoped
 async function preloadCatalogForItems(
   db: FirebaseFirestore.Firestore,
-  items: ServiceItem[]
+  items: ServiceItem[],
+  companyId: string            // HIGHLIGHT
 ): Promise<Map<string, ServiceItemPrime>> {
   const catalogByKey = new Map<string, ServiceItemPrime>();
 
   if (items.length === 0) return catalogByKey;
 
-  // Distinct names to stay within Firestore's `in` operator limits (10 per query)
   const distinctNames = Array.from(new Set(items.map((item) => item.name.trim())));
   const nameBatches = chunkArray(distinctNames, 10);
 
   for (const nameBatch of nameBatches) {
     const snapshot = await db
       .collection("service-items")
+      // HIGHLIGHT: company-scoped catalog lookup
+      .where("companyId", "==", companyId) // HIGHLIGHT
       .where("name", "in", nameBatch)
       .get();
 
@@ -97,10 +105,16 @@ export const createOrUpdateVehicleServiceRecord = onDocumentCreated(
         return;
       }
 
-      const {vehicleId, date, serviceMileage} = serviceRecord;
+      // HIGHLIGHT: pull companyId from the service record
+      const {vehicleId, date, serviceMileage, companyId} = serviceRecord; // HIGHLIGHT
 
       if (!vehicleId) {
         logger.warn("Service record missing vehicleId", {serviceRecordId});
+        return;
+      }
+
+      if (!companyId) {
+        logger.warn("Service record missing companyId", {serviceRecordId});
         return;
       }
 
@@ -112,6 +126,8 @@ export const createOrUpdateVehicleServiceRecord = onDocumentCreated(
 
         return {
           kind: data.kind as ServiceItemKind,
+          // HIGHLIGHT: force companyId on each item (fallback to serviceRecord.companyId)
+          companyId: (data.companyId as string) ?? companyId, // HIGHLIGHT
           name: data.name,
           value: data.value,
           unit: data.unit,
@@ -136,13 +152,17 @@ export const createOrUpdateVehicleServiceRecord = onDocumentCreated(
       logger.info("Processing service record for vehicle", {
         serviceRecordId,
         vehicleId,
+        companyId,                            // HIGHLIGHT
         itemCount: itemsChanged.length,
       });
 
-      // Load service-item catalog entries
-      const catalogByKey = await preloadCatalogForItems(db, itemsChanged);
+      // HIGHLIGHT: company-scoped catalog
+      const catalogByKey = await preloadCatalogForItems(db, itemsChanged, companyId); // HIGHLIGHT
 
-      const trackerSummaryRef = db.collection("vehicleServiceTracker").doc(vehicleId);
+      const trackerSummaryRef = db
+        .collection("vehicleServiceTracker")
+        .doc(vehicleId);
+
       const now = Timestamp.now();
 
       // ------------------------ UPDATE SUMMARY DOC ---------------------------
@@ -168,6 +188,7 @@ export const createOrUpdateVehicleServiceRecord = onDocumentCreated(
 
         const newSummary: VehicleServiceTrackerSummary = {
           vehicleId,
+          companyId,                    // HIGHLIGHT
           lastServiceDate: newLastServiceDate,
           lastServiceMileage: newLastServiceMileage,
           updatedAt: now,
@@ -200,6 +221,7 @@ export const createOrUpdateVehicleServiceRecord = onDocumentCreated(
 
         const updatedItem: VehicleServiceTrackerItemDoc = {
           vehicleId,
+          companyId,                      // HIGHLIGHT
           kind: item.kind,
           name: item.name,
           value: item.value,
@@ -218,6 +240,7 @@ export const createOrUpdateVehicleServiceRecord = onDocumentCreated(
 
       logger.info("Vehicle service tracker updated successfully", {
         vehicleId,
+        companyId,                        // HIGHLIGHT
         serviceRecordId,
         itemCount: itemsChanged.length,
       });

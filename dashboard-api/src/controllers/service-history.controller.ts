@@ -14,7 +14,7 @@ import {
   upsertLastServiceDateIfNewer,
   recomputeLastServiceDateFromRecords,
 } from "./vehicles.controller";
-import { upsertExpenseForService } from "../utils/service-utils";
+import { createOrEditServiceExpenseIncomeLog} from "../utils/service-utils";
 
 /** Collections */
 const vehiclesCollection: FirebaseFirestore.CollectionReference =
@@ -28,6 +28,65 @@ const serviceItemsCatalogCollection: FirebaseFirestore.CollectionReference =
 
 const FirestoreTimestamp: typeof admin.firestore.Timestamp =
   admin.firestore.Timestamp;
+
+/* ------------------------------------------------------------------ */
+/* HIGHLIGHT: auth + company context helpers                          */
+/* ------------------------------------------------------------------ */
+
+async function getUidFromSession(
+  req: Request,
+  res: Response
+): Promise<string | null> {
+  const cookie = req.cookies?.session;
+  if (!cookie) {
+    res.status(401).json({
+      isSuccessful: false,
+      error: { message: "Unauthorized. No session cookie found." },
+    });
+    return null;
+  }
+
+  const checkRevoked =
+    process.env.NODE_ENV === "production" &&
+    !process.env.FIREBASE_AUTH_EMULATOR_HOST;
+
+  try {
+    const decoded = await admin
+      .auth()
+      .verifySessionCookie(cookie, checkRevoked);
+    return decoded.uid as string;
+  } catch {
+    res.status(401).json({
+      isSuccessful: false,
+      error: { message: "Unauthorized or expired session" },
+    });
+    return null;
+  }
+}
+
+async function getCompanyContext(
+  req: Request,
+  res: Response
+): Promise<{ uid: string; companyId: string } | null> {
+  const uid = await getUidFromSession(req, res);
+  if (!uid) return null;
+
+  const userSnap = await db.collection("users").doc(uid).get();
+  const userData = userSnap.data() as { companyId?: string } | undefined;
+
+  if (!userData?.companyId) {
+    res.status(403).json({
+      isSuccessful: false,
+      error: {
+        message:
+          "No company configured for this user. Complete company onboarding first.",
+      },
+    });
+    return null;
+  }
+
+  return { uid, companyId: userData.companyId };
+}
 
 /* -------------------------------- helpers ------------------------------- */
 
@@ -44,7 +103,9 @@ const addDaysToTs = (
   ts: FirebaseFirestore.Timestamp,
   days: number
 ): FirebaseFirestore.Timestamp => {
-  const ms = ts.toMillis() + (Number.isFinite(days) ? days : 0) * 24 * 60 * 60 * 1000;
+  const ms =
+    ts.toMillis() +
+    (Number.isFinite(days) ? days : 0) * 24 * 60 * 60 * 1000;
   return FirestoreTimestamp.fromMillis(ms);
 };
 
@@ -54,11 +115,13 @@ const tsToISO = (ts?: FirebaseFirestore.Timestamp | null) =>
 /** Removes all undefined keys deeply while preserving Firestore Timestamps */
 function removeUndefinedDeep<T>(obj: T): T {
   if (obj === null || obj === undefined) return obj;
-  const isTs = (v: any) => v && typeof v === "object" && typeof v.toMillis === "function";
-  if (Array.isArray(obj)) return obj.map((v) => removeUndefinedDeep(v)) as unknown as T;
+  const isTs = (v: any) =>
+    v && typeof v === "object" && typeof v.toMillis === "function";
+  if (Array.isArray(obj))
+    return obj.map((v) => removeUndefinedDeep(v)) as unknown as T;
   if (typeof obj === "object" && !isTs(obj)) {
     const out: any = {};
-    for (const [k, v] of Object.entries(obj as Record<string, unknown>)) {
+    for (const [k, v] of Object.entries(obj as Record<string, unknown>) ){
       if (v !== undefined) out[k] = removeUndefinedDeep(v);
     }
     return out;
@@ -68,17 +131,22 @@ function removeUndefinedDeep<T>(obj: T): T {
 
 /* ----------------------- items builder (with kind) ---------------------- */
 
+// HIGHLIGHT: added companyId param and company-scoped catalog query
 async function buildDerivedItemsFromDTO(
   recordDateTs: FirebaseFirestore.Timestamp,
   vehicleId: string,
   serviceMileage: number,
+  companyId: string,
   rawItems: ServiceRecordDTO["itemsChanged"]
 ): Promise<{ items: ServiceItem[]; errors: string[] }> {
   const errors: string[] = [];
   const items: ServiceItem[] = [];
 
-  // Preload catalog → group by lowercased name
-  const catalogSnap = await serviceItemsCatalogCollection.get();
+  // Preload catalog → group by lowercased name, SCOPED BY COMPANY
+  const catalogSnap = await serviceItemsCatalogCollection
+    .where("companyId", "==", companyId)
+    .get();
+
   const catalogByName = new Map<string, ServiceItemPrime[]>();
   catalogSnap.docs.forEach((d) => {
     const c = d.data() as ServiceItemPrime;
@@ -99,10 +167,11 @@ async function buildDerivedItemsFromDTO(
     if (!name) errors.push(`${tag}.name`);
     if (!unit) errors.push(`${tag}.unit`);
     if (!Number.isFinite(cost) || cost < 0) errors.push(`${tag}.cost (>=0)`);
-    if (!Number.isFinite(quantity) || quantity <= 0) errors.push(`${tag}.quantity (>0)`);
+    if (!Number.isFinite(quantity) || quantity <= 0)
+      errors.push(`${tag}.quantity (>0)`);
     if (errors.length) continue;
 
-    // Prime match by name (first match). You can refine to match by name+value if needed.
+    // Prime match by name (first match).
     const prime = (catalogByName.get(name.toLowerCase()) || [])[0];
     const kind: ServiceItemKind = prime?.kind ?? "other";
     const value = String(prime?.value ?? "");
@@ -115,6 +184,7 @@ async function buildDerivedItemsFromDTO(
 
     const item: ServiceItem = {
       kind,
+      companyId, // HIGHLIGHT
       name,
       value,
       unit,
@@ -143,7 +213,8 @@ async function buildDerivedItemsFromDTO(
 
 async function writeItemsSubcollection(serviceId: string, items: ServiceItem[]) {
   const batch = db.batch();
-  const itemsCol = serviceAndLicenseRecordsCollection.doc(serviceId).collection("items");
+  const itemsCol =
+    serviceAndLicenseRecordsCollection.doc(serviceId).collection("items");
   items.forEach((it) => {
     const ref = itemsCol.doc();
     const cleaned = removeUndefinedDeep(it);
@@ -152,8 +223,12 @@ async function writeItemsSubcollection(serviceId: string, items: ServiceItem[]) 
   await batch.commit();
 }
 
-async function replaceItemsSubcollection(serviceId: string, items: ServiceItem[]) {
-  const itemsCol = serviceAndLicenseRecordsCollection.doc(serviceId).collection("items");
+async function replaceItemsSubcollection(
+  serviceId: string,
+  items: ServiceItem[]
+) {
+  const itemsCol =
+    serviceAndLicenseRecordsCollection.doc(serviceId).collection("items");
   const snap = await itemsCol.get();
   const delBatch = db.batch();
   snap.docs.forEach((d) => delBatch.delete(d.ref));
@@ -164,12 +239,16 @@ async function replaceItemsSubcollection(serviceId: string, items: ServiceItem[]
 async function readItemsSubcollection(
   serviceId: string
 ): Promise<(ServiceItem & { id: string })[]> {
-  const snap = await serviceAndLicenseRecordsCollection.doc(serviceId).collection("items").get();
+  const snap = await serviceAndLicenseRecordsCollection
+    .doc(serviceId)
+    .collection("items")
+    .get();
   return snap.docs.map((d) => ({ id: d.id, ...(d.data() as ServiceItem) }));
 }
 
 async function cascadeDeleteItems(serviceId: string) {
-  const itemsCol = serviceAndLicenseRecordsCollection.doc(serviceId).collection("items");
+  const itemsCol =
+    serviceAndLicenseRecordsCollection.doc(serviceId).collection("items");
   const page = await itemsCol.limit(300).get();
   if (page.empty) return;
   const batch = db.batch();
@@ -180,11 +259,18 @@ async function cascadeDeleteItems(serviceId: string) {
 
 /* -------------------------------- create -------------------------------- */
 
+
+
 export const addServiceRecord = async (
   req: Request<{}, {}, ServiceRecordDTO>,
   res: Response
 ) => {
   try {
+    // HIGHLIGHT: company context
+    const ctx = await getCompanyContext(req, res);
+    if (!ctx) return;
+    const { companyId } = ctx; // HIGHLIGHT
+
     const vehicleId = (req.body.vehicleId ?? "").trim();
     const serviceDateTs = parseDateToTimestamp(req.body.date);
     const mechanic = (req.body.mechanic || "").trim();
@@ -194,28 +280,67 @@ export const addServiceRecord = async (
     const fieldErrors: string[] = [];
     if (!vehicleId) fieldErrors.push("vehicleId");
     if (!serviceDateTs) fieldErrors.push("date (ISO)");
-    if (!Number.isFinite(serviceMileage) || serviceMileage < 0) fieldErrors.push("serviceMileage (>=0)");
+    if (!Number.isFinite(serviceMileage) || serviceMileage < 0)
+      fieldErrors.push("serviceMileage (>=0)");
     if (!mechanic) fieldErrors.push("mechanic");
-    if (!Number.isFinite(totalCost) || totalCost < 0) fieldErrors.push("cost (>=0)");
-    if (!Array.isArray(req.body.itemsChanged) || req.body.itemsChanged.length === 0) {
+    if (!Number.isFinite(totalCost) || totalCost < 0)
+      fieldErrors.push("cost (>=0)");
+    if (
+      !Array.isArray(req.body.itemsChanged) ||
+      req.body.itemsChanged.length === 0
+    ) {
       fieldErrors.push("itemsChanged (non-empty)");
     }
     if (fieldErrors.length) {
-      return res.status(400).json(failure("VALIDATION_ERROR", "Validation failed", { fields: fieldErrors }));
+      return res
+        .status(400)
+        .json(
+          failure("VALIDATION_ERROR", "Validation failed", {
+            fields: fieldErrors,
+          })
+        );
     }
 
-    const { items, errors: itemErrors } = await buildDerivedItemsFromDTO(
-      serviceDateTs!,
-      vehicleId,
-      serviceMileage,
-      req.body.itemsChanged
-    );
+    // HIGHLIGHT: verify vehicle belongs to this company
+    const vehicleSnap = await vehiclesCollection.doc(vehicleId).get();
+    if (!vehicleSnap.exists) {
+      return res
+        .status(404)
+        .json(
+          failure("NOT_FOUND", "Vehicle not found", { vehicleId })
+        );
+    }
+    const vehicleData = vehicleSnap.data() as { companyId?: string };
+    if ((vehicleData as any).companyId !== companyId) {
+      return res.status(403).json(
+        failure("FORBIDDEN", "Vehicle does not belong to your company", {
+          vehicleId,
+        })
+      );
+    }
+
+    // HIGHLIGHT: pass companyId into builder so each ServiceItem gets it
+    const { items, errors: itemErrors } =
+      await buildDerivedItemsFromDTO(
+        serviceDateTs!,
+        vehicleId,
+        serviceMileage,
+        companyId, // HIGHLIGHT
+        req.body.itemsChanged
+      );
     if (itemErrors.length) {
-      return res.status(400).json(failure("VALIDATION_ERROR", "Invalid itemsChanged", { fields: itemErrors }));
+      return res
+        .status(400)
+        .json(
+          failure("VALIDATION_ERROR", "Invalid itemsChanged", {
+            fields: itemErrors,
+          })
+        );
     }
 
     const now = FirestoreTimestamp.now();
     const recordToCreate: ServiceRecord = {
+      companyId, // HIGHLIGHT
       vehicleId,
       date: serviceDateTs!,
       serviceMileage,
@@ -230,7 +355,9 @@ export const addServiceRecord = async (
     const recordRef = serviceAndLicenseRecordsCollection.doc();
     const serviceId = recordRef.id;
 
-    await recordRef.set(removeUndefinedDeep({ ...recordToCreate, id: serviceId, serviceId }) as any);
+    await recordRef.set(
+      removeUndefinedDeep({ ...recordToCreate, id: serviceId, serviceId }) as any
+    );
     await writeItemsSubcollection(serviceId, items);
 
     try {
@@ -239,10 +366,12 @@ export const addServiceRecord = async (
       console.warn("upsertLastServiceDateIfNewer failed:", e);
     }
 
+    // HIGHLIGHT: renamed util + include companyId for income log
     try {
-      await upsertExpenseForService({
+      await createOrEditServiceExpenseIncomeLog({
         serviceId,
         vehicleId,
+        companyId,
         cost: totalCost,
         serviceMileage,
         serviceDate: serviceDateTs!,
@@ -251,7 +380,10 @@ export const addServiceRecord = async (
         notes: recordToCreate.notes ?? null,
       });
     } catch (e) {
-      console.warn("upsertExpenseForService (create) failed:", e);
+      console.warn(
+        "createOrEditServiceExpenseIncomeLog (create) failed:",
+        e
+      );
     }
 
     const savedItems = await readItemsSubcollection(serviceId);
@@ -278,9 +410,17 @@ export const addServiceRecord = async (
     console.error("Error adding service record:", error);
     return res
       .status(500)
-      .json(failure("SERVER_ERROR", "Failed to add service record", error.message));
+      .json(
+        failure(
+          "SERVER_ERROR",
+          "Failed to add service record",
+          error.message
+        )
+      );
   }
 };
+
+/* -------------------------------- update -------------------------------- */
 
 /* -------------------------------- update -------------------------------- */
 
@@ -289,19 +429,46 @@ export const updateServiceRecord = async (
   res: Response
 ) => {
   try {
+    // HIGHLIGHT: company context
+    const ctx = await getCompanyContext(req, res);
+    if (!ctx) return;
+    const { companyId } = ctx; // HIGHLIGHT
+
     const { id: serviceId } = req.params;
     const recordRef = serviceAndLicenseRecordsCollection.doc(serviceId);
     const snapshot = await recordRef.get();
     if (!snapshot.exists) {
       return res
         .status(404)
-        .json(failure("NOT_FOUND", "Service record not found", { serviceId }));
+        .json(
+          failure("NOT_FOUND", "Service record not found", { serviceId })
+        );
     }
-    const existing = snapshot.data() as ServiceRecord & { id?: string; serviceId?: string };
+    const existing = snapshot.data() as ServiceRecord & {
+      id?: string;
+      serviceId?: string;
+      companyId?: string;
+    };
+
+    // HIGHLIGHT: enforce ownership
+    if (existing.companyId !== companyId) {
+      return res
+        .status(403)
+        .json(
+          failure(
+            "FORBIDDEN",
+            "You do not have access to this service record"
+          )
+        );
+    }
+
     const oldVehicleId = existing.vehicleId;
     const oldDateTs = existing.date;
 
-    const updatePayload: Partial<ServiceRecord> & { id?: string; serviceId?: string } = {
+    const updatePayload: Partial<ServiceRecord> & {
+      id?: string;
+      serviceId?: string;
+    } = {
       updatedAt: FirestoreTimestamp.now(),
     };
     const fieldErrors: string[] = [];
@@ -321,12 +488,30 @@ export const updateServiceRecord = async (
     if ("vehicleId" in req.body) {
       const requestedVehicleId = (req.body as any).vehicleId?.trim?.();
       if (requestedVehicleId) {
-        const vSnap = await vehiclesCollection.doc(requestedVehicleId).get();
+        // HIGHLIGHT: verify same-company vehicle
+        const vSnap = await vehiclesCollection
+          .doc(requestedVehicleId)
+          .get();
         if (!vSnap.exists) {
           return res
             .status(404)
-            .json(failure("NOT_FOUND", "Vehicle not found", { vehicleId: requestedVehicleId }));
+            .json(
+              failure("NOT_FOUND", "Vehicle not found", {
+                vehicleId: requestedVehicleId,
+              })
+            );
         }
+        const vData = vSnap.data() as { companyId?: string };
+        if ((vData as any).companyId !== companyId) {
+          return res.status(403).json(
+            failure(
+              "FORBIDDEN",
+              "Vehicle does not belong to your company",
+              { vehicleId: requestedVehicleId }
+            )
+          );
+        }
+
         updatePayload.vehicleId = requestedVehicleId;
       } else fieldErrors.push("vehicleId");
     }
@@ -339,24 +524,37 @@ export const updateServiceRecord = async (
 
     if ("cost" in req.body) {
       const totalCost = Number(req.body.cost);
-      if (!Number.isFinite(totalCost) || totalCost < 0) fieldErrors.push("cost (>=0)");
+      if (!Number.isFinite(totalCost) || totalCost < 0)
+        fieldErrors.push("cost (>=0)");
       else updatePayload.cost = totalCost;
     }
 
     if ("serviceMileage" in req.body) {
       const sm = Number(req.body.serviceMileage);
-      if (!Number.isFinite(sm) || sm < 0) fieldErrors.push("serviceMileage (>=0)");
+      if (!Number.isFinite(sm) || sm < 0)
+        fieldErrors.push("serviceMileage (>=0)");
       else updatePayload.serviceMileage = sm;
     }
 
     if (fieldErrors.length) {
       return res
         .status(400)
-        .json(failure("VALIDATION_ERROR", "Validation failed", { fields: fieldErrors }));
+        .json(
+          failure("VALIDATION_ERROR", "Validation failed", {
+            fields: fieldErrors,
+          })
+        );
     }
 
-    if (Object.keys(updatePayload).length === 1 && !("itemsChanged" in req.body)) {
-      return res.status(400).json(failure("VALIDATION_ERROR", "No valid fields to update"));
+    if (
+      Object.keys(updatePayload).length === 1 &&
+      !("itemsChanged" in req.body)
+    ) {
+      return res
+        .status(400)
+        .json(
+          failure("VALIDATION_ERROR", "No valid fields to update")
+        );
     }
 
     await recordRef.update(
@@ -372,30 +570,39 @@ export const updateServiceRecord = async (
       const latestSnap = await recordRef.get();
       const latest = latestSnap.data() as ServiceRecord;
       const baseDateTs = newDateTs || latest.date || oldDateTs;
-      const baseVehicleId = updatePayload.vehicleId || latest.vehicleId || oldVehicleId;
+      const baseVehicleId =
+        updatePayload.vehicleId || latest.vehicleId || oldVehicleId;
       const baseMileage =
-        "serviceMileage" in updatePayload && updatePayload.serviceMileage != null
+        "serviceMileage" in updatePayload &&
+        updatePayload.serviceMileage != null
           ? (updatePayload.serviceMileage as number)
           : latest.serviceMileage;
 
+      // HIGHLIGHT: pass companyId into builder
       const { items, errors } = await buildDerivedItemsFromDTO(
         baseDateTs,
         baseVehicleId,
         baseMileage,
+        companyId, // HIGHLIGHT
         (req.body.itemsChanged as any) || []
       );
       if (errors.length) {
         return res
           .status(400)
-          .json(failure("VALIDATION_ERROR", "Invalid itemsChanged", { fields: errors }));
+          .json(
+            failure("VALIDATION_ERROR", "Invalid itemsChanged", {
+              fields: errors,
+            })
+          );
       }
       await replaceItemsSubcollection(serviceId, items);
 
-      // Keep expense in sync after items rewrite
+      // HIGHLIGHT: renamed util + companyId
       try {
-        await upsertExpenseForService({
+        await createOrEditServiceExpenseIncomeLog({
           serviceId,
           vehicleId: baseVehicleId,
+          companyId,
           cost: updatePayload.cost ?? latest.cost,
           serviceMileage: baseMileage,
           serviceDate: baseDateTs,
@@ -404,16 +611,23 @@ export const updateServiceRecord = async (
           notes: updatePayload.notes ?? latest.notes ?? null,
         });
       } catch (e) {
-        console.warn("upsertExpenseForService (update-items) failed:", e);
+        console.warn(
+          "createOrEditServiceExpenseIncomeLog (update-items) failed:",
+          e
+        );
       }
     } else {
       // Update expense with current record values if items unchanged
       try {
-        const refreshed = (await recordRef.get()).data() as ServiceRecord;
+        const refreshed = (await recordRef.get())
+          .data() as ServiceRecord;
         const curItems = await readItemsSubcollection(serviceId);
-        await upsertExpenseForService({
+
+        // HIGHLIGHT: renamed util + companyId
+        await createOrEditServiceExpenseIncomeLog({
           serviceId,
           vehicleId: refreshed.vehicleId,
+          companyId,
           cost: refreshed.cost,
           serviceMileage: refreshed.serviceMileage,
           serviceDate: refreshed.date,
@@ -422,7 +636,10 @@ export const updateServiceRecord = async (
           notes: refreshed.notes ?? null,
         });
       } catch (e) {
-        console.warn("upsertExpenseForService (update) failed:", e);
+        console.warn(
+          "createOrEditServiceExpenseIncomeLog (update) failed:",
+          e
+        );
       }
     }
 
@@ -431,13 +648,20 @@ export const updateServiceRecord = async (
     const updated = updatedSnap.data() as ServiceRecord;
 
     const vehicleChanged =
-      !!updatePayload.vehicleId && updatePayload.vehicleId !== oldVehicleId;
+      !!updatePayload.vehicleId &&
+      updatePayload.vehicleId !== oldVehicleId;
     const dateChanged =
-      dateProvided && newDateTs && newDateTs.toMillis() !== oldDateTs?.toMillis();
+      dateProvided &&
+      newDateTs &&
+      newDateTs.toMillis() !== oldDateTs?.toMillis();
 
     try {
       if (vehicleChanged) {
-        if (updated.date) await upsertLastServiceDateIfNewer(updated.vehicleId, updated.date);
+        if (updated.date)
+          await upsertLastServiceDateIfNewer(
+            updated.vehicleId,
+            updated.date
+          );
         await recomputeLastServiceDateFromRecords(oldVehicleId);
       } else if (dateChanged) {
         await recomputeLastServiceDateFromRecords(updated.vehicleId);
@@ -470,7 +694,13 @@ export const updateServiceRecord = async (
     console.error("Error updating service record:", error);
     return res
       .status(500)
-      .json(failure("SERVER_ERROR", "Failed to update service record", error.message));
+      .json(
+        failure(
+          "SERVER_ERROR",
+          "Failed to update service record",
+          error.message
+        )
+      );
   }
 };
 
@@ -478,17 +708,45 @@ export const updateServiceRecord = async (
 
 export const getServiceRecordById = async (req: Request, res: Response) => {
   try {
+    // HIGHLIGHT: company context
+    const ctx = await getCompanyContext(req, res);
+    if (!ctx) return;
+    const { companyId } = ctx;
+
     const { id } = req.params;
     if (!id)
-      return res.status(400).json(failure("BAD_REQUEST", "Service record ID is required"));
+      return res
+        .status(400)
+        .json(
+          failure("BAD_REQUEST", "Service record ID is required")
+        );
 
     const doc = await serviceAndLicenseRecordsCollection.doc(id).get();
     if (!doc.exists)
       return res
         .status(404)
-        .json(failure("NOT_FOUND", "Service record not found", { id }));
+        .json(
+          failure("NOT_FOUND", "Service record not found", { id })
+        );
 
-    const data = doc.data() as ServiceRecord & { id?: string; serviceId?: string };
+    const data = doc.data() as ServiceRecord & {
+      id?: string;
+      serviceId?: string;
+      companyId?: string;
+    };
+
+    // HIGHLIGHT: enforce company
+    if (data.companyId !== companyId) {
+      return res
+        .status(403)
+        .json(
+          failure(
+            "FORBIDDEN",
+            "You do not have access to this service record"
+          )
+        );
+    }
+
     const items = await readItemsSubcollection(id);
 
     return res.status(200).json(
@@ -514,7 +772,13 @@ export const getServiceRecordById = async (req: Request, res: Response) => {
     console.error("Error fetching service record by ID:", error);
     return res
       .status(500)
-      .json(failure("SERVER_ERROR", "Failed to fetch service record", error.message));
+      .json(
+        failure(
+          "SERVER_ERROR",
+          "Failed to fetch service record",
+          error.message
+        )
+      );
   }
 };
 
@@ -523,23 +787,46 @@ export const getServiceRecordsForVehicle = async (
   res: Response
 ) => {
   try {
+    // HIGHLIGHT: company context
+    const ctx = await getCompanyContext(req, res);
+    if (!ctx) return;
+    const { companyId } = ctx;
+
     const { vehicleId } = req.params;
 
     const vSnap = await vehiclesCollection.doc(vehicleId).get();
     if (!vSnap.exists) {
       return res
         .status(404)
-        .json(failure("NOT_FOUND", "Vehicle not found", { vehicleId }));
+        .json(
+          failure("NOT_FOUND", "Vehicle not found", { vehicleId })
+        );
+    }
+    const vData = vSnap.data() as { companyId?: string };
+    if ((vData as any).companyId !== companyId) {
+      return res
+        .status(403)
+        .json(
+          failure(
+            "FORBIDDEN",
+            "Vehicle does not belong to your company",
+            { vehicleId }
+          )
+        );
     }
 
     const snapshot = await serviceAndLicenseRecordsCollection
+      .where("companyId", "==", companyId) // HIGHLIGHT
       .where("vehicleId", "==", vehicleId)
       .orderBy("date", "desc")
       .get();
 
     const records = await Promise.all(
       snapshot.docs.map(async (doc) => {
-        const record = doc.data() as ServiceRecord & { id?: string; serviceId?: string };
+        const record = doc.data() as ServiceRecord & {
+          id?: string;
+          serviceId?: string;
+        };
         const items = await readItemsSubcollection(doc.id);
         return {
           id: doc.id,
@@ -566,17 +853,37 @@ export const getServiceRecordsForVehicle = async (
     console.error("Error fetching service records for vehicle:", error);
     return res
       .status(500)
-      .json(failure("SERVER_ERROR", "Failed to fetch service records", error.message));
+      .json(
+        failure(
+          "SERVER_ERROR",
+          "Failed to fetch service records",
+          error.message
+        )
+      );
   }
 };
 
-export const getAllServiceRecords = async (_req: Request, res: Response) => {
+export const getAllServiceRecords = async (
+  req: Request,
+  res: Response
+) => {
   try {
-    const snapshot = await serviceAndLicenseRecordsCollection.orderBy("date", "desc").get();
+    // HIGHLIGHT: company context
+    const ctx = await getCompanyContext(req, res);
+    if (!ctx) return;
+    const { companyId } = ctx;
+
+    const snapshot = await serviceAndLicenseRecordsCollection
+      .where("companyId", "==", companyId) // HIGHLIGHT
+      .orderBy("date", "desc")
+      .get();
 
     const records = await Promise.all(
       snapshot.docs.map(async (doc) => {
-        const record = doc.data() as ServiceRecord & { id?: string; serviceId?: string };
+        const record = doc.data() as ServiceRecord & {
+          id?: string;
+          serviceId?: string;
+        };
         const items = await readItemsSubcollection(doc.id);
         return {
           id: doc.id,
@@ -603,7 +910,13 @@ export const getAllServiceRecords = async (_req: Request, res: Response) => {
     console.error("Error fetching all service records:", error);
     return res
       .status(500)
-      .json(failure("SERVER_ERROR", "Failed to fetch all service records", error.message));
+      .json(
+        failure(
+          "SERVER_ERROR",
+          "Failed to fetch all service records",
+          error.message
+        )
+      );
   }
 };
 
@@ -614,13 +927,36 @@ export const deleteServiceRecord = async (
   res: Response
 ) => {
   try {
+    // HIGHLIGHT: company context
+    const ctx = await getCompanyContext(req, res);
+    if (!ctx) return;
+    const { companyId } = ctx;
+
     const { id: serviceId } = req.params;
     const recordRef = serviceAndLicenseRecordsCollection.doc(serviceId);
     const snapshot = await recordRef.get();
     if (!snapshot.exists) {
       return res
         .status(404)
-        .json(failure("NOT_FOUND", "Service record not found", { serviceId }));
+        .json(
+          failure("NOT_FOUND", "Service record not found", {
+            serviceId,
+          })
+        );
+    }
+
+    const data = snapshot.data() as ServiceRecord & { companyId?: string };
+
+    // HIGHLIGHT: enforce company
+    if (data.companyId !== companyId) {
+      return res
+        .status(403)
+        .json(
+          failure(
+            "FORBIDDEN",
+            "You do not have access to this service record"
+          )
+        );
     }
 
     await cascadeDeleteItems(serviceId);
@@ -631,14 +967,26 @@ export const deleteServiceRecord = async (
     console.error("Error deleting service record:", error);
     return res
       .status(500)
-      .json(failure("SERVER_ERROR", "Failed to delete service record", error.message));
+      .json(
+        failure(
+          "SERVER_ERROR",
+          "Failed to delete service record",
+          error.message
+        )
+      );
   }
 };
 
 /* ------------------------------- catalog -------------------------------- */
 
+// HIGHLIGHT: company-scoped catalog
 export const addServiceItem = async (req: Request, res: Response) => {
   try {
+    // HIGHLIGHT: company context
+    const ctx = await getCompanyContext(req, res);
+    if (!ctx) return;
+    const { companyId } = ctx;
+
     const {
       name,
       value,
@@ -662,7 +1010,11 @@ export const addServiceItem = async (req: Request, res: Response) => {
       );
     }
     if (!name || !value) {
-      return res.status(400).json(failure("BAD_REQUEST", "Missing required fields"));
+      return res
+        .status(400)
+        .json(
+          failure("BAD_REQUEST", "Missing required fields")
+        );
     }
 
     const toNumOrNull = (v: any): number | null => {
@@ -674,49 +1026,102 @@ export const addServiceItem = async (req: Request, res: Response) => {
 
     const newItem: ServiceItemPrime = {
       kind,
+      companyId, // HIGHLIGHT
       name: String(name).trim(),
       value: String(value).trim(),
       expectedLifespanMileage: toNumOrNull(expectedLifespanMileage),
       expectedLifespanDays: toNumOrNull(expectedLifespanDays),
     };
 
-    const docRef = await serviceItemsCatalogCollection.add(removeUndefinedDeep(newItem));
+    const docRef = await serviceItemsCatalogCollection.add(
+      removeUndefinedDeep(newItem)
+    );
     return res.status(201).json(success({ id: docRef.id, ...newItem }));
   } catch (error: any) {
     console.error("Error adding service item:", error);
     return res
       .status(500)
-      .json(failure("INTERNAL_ERROR", "Failed to add service item", error));
+      .json(
+        failure(
+          "INTERNAL_ERROR",
+          "Failed to add service item",
+          error
+        )
+      );
   }
 };
 
-export const getAllServiceItems = async (_req: Request, res: Response) => {
+// HIGHLIGHT: company-scoped fetch
+export const getAllServiceItems = async (
+  req: Request,
+  res: Response
+) => {
   try {
-    const snap = await serviceItemsCatalogCollection.get();
-    const items = snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }));
+    const ctx = await getCompanyContext(req, res);
+    if (!ctx) return;
+    const { companyId } = ctx;
+
+    const snap = await serviceItemsCatalogCollection
+      .where("companyId", "==", companyId)
+      .get();
+
+    const items = snap.docs.map((d) => ({
+      id: d.id,
+      ...(d.data() as any),
+    }));
     return res.status(200).json(success(items));
   } catch (error: any) {
     console.error("Error fetching service items:", error);
     return res
       .status(500)
-      .json(failure("INTERNAL_ERROR", "Failed to fetch service items", error));
+      .json(
+        failure(
+          "INTERNAL_ERROR",
+          "Failed to fetch service items",
+          error
+        )
+      );
   }
 };
 
-export const deleteServiceItem = async (req: Request, res: Response) => {
+// HIGHLIGHT: company ownership check on delete
+export const deleteServiceItem = async (
+  req: Request,
+  res: Response
+) => {
   try {
+    const ctx = await getCompanyContext(req, res);
+    if (!ctx) return;
+    const { companyId } = ctx;
+
     const { id } = req.params;
     if (!id)
       return res
         .status(400)
-        .json(failure("BAD_REQUEST", "Missing service item ID"));
+        .json(
+          failure("BAD_REQUEST", "Missing service item ID")
+        );
 
     const docRef = serviceItemsCatalogCollection.doc(id);
     const docSnap = await docRef.get();
     if (!docSnap.exists)
       return res
         .status(404)
-        .json(failure("NOT_FOUND", "Service item not found"));
+        .json(
+          failure("NOT_FOUND", "Service item not found")
+        );
+
+    const data = docSnap.data() as ServiceItemPrime & { companyId?: string };
+    if (data.companyId !== companyId) {
+      return res
+        .status(403)
+        .json(
+          failure(
+            "FORBIDDEN",
+            "You do not have access to this service item"
+          )
+        );
+    }
 
     await docRef.delete();
     return res.status(200).json(success({ deletedId: id }));
@@ -724,6 +1129,12 @@ export const deleteServiceItem = async (req: Request, res: Response) => {
     console.error("Error deleting service item:", error);
     return res
       .status(500)
-      .json(failure("INTERNAL_ERROR", "Failed to delete service item", error));
+      .json(
+        failure(
+          "INTERNAL_ERROR",
+          "Failed to delete service item",
+          error
+        )
+      );
   }
 };
