@@ -1,0 +1,227 @@
+// src/controllers/companyController.ts
+import { Request, Response } from "express";
+const { admin } = require("../config/firebase");
+
+const db = admin.firestore();
+import { FleetType, CompanyDoc } from "../interfaces/interfaces";
+
+
+
+async function getUidFromSession(
+  req: Request,
+  res: Response
+): Promise<string | null> {
+  const cookie = req.cookies?.session;
+  if (!cookie) {
+    res.status(401).json({
+      isSuccessful: false,
+      error: { message: "Unauthorized. No session cookie found." },
+    });
+    return null;
+  }
+
+  const checkRevoked =
+    process.env.NODE_ENV === "production" &&
+    !process.env.FIREBASE_AUTH_EMULATOR_HOST;
+
+  try {
+    const decoded = await admin
+      .auth()
+      .verifySessionCookie(cookie, checkRevoked);
+    return decoded.uid as string;
+  } catch {
+    res.status(401).json({
+      isSuccessful: false,
+      error: { message: "Unauthorized or expired session" },
+    });
+    return null;
+  }
+}
+
+
+export async function createCompany(req: Request, res: Response) {
+  const uid = await getUidFromSession(req, res);
+  if (!uid) return;
+
+  const {
+    name,
+    fleetSize,
+    employeeCount,
+    fleetType,
+    usageDescription,
+  } = req.body as {
+    name?: string;
+    fleetSize?: number;
+    employeeCount?: number;
+    fleetType?: FleetType;
+    usageDescription?: string;
+  };
+
+  if (!name || !fleetSize || !employeeCount || !fleetType || !usageDescription) {
+    return res.status(400).json({
+      isSuccessful: false,
+      error: {
+        message:
+          "Missing company fields (name, fleetSize, employeeCount, fleetType, usageDescription)",
+      },
+    });
+  }
+
+  if (fleetSize < 1 || employeeCount < 1) {
+    return res.status(400).json({
+      isSuccessful: false,
+      error: {
+        message: "fleetSize and employeeCount must be at least 1",
+      },
+    });
+  }
+
+  try {
+    // Check if company already exists for this ownerUid
+    const existingSnap = await db
+      .collection("companies")
+      .where("ownerUid", "==", uid)
+      .limit(1)
+      .get();
+
+    const now = admin.firestore.FieldValue.serverTimestamp();
+
+    let docRef: FirebaseFirestore.DocumentReference<CompanyDoc>;
+
+    if (!existingSnap.empty) {
+      // Update existing company
+      const existingDoc = existingSnap.docs[0];
+      docRef = existingDoc.ref as FirebaseFirestore.DocumentReference<CompanyDoc>;
+
+      await docRef.update({
+        name,
+        fleetSize,
+        employeeCount,
+        fleetType,
+        usageDescription,
+        updatedAt: now,
+      });
+    } else {
+      // Create new company
+      docRef = db
+        .collection("companies")
+        .doc() as FirebaseFirestore.DocumentReference<CompanyDoc>;
+      await docRef.set({
+        companyId: docRef.id,
+        ownerUid: uid,
+        name,
+        fleetSize,
+        employeeCount,
+        fleetType,
+        usageDescription,
+        createdAt: now as any,
+        updatedAt: now as any,
+      });
+    }
+
+    const userRef = db.collection("users").doc(uid);
+
+await userRef.set(
+  {
+    uid,
+    email: null,      // optional: you can fill from decoded token if you want
+    name: null,       // optional
+    companyId: docRef.id,  // HIGHLIGHT: link user to company
+    role: "owner",
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+  },
+  { merge: true }     // HIGHLIGHT: do not overwrite existing fields
+);
+
+    // Re-read the document to return canonical shape
+    const freshSnap = await docRef.get();
+    const docData = freshSnap.data() as CompanyDoc;
+
+    const company = {
+      companyId: docData.companyId,
+      ownerUid: docData.ownerUid,
+      name: docData.name,
+      fleetSize: docData.fleetSize,
+      employeeCount: docData.employeeCount,
+      fleetType: docData.fleetType,
+      usageDescription: docData.usageDescription,
+      createdAt: docData.createdAt.toDate().toISOString(),
+      updatedAt: docData.updatedAt.toDate().toISOString(),
+    };
+
+    // HIGHLIGHT: match CreateCompanyResponse { isSuccessful, company }
+    return res.status(200).json({
+      isSuccessful: true,
+      company,
+    });
+  } catch (e: any) {
+    return res.status(500).json({
+      isSuccessful: false,
+      error: { message: e?.message || "Failed to create or update company" },
+    });
+  }
+}
+
+// src/controllers/companyController.ts  (replace getMyCompany)
+
+export async function getMyCompany(req: Request, res: Response) {
+  const uid = await getUidFromSession(req, res);
+  if (!uid) return;
+
+  try {
+    // HIGHLIGHT: look up membership from users/{uid}
+    const userSnap = await db.collection("users").doc(uid).get();
+
+    if (!userSnap.exists) {
+      return res.status(200).json({
+        company: null,
+      });
+    }
+
+    const userData = userSnap.data() as {
+      companyId?: string | null;
+      role?: string;
+    };
+
+    const companyId = userData.companyId;
+
+    if (!companyId) {
+      return res.status(200).json({
+        company: null,
+      });
+    }
+
+    const companySnap = await db.collection("companies").doc(companyId).get();
+
+    if (!companySnap.exists) {
+      // user points to a non-existing company (corrupted / deleted)
+      return res.status(200).json({
+        company: null,
+      });
+    }
+
+    const data = companySnap.data() as CompanyDoc;
+
+    const company = {
+      companyId: data.companyId,
+      ownerUid: data.ownerUid,
+      name: data.name,
+      fleetSize: data.fleetSize,
+      employeeCount: data.employeeCount,
+      fleetType: data.fleetType,
+      usageDescription: data.usageDescription,
+      createdAt: data.createdAt.toDate().toISOString(),
+      updatedAt: data.updatedAt.toDate().toISOString(),
+    };
+
+    return res.status(200).json({
+      company,
+    });
+  } catch (e: any) {
+    return res.status(500).json({
+      isSuccessful: false,
+      error: { message: e?.message || "Failed to fetch company" },
+    });
+  }
+}

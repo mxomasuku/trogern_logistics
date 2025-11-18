@@ -72,9 +72,11 @@ function buildServiceExpenseNote(input: {
 
 // Upsert an expense income-log row that corresponds to a service record
 // We link by source.serviceId so updates overwrite the same expense row.
-export async function upsertExpenseForService(params: {
+// HIGHLIGHT: renamed + companyId added everywhere
+export async function createOrEditServiceExpenseIncomeLog(params: {
   serviceId: string;
   vehicleId: string;
+  companyId: string; // HIGHLIGHT
   cost: number;
   serviceMileage: number;
   serviceDate: FirebaseFirestore.Timestamp;
@@ -85,6 +87,7 @@ export async function upsertExpenseForService(params: {
   const {
     serviceId,
     vehicleId,
+    companyId,       // HIGHLIGHT
     cost,
     serviceMileage,
     serviceDate,
@@ -100,19 +103,21 @@ export async function upsertExpenseForService(params: {
 
   // Look for an existing expense tied to this serviceId
   const existingQ = await incomeRef
-    .where('source.kind', '==', 'service')
-    .where('source.serviceId', '==', serviceId)
-    .where('type', '==', 'expense') // LedgerType
+    .where("source.kind", "==", "service")
+    .where("source.serviceId", "==", serviceId)
+    .where("type", "==", "expense") // LedgerType
     .limit(1)
     .get();
 
   const basePayload: Record<string, any> = {
+    // HIGHLIGHT: multi-tenant income log
+    companyId,                        // HIGHLIGHT
     amount: Number(cost),
     weekEndingMileage: Number(serviceMileage),
     vehicle: String(vehicleId),
-    driverId: driverId || '',
-    driverName: driverName || '',
-    type: 'expense', // <-- ensure matches your LedgerType
+    driverId: driverId || "",
+    driverName: driverName || "",
+    type: "expense", // <-- ensure matches your LedgerType
     note: buildServiceExpenseNote({
       dateISO,
       mechanic,
@@ -120,7 +125,7 @@ export async function upsertExpenseForService(params: {
       extraNote: notes,
     }),
     cashDate: serviceDate.toDate(), // pay out date == service date; adjust if you prefer createdAt
-    source: { kind: 'service', serviceId },
+    source: { kind: "service", serviceId },
     updatedAt: new Date(),
   };
 

@@ -83,7 +83,7 @@ export default function DriversPage() {
           showSearchMobile={showSearchMobile}
           setShowSearchMobile={setShowSearchMobile}
           addLabel="Add Driver"
-          addTo="/drivers/add"
+          addTo="/app/drivers/add"
         />
 
         <CardContent className="mt-4 p-0 overflow-visible">
@@ -97,7 +97,7 @@ export default function DriversPage() {
             <div className="relative isolate">
               <DriverTable
                 drivers={filtered}
-                onEdit={(driver) => navigate(`/drivers/add?id=${driver.id}`)}
+                onEdit={(driver) => navigate(`/app/drivers/add?id=${driver.id}`)}
                 onDelete={(id) => setDeleteId(id)}
               />
             </div>

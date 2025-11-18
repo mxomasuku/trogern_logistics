@@ -156,7 +156,7 @@ export default function AddVehiclePage() {
         hydrateForm(v);
       } catch (e: any) {
         toast.error(e?.message ?? "Failed to load vehicle");
-        navigate("/vehicles");
+        navigate("/app/vehicles");
       } finally {
         if (!cancelled) setLoadingPrefill(false);
       }
@@ -292,7 +292,7 @@ export default function AddVehiclePage() {
         await addVehicle(payload);
         toast.success("Vehicle added");
       }
-      navigate("/vehicles");
+      navigate("/app/vehicles");
     } catch (e: any) {
       toast.error(e?.message ?? "Save failed");
     } finally {
@@ -434,7 +434,7 @@ export default function AddVehiclePage() {
               <div className="flex justify-end gap-2">
                 <Button
                   variant="ghost"
-                  onClick={() => navigate("/vehicles")}
+                  onClick={() => navigate("/app/vehicles")}
                   disabled={saving}
                   className="text-blue-700 hover:bg-blue-50 hover:text-blue-800"
                 >

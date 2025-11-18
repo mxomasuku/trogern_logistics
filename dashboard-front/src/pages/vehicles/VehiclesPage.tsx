@@ -79,7 +79,7 @@ export default function VehiclesPage() {
           showSearchMobile={showSearchMobile}
           setShowSearchMobile={setShowSearchMobile}
           addLabel="Add vehicle"
-          addTo="/vehicles/add"
+          addTo="/app/vehicles/add"
         />
 
         <CardContent className="mt-4 p-0">
@@ -93,7 +93,7 @@ export default function VehiclesPage() {
             <VehiclesListTable
               vehicles={filtered}
               cn={cn}
-              onEdit={(vehicle) => navigate(`/vehicles/add?id=${vehicle.id}`)}
+              onEdit={(vehicle) => navigate(`/app/vehicles/add?id=${vehicle.id}`)}
               onDelete={(id) => setDeleteId(id)}
             />
           )}

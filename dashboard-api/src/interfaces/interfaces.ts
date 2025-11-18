@@ -1,6 +1,5 @@
 import { Timestamp } from "firebase-admin/firestore";
 
-
 export interface ApiResponse<T = any> {
   isSuccessful: boolean;
   data: T | null;
@@ -10,15 +9,15 @@ export interface ApiResponse<T = any> {
 export interface ApiError {
   code: string;
   message: string;
-  details?: any; 
+  details?: any;
 }
 
-
-export type VehicleStatus = 'active' | 'inactive' | 'maintenance' | 'retired';
-export type RouteType = 'local' | 'highway' | 'mixed';
-export type LedgerType = 'expense' | 'income';
+export type VehicleStatus = "active" | "inactive" | "maintenance" | "retired";
+export type RouteType = "local" | "highway" | "mixed";
+export type LedgerType = "expense" | "income";
 
 export interface Vehicle {
+  companyId: string; // HIGHLIGHT: multi-tenant
   plateNumber: string;
   make: string;
   model: string;
@@ -39,7 +38,6 @@ export interface Vehicle {
   updatedAt?: FirebaseFirestore.Timestamp;
 }
 
-
 export interface VehicleCreateDTO {
   plateNumber: string;
   make: string;
@@ -51,22 +49,23 @@ export interface VehicleCreateDTO {
   assignedDriverId: string | null;
   assignedDriverName: string | null;
   status?: VehicleStatus;
-  datePurchased: string;        // ISO string
+  datePurchased: string; // ISO string
   route: RouteType;
-  lastServiceDate?: string;     // ISO string
+  lastServiceDate?: string; // ISO string
   deliveryMileage: number;
   currentMileage: number | string;
 }
 
 export type VehicleUpdateDTO = Partial<VehicleCreateDTO>;
 
-
-
 export type ServiceItemKind = "consumable" | "labour" | "license" | "other";
 
+/* ───────────────────── SERVICE ITEMS & CATALOG ───────────────────── */
 
+// HIGHLIGHT: concrete service item instance on a specific record
 export interface ServiceItem {
-  kind: ServiceItemKind;                    
+  kind: ServiceItemKind;
+  companyId: string; // HIGHLIGHT: tenant scoping for items
   name: string;
   value: string;
   unit: string;
@@ -80,11 +79,12 @@ export interface ServiceItem {
   serviceDueDate?: FirebaseFirestore.Timestamp;
 }
 
-// Catalog (primes you create once)
+// HIGHLIGHT: Catalog “prime” definitions per company
 export interface ServiceItemPrime {
-  kind: ServiceItemKind;                       
+  companyId: string; // HIGHLIGHT: catalog is per-company
+  kind: ServiceItemKind;
   name: string;
-  value: string;                         
+  value: string;
   expectedLifespanMileage: number | null;
   expectedLifespanDays: number | null;
 }
@@ -92,28 +92,30 @@ export interface ServiceItemPrime {
 export interface ServiceItemDTO {
   name: string;
   cost: number;
-  date: string;            
+  date: string; // ISO
   value: string;
-  vehicleMileage: number;   
+  vehicleMileage: number;
   quantity: number | string;
   unit: string;
 }
 
+/* ───────────────────────── SERVICE RECORDS ───────────────────────── */
+
 export interface ServiceRecord {
   vehicleId: string;
-  date: FirebaseFirestore.Timestamp;   
+  companyId: string; // HIGHLIGHT: used in queries and auth checks
+  date: FirebaseFirestore.Timestamp;
   mechanic: string;
   cost: number;
-  serviceMileage: number;                                   
-  itemsChanged: ServiceItem[];            
+  serviceMileage: number;
+  itemsChanged: ServiceItem[]; // items subcollection materialization
   notes: string | null;
   createdAt?: FirebaseFirestore.Timestamp;
   updatedAt?: FirebaseFirestore.Timestamp;
 }
 
-
 export interface ServiceRecordDTO {
-  date: string;                // ISO
+  date: string; // ISO
   vehicleId: string;
   serviceMileage: number;
   mechanic: string;
@@ -127,8 +129,11 @@ export interface ServiceRecordDTO {
   notes?: string;
 }
 
+/* ───────────────────────────── DRIVERS ───────────────────────────── */
+
 export interface Driver {
   name: string;
+  companyId: string;
   licenseNumber: string;
   nationalId: string;
   contact: string;
@@ -136,9 +141,9 @@ export interface Driver {
   mileageOnEnd: number | null;
   email?: string;
   address?: string;
-  dob: string; 
-  gender: 'Male' | 'Female' | 'Other';
-  status: 'active' | 'inactive' | 'suspended';
+  dob: string;
+  gender: "Male" | "Female" | "Other";
+  status: "active" | "inactive" | "suspended";
   experienceYears?: number;
   assignedVehicleId: string | null;
   nextOfKin: {
@@ -150,8 +155,11 @@ export interface Driver {
   isActive?: boolean; // optional toggle
 }
 
+/* ───────────────────────────── INCOME ───────────────────────────── */
+
 export interface IncomeLog {
   id: string;
+  companyId: string;
   amount: number;
   type: LedgerType;
   weekEndingMileage: number;
@@ -159,40 +167,41 @@ export interface IncomeLog {
   driverId: string;
   driverName: string;
   note?: string;
-  createdAt: FirebaseFirestore.Timestamp; 
+  createdAt: FirebaseFirestore.Timestamp;
   updatedAt?: FirebaseFirestore.Timestamp;
   cashDate: FirebaseFirestore.Timestamp;
 }
 
+/* ───────────────────── VEHICLE TARGETS & KPIs ───────────────────── */
+
 export interface VehicleTargets {
   vehicleId: string;
+  companyId: string;
   period: "weekly" | "monthly" | "daily";
   currency: "USD";
-  grossRevenue: number; //derived from the total income logs.
-  netOpProfit: number;    
+  grossRevenue: number;
+  netOpProfit: number;
   km: number;
-  fuelEconomyKmPerL?: number; // or lPer100Km
-  downtimeHoursMax?: number;  // maximum time a vehicle is allowed to sit per month
-  maintenanceBudgetPerMonth?: number; // period budget per month
-  maintenanceBudgetPerKm?: number
-  depreciationMethod: "SL" | "UOP" | "DDB";  // see §3
+  fuelEconomyKmPerL?: number;
+  downtimeHoursMax?: number;
+  maintenanceBudgetPerMonth?: number;
+  maintenanceBudgetPerKm?: number;
+  depreciationMethod: "SL" | "UOP" | "DDB";
   depreciationUsefulLifeMonths?: number;
   resellValue?: number;
   disposalMaxKm?: number;
   disposalMaxMonths?: number;
-  rpkMinusCpkFloor?: number;  // minimum acceptable margin per km
-  validFrom: string;          // ISO
-  validTo?: string;           // ISO
+  rpkMinusCpkFloor?: number;
+  validFrom: string; // ISO
+  validTo?: string; // ISO
 }
-
 
 export type DriverKpis = {
-  avgWeeklyKm: number;      // rounded
-  cash30d: number;          // USD total last 30 days
-  incidentsYTD: number;     // integer
-  earningsPerKm: number;    // last 8 logs, amount / km
-}
-
+  avgWeeklyKm: number; // rounded
+  cash30d: number; // USD total last 30 days
+  incidentsYTD: number; // integer
+  earningsPerKm: number; // last 8 logs, amount / km
+};
 
 export interface DriverKpiMeta {
   logsCount: number;
@@ -235,8 +244,6 @@ export interface DriverKpiResult {
   meta: DriverKpiMeta;
 }
 
-
-
 export interface VehicleKpiSlice {
   totalEntries: number;
   totalIncome: number;
@@ -260,7 +267,6 @@ export interface VehicleKpiMeta {
   daysSincePurchase: number | null;
 }
 
-
 export interface VehicleKpiResponse {
   vehicleId: string;
   meta: VehicleKpiMeta;
@@ -269,4 +275,20 @@ export interface VehicleKpiResponse {
     last30Days: VehicleKpiSlice;
     lifetime: VehicleKpiSlice;
   };
+}
+
+/* ───────────────────────── COMPANY DOC ───────────────────────── */
+
+export type FleetType = "small taxis" | "kombis" | "buses" | "trucks" | "mixed";
+
+export interface CompanyDoc {
+  companyId: string;
+  ownerUid: string;
+  name: string;
+  fleetSize: number;
+  employeeCount: number;
+  fleetType: FleetType;
+  usageDescription: string;
+  createdAt: FirebaseFirestore.Timestamp;
+  updatedAt: FirebaseFirestore.Timestamp;
 }

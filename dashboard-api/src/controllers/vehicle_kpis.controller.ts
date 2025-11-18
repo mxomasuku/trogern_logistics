@@ -4,6 +4,9 @@ const { db } = require("../config/firebase");
 import { success, failure } from "../utils/apiResponse";
 import type { IncomeLog, VehicleKpiResponse } from "../interfaces/interfaces";
 
+// HIGHLIGHT: pull company context (same helper you use in other controllers)
+import { requireCompanyContext } from "../utils/companyContext";
+
 const incomeCol = db.collection("income");
 const vehiclesCol = db.collection("vehicles");
 
@@ -25,7 +28,6 @@ function computeSlice(
 ) {
   const now = DateTime.now();
 
-  // Filter logs by time window (if provided)
   const filteredLogs = since
     ? logs.filter((log) => {
         const entryDate = safeDateTime(log.cashDate || log.createdAt);
@@ -33,7 +35,6 @@ function computeSlice(
       })
     : logs;
 
-  // Running totals and counters
   let totalIncome = 0;
   let totalExpense = 0;
   let totalEntries = 0;
@@ -45,7 +46,6 @@ function computeSlice(
     else totalIncome += amount;
   }
 
-  // --- Distance comes directly from vehicle mileage ---
   const currentMileage = vehicle?.currentMileage ?? 0;
   const deliveryMileage = vehicle?.deliveryMileage ?? 0;
   const distanceTravelledKm =
@@ -62,7 +62,6 @@ function computeSlice(
   const profitPerKm =
     distanceTravelledKm > 0 ? netEarnings / distanceTravelledKm : null;
 
-  // Latest log entry date (in this slice)
   const lastEntryAt = filteredLogs
     .map((log) => safeDateTime(log.cashDate || log.createdAt))
     .filter((d): d is DateTime => !!d)
@@ -86,6 +85,11 @@ function computeSlice(
 /** Controller: Compute vehicle KPIs */
 export async function getVehicleKpis(req: Request, res: Response) {
   try {
+    // HIGHLIGHT: enforce company context
+    const ctx = await requireCompanyContext(req, res);
+    if (!ctx) return;
+    const { companyId } = ctx;
+
     const vehicleId =
       (req.params as any).id ||
       (req.query.vehicleId as string) ||
@@ -94,7 +98,9 @@ export async function getVehicleKpis(req: Request, res: Response) {
     if (!vehicleId) {
       return res
         .status(400)
-        .json(failure("BAD_REQUEST", "Missing vehicleId (param, query, or body)"));
+        .json(
+          failure("BAD_REQUEST", "Missing vehicleId (param, query, or body)")
+        );
     }
 
     const vehicleDoc = await vehiclesCol.doc(vehicleId).get();
@@ -106,8 +112,21 @@ export async function getVehicleKpis(req: Request, res: Response) {
 
     const vehicleData = vehicleDoc.data() || {};
 
-    // Pull all logs for this vehicle
+    // HIGHLIGHT: block cross-company access
+    if (!vehicleData.companyId || vehicleData.companyId !== companyId) {
+      return res
+        .status(404)
+        .json(
+          failure(
+            "NOT_FOUND",
+            `Vehicle '${vehicleId}' not found in this company.`
+          )
+        );
+    }
+
+    // HIGHLIGHT: scope income logs by both vehicle + companyId
     const logsSnapshot = await incomeCol
+      .where("companyId", "==", companyId)
       .where("vehicle", "==", vehicleId)
       .orderBy("createdAt", "desc")
       .get();
@@ -117,43 +136,47 @@ export async function getVehicleKpis(req: Request, res: Response) {
       ...d.data(),
     })) as IncomeLog[];
 
-    // --- Build KPI slices ---
     const now = DateTime.now();
     const last7Days = computeSlice(logs, vehicleData, now.minus({ days: 7 }));
     const last30Days = computeSlice(logs, vehicleData, now.minus({ days: 30 }));
     const lifetime = computeSlice(logs, vehicleData);
 
-    // --- Meta: last entry + days since purchase ---
     const lastEntryAt =
       logs
         .map((l) => safeDateTime(l.cashDate || l.createdAt))
         .filter((d): d is DateTime => !!d)
         .sort((a, b) => b.valueOf() - a.valueOf())[0]?.toISO() ?? null;
 
+    // HIGHLIGHT: align field name with your vehicle model (you used datePurchased elsewhere)
     let daysSincePurchase: number | null = null;
-    if (vehicleData.dateOfPurchase) {
-      const purchaseDT = safeDateTime(vehicleData.dateOfPurchase);
+    const rawPurchaseTs =
+      (vehicleData as any).datePurchased ||
+      (vehicleData as any).dateOfPurchase ||
+      null;
+
+    if (rawPurchaseTs) {
+      const purchaseDT = safeDateTime(rawPurchaseTs);
       if (purchaseDT) {
         daysSincePurchase = Math.floor(now.diff(purchaseDT, "days").days);
       }
     }
 
-const payload: VehicleKpiResponse = {
-  vehicleId,
-  meta: {
-    generatedAt: now.toISO(),
-    totalLogs: logs.length,
-    lastMileage: vehicleData.currentMileage ?? null,
-    deliveryMileage: vehicleData.deliveryMileage ?? null,
-    lastEntryAt,
-    daysSincePurchase,
-  },
-  kpis: {
-    last7Days,
-    last30Days,
-    lifetime,
-  },
-};
+    const payload: VehicleKpiResponse = {
+      vehicleId,
+      meta: {
+        generatedAt: now.toISO(),
+        totalLogs: logs.length,
+        lastMileage: vehicleData.currentMileage ?? null,
+        deliveryMileage: vehicleData.deliveryMileage ?? null,
+        lastEntryAt,
+        daysSincePurchase,
+      },
+      kpis: {
+        last7Days,
+        last30Days,
+        lifetime,
+      },
+    };
 
     return res.status(200).json(success(payload));
   } catch (err: any) {

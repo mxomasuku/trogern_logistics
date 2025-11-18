@@ -1,7 +1,7 @@
 // src/controllers/drivers-kpi.controller.ts
 import { Request, Response } from "express";
 import { DateTime } from "luxon";
-const { db } = require("../config/firebase");
+const { db, admin } = require("../config/firebase"); // HIGHLIGHT: add admin
 import { success, failure } from "../utils/apiResponse";
 import { signedAmount, tsToDateTime } from "../utils/kpi-utils";
 import type { DriverKpiResult, IncomeLog } from "../interfaces/interfaces";
@@ -10,6 +10,61 @@ import type { DriverKpiResult, IncomeLog } from "../interfaces/interfaces";
 const driversCol = db.collection("drivers");
 const incomeCol = db.collection("income");
 const vehiclesCol = db.collection("vehicles");
+
+/* ──────────────────────────── AUTH + COMPANY CONTEXT ──────────────────── */
+// HIGHLIGHT: new helpers
+
+async function getUidFromSession(
+  req: Request,
+  res: Response
+): Promise<string | null> {
+  const cookie = req.cookies?.session;
+  if (!cookie) {
+    res.status(401).json(
+      failure("UNAUTHORIZED", "No session cookie found")
+    );
+    return null;
+  }
+
+  const checkRevoked =
+    process.env.NODE_ENV === "production" &&
+    !process.env.FIREBASE_AUTH_EMULATOR_HOST;
+
+  try {
+    const decoded = await admin
+      .auth()
+      .verifySessionCookie(cookie, checkRevoked);
+    return decoded.uid as string;
+  } catch {
+    res.status(401).json(
+      failure("UNAUTHORIZED", "Unauthorized or expired session")
+    );
+    return null;
+  }
+}
+
+async function getCompanyContext(
+  req: Request,
+  res: Response
+): Promise<{ uid: string; companyId: string } | null> {
+  const uid = await getUidFromSession(req, res);
+  if (!uid) return null;
+
+  const userSnap = await db.collection("users").doc(uid).get();
+  const userData = userSnap.data() as { companyId?: string } | undefined;
+
+  if (!userData?.companyId) {
+    res.status(403).json(
+      failure(
+        "NO_COMPANY",
+        "No company configured for this user. Complete company onboarding first."
+      )
+    );
+    return null;
+  }
+
+  return { uid, companyId: userData.companyId };
+}
 
 /* ──────────────────────────── HELPERS ──────────────────────────── */
 
@@ -21,11 +76,14 @@ function cashDateMillis(ts: any): number {
   return 0;
 }
 
+// HIGHLIGHT: include companyId filter in logs
 async function fetchLogsForDriverVehicle(
   driverId: string,
-  vehicleId: string
+  vehicleId: string,
+  companyId: string
 ): Promise<IncomeLog[]> {
   const logsSnap = await incomeCol
+    .where("companyId", "==", companyId)
     .where("driverId", "==", driverId)
     .where("vehicle", "==", vehicleId)
     .orderBy("cashDate", "desc")
@@ -184,6 +242,11 @@ function computeIncomePerKmRatios(
 
 export async function getDriverKpis(req: Request, res: Response) {
   try {
+    // HIGHLIGHT: enforce company context
+    const ctx = await getCompanyContext(req, res);
+    if (!ctx) return;
+    const { companyId } = ctx;
+
     const { driverId, vehicleId } = req.params;
 
     if (!driverId || !vehicleId) {
@@ -209,23 +272,58 @@ export async function getDriverKpis(req: Request, res: Response) {
         .status(404)
         .json(failure("NOT_FOUND", "Driver not found", { driverId }));
     }
-    const driver = driverSnap.data() || {};
+    const driver = driverSnap.data() as { mileageOnStart?: number; mileageOnStartByVehicle?: any; companyId?: string } | undefined;
+
+    // HIGHLIGHT: driver must belong to this company
+    if (!driver || driver.companyId !== companyId) {
+      return res.status(403).json(
+        failure(
+          "FORBIDDEN",
+          "You do not have access to this driver or company mismatch"
+        )
+      );
+    }
+
     const mileageOnStart =
       Number(driver?.mileageOnStartByVehicle?.[VEHICLE_ID]) ||
       Number(driver?.mileageOnStart ?? 0);
 
     // Vehicle (current mileage)
     const vehicleSnap = await vehiclesCol.doc(VEHICLE_ID).get();
-    const currentVehicleMileage = Number(vehicleSnap.data()?.currentMileage ?? 0);
+    if (!vehicleSnap.exists) {
+      return res
+        .status(404)
+        .json(failure("NOT_FOUND", "Vehicle not found", { vehicleId: VEHICLE_ID }));
+    }
+    const vehicleData = vehicleSnap.data() as { currentMileage?: number; companyId?: string } | undefined;
+
+    // HIGHLIGHT: vehicle must belong to this company
+    if (!vehicleData || vehicleData.companyId !== companyId) {
+      return res.status(403).json(
+        failure(
+          "FORBIDDEN",
+          "You do not have access to this vehicle or company mismatch"
+        )
+      );
+    }
+
+    const currentVehicleMileage = Number(vehicleData.currentMileage ?? 0);
 
     // Logs
-    const logs = await fetchLogsForDriverVehicle(driverId, VEHICLE_ID);
+    const logs = await fetchLogsForDriverVehicle(
+      driverId,
+      VEHICLE_ID,
+      companyId // HIGHLIGHT
+    );
 
     // ⛔ If no logs, return a friendly error (used by UI to message the user)
     if (!logs || logs.length === 0) {
-      return res
-        .status(404)
-        .json(failure("NO_LOGS", "No income logs to compute kpi. Driver never used this vehicle."));
+      return res.status(404).json(
+        failure(
+          "NO_LOGS",
+          "No income logs to compute kpi. Driver never used this vehicle."
+        )
+      );
     }
 
     const logs30 = filterLogsLast30Days(logs, zone, day30);
@@ -265,7 +363,10 @@ export async function getDriverKpis(req: Request, res: Response) {
       );
 
     // Averages
-    const avgWeeklyKmLast8 = calculateAvgDistancePerWeek(logs, mileageOnStart);
+    const avgWeeklyKmLast8 = calculateAvgDistancePerWeek(
+      logs,
+      mileageOnStart
+    );
     const avgWeeklyNetLast8 = calculateAvgWeeklyNet(logs);
 
     // Response
@@ -300,7 +401,11 @@ export async function getDriverKpis(req: Request, res: Response) {
     return res
       .status(500)
       .json(
-        failure("SERVER_ERROR", "Failed to compute KPIs", e?.message ?? String(e))
+        failure(
+          "SERVER_ERROR",
+          "Failed to compute KPIs",
+          e?.message ?? String(e)
+        )
       );
   }
 }

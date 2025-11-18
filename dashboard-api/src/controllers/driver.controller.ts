@@ -1,19 +1,36 @@
-import { Request, Response } from 'express';
-const { db, admin} = require('../config/firebase');
-import type { QueryDocumentSnapshot, Transaction } from 'firebase-admin/firestore';
-import { success, failure } from '../utils/apiResponse';
-import { Driver, Vehicle } from '../interfaces/interfaces';
-import { updateVehicleStatusFromDriver} from './status_sync_repo';
-const driversRef = db.collection('drivers');
+// src/controllers/driver.controller.ts
+import { Request, Response } from "express";
+const { db, admin } = require("../config/firebase");
+import type {
+  QueryDocumentSnapshot,
+  Transaction,
+} from "firebase-admin/firestore";
+import { success, failure } from "../utils/apiResponse";
+import { Driver, Vehicle } from "../interfaces/interfaces";
+import { updateVehicleStatusFromDriver } from "./status_sync_repo";
+
+// HIGHLIGHT: company context helper
+import { requireCompanyContext } from "../utils/companyContext";
+
+const driversRef = db.collection("drivers");
 const nowTs = () => admin.firestore.Timestamp.now();
 const vehiclesCollection = db.collection("vehicles");
 
+// ===============================================
+// GET ALL DRIVERS (scoped to company)
+// ===============================================
+export const getAllDrivers = async (req: Request, res: Response) => {
+  // HIGHLIGHT: require company context
+  const ctx = await requireCompanyContext(req, res);
+  if (!ctx) return;
+  const { companyId } = ctx;
 
-
-
-export const getAllDrivers = async (_req: Request, res: Response) => {
   try {
-    const snapshot = await driversRef.get();
+    // HIGHLIGHT: scope by companyId
+    const snapshot = await driversRef
+      .where("companyId", "==", companyId)
+      .get();
+
     const drivers = snapshot.docs.map((doc: QueryDocumentSnapshot) => ({
       id: doc.id,
       ...doc.data(),
@@ -21,14 +38,26 @@ export const getAllDrivers = async (_req: Request, res: Response) => {
 
     return res.status(200).json(success(drivers));
   } catch (error: any) {
-    console.error('Error fetching drivers:', error);
+    console.error("Error fetching drivers:", error);
     return res
       .status(500)
-      .json(failure('SERVER_ERROR', 'Failed to fetch drivers', error.message));
+      .json(
+        failure(
+          "SERVER_ERROR",
+          "Failed to fetch drivers",
+          error.message
+        )
+      );
   }
 };
 
+// ===============================================
+// GET DRIVER BY ID (scoped to company)
+// ===============================================
 export const getDriverById = async (req: Request, res: Response) => {
+  const ctx = await requireCompanyContext(req, res); // HIGHLIGHT
+  if (!ctx) return;
+  const { companyId } = ctx;
   const { id } = req.params;
 
   try {
@@ -36,24 +65,52 @@ export const getDriverById = async (req: Request, res: Response) => {
     if (!doc.exists) {
       return res
         .status(404)
-        .json(failure('NOT_FOUND', 'Driver not found', { id }));
+        .json(failure("NOT_FOUND", "Driver not found", { id }));
     }
 
-    const payload = { id: doc.id, ...doc.data() };
+    const data = doc.data() as Driver & { companyId?: string };
+
+    // HIGHLIGHT: make sure this driver belongs to current company
+    if (!data.companyId || data.companyId !== companyId) {
+      return res
+        .status(404)
+        .json(
+          failure(
+            "NOT_FOUND",
+            "Driver not found in this company",
+            { id }
+          )
+        );
+    }
+
+    const payload = { id: doc.id, ...data };
     return res.status(200).json(success(payload));
   } catch (error: any) {
-    console.error('Error fetching driver by id:', error);
+    console.error("Error fetching driver by id:", error);
     return res
       .status(500)
-      .json(failure('SERVER_ERROR', 'Failed to fetch driver', error.message));
+      .json(
+        failure(
+          "SERVER_ERROR",
+          "Failed to fetch driver",
+          error.message
+        )
+      );
   }
 };
 
-
+// ===============================================
+// ADD DRIVER (scoped to company)
+// ===============================================
 export const addDriver = async (
   req: Request<{}, {}, Driver>,
   res: Response
 ) => {
+  // HIGHLIGHT: get company context
+  const ctx = await requireCompanyContext(req, res);
+  if (!ctx) return;
+  const { companyId } = ctx;
+
   const {
     name,
     contact,
@@ -72,35 +129,33 @@ export const addDriver = async (
     mileageOnEnd = null,
   } = req.body;
 
-  // Remove spaces from licenseNumber
-  const cleanLicenseNumber = licenseNumber?.replace(/\s+/g, '') || '';
+  const cleanLicenseNumber = licenseNumber?.replace(/\s+/g, "") || "";
 
-  // Validate required fields
   const missingFields: string[] = [];
-  if (!name) missingFields.push('name');
-  if (!contact) missingFields.push('contact');
-  if (!cleanLicenseNumber) missingFields.push('licenseNumber');
-  if (!nationalId) missingFields.push('nationalId');
-  if (!dob) missingFields.push('dob');
-  if (!gender) missingFields.push('gender');
-  if (!nextOfKin?.name) missingFields.push('nextOfKin.name');
-  if (!nextOfKin?.phone) missingFields.push('nextOfKin.phone');
-  if (!emergencyContact) missingFields.push('emergencyContact');
+  if (!name) missingFields.push("name");
+  if (!contact) missingFields.push("contact");
+  if (!cleanLicenseNumber) missingFields.push("licenseNumber");
+  if (!nationalId) missingFields.push("nationalId");
+  if (!dob) missingFields.push("dob");
+  if (!gender) missingFields.push("gender");
+  if (!nextOfKin?.name) missingFields.push("nextOfKin.name");
+  if (!nextOfKin?.phone) missingFields.push("nextOfKin.phone");
+  if (!emergencyContact) missingFields.push("emergencyContact");
   if (missingFields.length > 0) {
     return res
       .status(400)
       .json(
-        failure(
-          'VALIDATION_ERROR',
-          'Missing required fields',
-          { missingFields }
-        )
+        failure("VALIDATION_ERROR", "Missing required fields", {
+          missingFields,
+        })
       );
   }
 
   try {
     const now = new Date().toISOString();
-    const driverData: Driver = {
+
+    // HIGHLIGHT: attach companyId to driver
+    const driverData: Driver & { companyId: string; isActive: boolean } = {
       name,
       mileageOnStart,
       mileageOnEnd,
@@ -116,31 +171,31 @@ export const addDriver = async (
       assignedVehicleId,
       nextOfKin,
       emergencyContact,
-      isActive : status == "active" ? true : false,
+      isActive: status == "active" ? true : false,
+      companyId, // HIGHLIGHT
     };
 
     const docRef = driversRef.doc(cleanLicenseNumber);
 
-    // Check if driver with same licenseNumber already exists
     const existing = await docRef.get();
     if (existing.exists) {
       return res
         .status(409)
         .json(
           failure(
-            'DUPLICATE_LICENSE',
+            "DUPLICATE_LICENSE",
             `Driver with license number "${cleanLicenseNumber}" already exists`
           )
         );
     }
 
-    // Save driver
     await docRef.set({
       ...driverData,
       createdAt: now,
       updatedAt: now,
     });
 
+    // HIGHLIGHT: reconcile still works, driver doc now has companyId inside
     await reconcileDriverVehicleAssignment(cleanLicenseNumber);
 
     return res
@@ -154,32 +209,57 @@ export const addDriver = async (
         })
       );
   } catch (error: any) {
-    console.error('Error adding driver:', error);
+    console.error("Error adding driver:", error);
     return res
       .status(500)
-      .json(failure('SERVER_ERROR', 'Failed to add driver', error.message));
+      .json(
+        failure(
+          "SERVER_ERROR",
+          "Failed to add driver",
+          error.message
+        )
+      );
   }
 };
 
-
-// EDITED VERSION
+// ===============================================
+// UPDATE DRIVER (scoped to company)
+// ===============================================
 export const updateDriver = async (req: Request, res: Response) => {
+  const ctx = await requireCompanyContext(req, res); // HIGHLIGHT
+  if (!ctx) return;
+  const { companyId } = ctx;
+
   const { id } = req.params;
   const patch = { ...req.body, updatedAt: new Date().toISOString() };
 
   try {
-    const driverRef = driversRef.doc(id);                          // EDITED
-    const existingSnap = await driverRef.get();                    // EDITED
+    const driverRef = driversRef.doc(id);
+    const existingSnap = await driverRef.get();
 
-    if (!existingSnap.exists) {                                    // EDITED
+    if (!existingSnap.exists) {
       return res
         .status(404)
         .json(failure("NOT_FOUND", "Driver not found", { id }));
     }
 
-    const existingDriver = existingSnap.data() as Driver;          // EDITED
+    const existingDriver = existingSnap.data() as Driver & {
+      companyId?: string;
+    };
 
-    // EDITED: capture previous vehicle id BEFORE we write the patch
+    // HIGHLIGHT: enforce same company
+    if (!existingDriver.companyId || existingDriver.companyId !== companyId) {
+      return res
+        .status(404)
+        .json(
+          failure(
+            "NOT_FOUND",
+            "Driver not found in this company",
+            { id }
+          )
+        );
+    }
+
     const previousVehicleIdRaw =
       (existingDriver as any).assignedVehicleId ??
       (existingDriver as any).assignedVehicle ??
@@ -189,69 +269,86 @@ export const updateDriver = async (req: Request, res: Response) => {
       typeof previousVehicleIdRaw === "string" && previousVehicleIdRaw.trim()
         ? previousVehicleIdRaw.trim()
         : null;
-    // EDITED END
 
     await driverRef.set(patch, { merge: true });
 
-    // EDITED: let helper see the previous vehicle id
     await updateVehicleStatusFromDriver(id, previousVehicleId);
-    // EDITED END
 
     return res.status(200).json(success({ id, ...patch }));
   } catch (error: any) {
     console.error("Error updating driver:", error);
     return res
       .status(500)
-      .json(failure("SERVER_ERROR", "Failed to update driver", error.message));
+      .json(
+        failure(
+          "SERVER_ERROR",
+          "Failed to update driver",
+          error.message
+        )
+      );
   }
 };
 
+// ===============================================
+// DELETE DRIVER (scoped to company)
+// ===============================================
 export const deleteDriver = async (req: Request, res: Response) => {
+  const ctx = await requireCompanyContext(req, res); // HIGHLIGHT
+  if (!ctx) return;
+  const { companyId } = ctx;
+
   const { id } = req.params;
 
   try {
     await db.runTransaction(async (tx: FirebaseFirestore.Transaction) => {
       const dRef = driversRef.doc(id);
-      const dSnap = await getDocInTx(tx, dRef); // ✅ always DocumentSnapshot
-      if (!dSnap.exists) return; // nothing to do
+      const dSnap = await getDocInTx(tx, dRef);
+      if (!dSnap.exists) return;
 
-      const d = dSnap.data() as Driver;
+      const d = dSnap.data() as Driver & { companyId?: string };
 
-      // If the driver is assigned to any vehicle, stamp end mileage & detach
+      // HIGHLIGHT: forbid deleting drivers of another company
+      if (!d.companyId || d.companyId !== companyId) {
+        return;
+      }
+
       let vehicleToDetach: FirebaseFirestore.DocumentReference | null = null;
 
-      if (d.assignedVehicleId) {
-        vehicleToDetach = vehiclesCollection.doc(d.assignedVehicleId);
+      if ((d as any).assignedVehicleId) {
+        vehicleToDetach = vehiclesCollection.doc(
+          (d as any).assignedVehicleId
+        );
       } else {
-        // QuerySnapshot: use .empty / .docs only
-        const qSnap = await vehiclesCollection.where("assignedDriver", "==", id).get();
+        const qSnap = await vehiclesCollection
+          .where("assignedDriver", "==", id)
+          .get();
         if (!qSnap.empty) {
           vehicleToDetach = qSnap.docs[0].ref;
         }
       }
 
       if (vehicleToDetach) {
-        const vSnap = await getDocInTx(tx, vehicleToDetach); // ✅ DocumentSnapshot
+        const vSnap = await getDocInTx(tx, vehicleToDetach);
         if (vSnap.exists) {
           const v = vSnap.data() as Vehicle;
 
           tx.update(dRef, {
             mileageOnEnd:
-              d.mileageOnEnd === undefined || d.mileageOnEnd === null
+              (d as any).mileageOnEnd === undefined ||
+              (d as any).mileageOnEnd === null
                 ? (v as any).currentMileage ?? null
-                : d.mileageOnEnd,
+                : (d as any).mileageOnEnd,
             updatedAt: new Date().toISOString(),
           });
 
           tx.update(vehicleToDetach, {
             assignedDriver: null,
-            status: "inactive" as any, // adjust if you have a strict VehicleStatus type
+            status: "inactive" as any,
             updatedAt: nowTs(),
           });
         }
       }
 
-      // Now delete the driver
       tx.delete(dRef);
     });
 
@@ -260,24 +357,44 @@ export const deleteDriver = async (req: Request, res: Response) => {
     console.error("Error deleting driver:", error);
     return res
       .status(500)
-      .json(failure("SERVER_ERROR", "Failed to delete driver", error.message));
+      .json(
+        failure(
+          "SERVER_ERROR",
+          "Failed to delete driver",
+          error.message
+        )
+      );
   }
 };
 
+// ===============================================
+// SEARCH DRIVERS (scoped to company)
+// ===============================================
 export const searchDrivers = async (req: Request, res: Response) => {
-  const { name } = req.params;              // ← params, not query
+  const ctx = await requireCompanyContext(req, res); // HIGHLIGHT
+  if (!ctx) return;
+  const { companyId } = ctx;
+
+  const { name } = req.params;
 
   if (!name || typeof name !== "string") {
     return res
       .status(400)
-      .json(failure("MISSING_PARAM", "Path parameter 'name' is required"));
+      .json(
+        failure(
+          "MISSING_PARAM",
+          "Path parameter 'name' is required"
+        )
+      );
   }
 
   try {
     const searchTerm = name.trim().toLowerCase();
 
+    // HIGHLIGHT: scope by companyId AND order by nameLower
     const snapshot = await driversRef
-      .orderBy("nameLower")                 // make sure you store this on create/update
+      .where("companyId", "==", companyId)
+      .orderBy("nameLower")
       .startAt(searchTerm)
       .endAt(searchTerm + "\uf8ff")
       .get();
@@ -292,60 +409,81 @@ export const searchDrivers = async (req: Request, res: Response) => {
     console.error("Error searching drivers:", error);
     return res
       .status(500)
-      .json(failure("SERVER_ERROR", "Failed to search drivers", error.message));
+      .json(
+        failure(
+          "SERVER_ERROR",
+          "Failed to search drivers",
+          error.message
+        )
+      );
   }
 };
 
+// ===============================================
+// ACTIVE DRIVERS (scoped to company)
+// ===============================================
 export const getAllActiveDrivers = async (req: Request, res: Response) => {
-  try {
+  const ctx = await requireCompanyContext(req, res); // HIGHLIGHT
+  if (!ctx) return;
+  const { companyId } = ctx;
 
+  try {
     const snapshot = await driversRef
+      .where("companyId", "==", companyId) // HIGHLIGHT
       .where("status", "==", "active")
       .get();
 
-    const drivers = snapshot.docs
-      .map((doc: QueryDocumentSnapshot) => {
-        const data = doc.data();
-        return {
-          id: doc.id,
-          ...data,
-        };
-      })
-
+    const drivers = snapshot.docs.map((doc: QueryDocumentSnapshot) => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
 
     return res.status(200).json(success(drivers));
   } catch (error: any) {
     console.error("Error fetching active drivers:", error);
     return res
       .status(500)
-      .json(failure("SERVER_ERROR", "Failed to fetch active drivers", error.message));
+      .json(
+        failure(
+          "SERVER_ERROR",
+          "Failed to fetch active drivers",
+          error.message
+        )
+      );
   }
 };
 
-
+// ===============================================
+// INACTIVE DRIVERS (scoped to company)
+// ===============================================
 export const getAllInactiveDrivers = async (req: Request, res: Response) => {
+  const ctx = await requireCompanyContext(req, res); // HIGHLIGHT
+  if (!ctx) return;
+  const { companyId } = ctx;
+
   try {
+    const snapshot = await driversRef
+      .where("companyId", "==", companyId) // HIGHLIGHT
+      .where("status", "not-in", ["active"])
+      .get();
 
-const snapshot = await driversRef
-  .where("status", "not-in", ["active"])
-  .get();
-
-    const drivers = snapshot.docs
-      .map((doc: QueryDocumentSnapshot) => {
-        const data = doc.data();
-        return {
-          id: doc.id,
-          ...data,
-        };
-      })
-
+    const drivers = snapshot.docs.map((doc: QueryDocumentSnapshot) => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
 
     return res.status(200).json(success(drivers));
   } catch (error: any) {
     console.error("Error fetching active drivers:", error);
     return res
       .status(500)
-      .json(failure("SERVER_ERROR", "Failed to fetch active drivers", error.message));
+      .json(
+        failure(
+          "SERVER_ERROR",
+          "Failed to fetch active drivers",
+          error.message
+        )
+      );
   }
 };
 
@@ -353,185 +491,210 @@ const getDocInTx = async (
   tx: FirebaseFirestore.Transaction,
   ref: FirebaseFirestore.DocumentReference
 ): Promise<FirebaseFirestore.DocumentSnapshot> => {
-  // Admin SDK Transaction#get only returns DocumentSnapshot,
-  // but we cast anyway to disambiguate if web types sneak in.
   return (tx.get(ref) as unknown) as Promise<FirebaseFirestore.DocumentSnapshot>;
 };
 
-export async function reconcileDriverVehicleAssignment(driverId: string) {
+// ===============================================
+// BELOW: sync helpers – still okay to be global,
+// they rely on driver/vehicle docs already carrying companyId
+// ===============================================
 
+export async function reconcileDriverVehicleAssignment(
+  driverId: string
+) {
   const driverPre = await driversRef.doc(driverId).get();
   if (!driverPre.exists) return;
 
   const driver = driverPre.data() as Driver;
 
-  const newVehicleId = driver.assignedVehicleId || null;
-  const isDriverActive = (driver.status === "active" || driver.isActive === true) && !!newVehicleId;
+  const newVehicleId = (driver as any).assignedVehicleId || null;
+  const isDriverActive =
+    ((driver as any).status === "active" ||
+      (driver as any).isActive === true) && !!newVehicleId;
 
-  // QuerySnapshot -> only use .empty / .docs
   const oldVehicleQuerySnapshot = await vehiclesCollection
     .where("assignedDriverId", "==", driverId)
     .get();
 
-  await db.runTransaction(async (tx: FirebaseFirestore.Transaction) => {
-    // Re-fetch driver inside txn
-    const driverRef = driversRef.doc(driverId);
-    const driverSnapshot = await getDocInTx(tx, driverRef);
-    if (!driverSnapshot.exists) return;
-    const driver = driverSnapshot.data() as Driver;
+  await db.runTransaction(
+    async (tx: FirebaseFirestore.Transaction) => {
+      const driverRef = driversRef.doc(driverId);
+      const driverSnapshot = await getDocInTx(tx, driverRef);
+      if (!driverSnapshot.exists) return;
+      const driver = driverSnapshot.data() as Driver;
 
-    // If driver points to a vehicle, fetch it as a DocumentSnapshot
-    let vehicleRef: FirebaseFirestore.DocumentReference | null = null;
-    let vehicleSnapshot: FirebaseFirestore.DocumentSnapshot | null = null;
+      let vehicleRef:
+        | FirebaseFirestore.DocumentReference
+        | null = null;
+      let vehicleSnapshot:
+        | FirebaseFirestore.DocumentSnapshot
+        | null = null;
 
-    if (newVehicleId) {
-      const ref = vehiclesCollection.doc(newVehicleId);
-      const snap = await getDocInTx(tx, ref);
+      if (newVehicleId) {
+        const ref = vehiclesCollection.doc(newVehicleId);
+        const snap = await getDocInTx(tx, ref);
 
-      if (!snap.exists) {
-        // Driver points to a non-existent vehicle -> clear link and bail
-        tx.update(driverRef, {
-          assignedVehicleId: null,
+        if (!snap.exists) {
+          tx.update(driverRef, {
+            assignedVehicleId: null,
+            updatedAt: new Date().toISOString(),
+          });
+          return;
+        }
+
+        vehicleRef = ref;
+        vehicleSnapshot = snap;
+      }
+
+      for (const doc of oldVehicleQuerySnapshot.docs) {
+        if (!newVehicleId || doc.id !== newVehicleId) {
+          tx.update(doc.ref, {
+            assignedDriverId: null,
+            updatedAt: nowTs(),
+          });
+        }
+      }
+
+      if (isDriverActive && vehicleRef && vehicleSnapshot) {
+        const v = vehicleSnapshot.data() as Vehicle;
+
+        const vehiclePatch: Partial<Vehicle> & {
+          updatedAt: FirebaseFirestore.Timestamp;
+        } = {
+          assignedDriverId: driverId,
+          updatedAt: nowTs(),
+        };
+        if ((v as any).status === "inactive") {
+          (vehiclePatch as any).status = "active";
+        }
+        tx.update(vehicleRef, vehiclePatch);
+
+        const needsStartStamp =
+          (driver as any).mileageOnStart === undefined ||
+          (driver as any).mileageOnStart === null ||
+          (typeof (driver as any).mileageOnStart === "number" &&
+            (driver as any).mileageOnStart <= 0);
+
+        const driverPatch: Partial<Driver> & {
+          updatedAt: string;
+        } = {
+          assignedVehicleId: vehicleRef.id,
+          mileageOnEnd: null,
           updatedAt: new Date().toISOString(),
-        });
+        };
+        if (needsStartStamp) {
+          (driverPatch as any).mileageOnStart =
+            (v as any).currentMileage ?? 0;
+        }
+
+        tx.update(driverRef, driverPatch);
         return;
       }
 
-      // promote to outer vars
-      vehicleRef = ref;
-      vehicleSnapshot = snap;
-    }
+      let currentVehicleForEnd:
+        | FirebaseFirestore.DocumentReference
+        | null = null;
 
-    // 1) Detach this driver from any *other* vehicles that still reference them
-    for (const doc of oldVehicleQuerySnapshot.docs) {
-      if (!newVehicleId || doc.id !== newVehicleId) {
-        tx.update(doc.ref, {
-          assignedDriverId: null,
+      if (vehicleRef && vehicleSnapshot) {
+        currentVehicleForEnd = vehicleRef;
+        tx.update(vehicleRef, {
+          assignedDriver: null,
+          status: "inactive" as any,
+          updatedAt: nowTs(),
+        });
+      } else if (!newVehicleId && !oldVehicleQuerySnapshot.empty) {
+        const first = oldVehicleQuerySnapshot.docs[0];
+        currentVehicleForEnd = first.ref;
+        tx.update(first.ref, {
+          assignedDriver: null,
+          status: "inactive" as any,
           updatedAt: nowTs(),
         });
       }
-    }
 
-    // 2) Active driver + valid target vehicle -> attach & seed mileageOnStart if needed
-    if (isDriverActive && vehicleRef && vehicleSnapshot) {
-      const v = vehicleSnapshot.data() as Vehicle;
+      if (currentVehicleForEnd) {
+        const curSnap = await getDocInTx(tx, currentVehicleForEnd);
+        if (curSnap.exists) {
+          const curV = curSnap.data() as Vehicle;
 
-      const vehiclePatch: Partial<Vehicle> & { updatedAt: FirebaseFirestore.Timestamp } = {
-        assignedDriverId: driverId,
-    
-        updatedAt: nowTs(),
-      };
-      if ((v as any).status === "inactive") {
-        // adjust if your VehicleStatus differs
-        (vehiclePatch as any).status = "active";
+          const driverEndPatch: Partial<Driver> & {
+            updatedAt: string;
+          } = {
+            updatedAt: new Date().toISOString(),
+          };
+
+          if (
+            (driver as any).mileageOnEnd === undefined ||
+            (driver as any).mileageOnEnd === null
+          ) {
+            (driverEndPatch as any).mileageOnEnd =
+              (curV as any).currentMileage ?? null;
+          }
+          if ((driver as any).assignedVehicleId) {
+            (driverEndPatch as any).assignedVehicleId = null;
+          }
+
+          tx.update(driverRef, driverEndPatch);
+        }
       }
-      tx.update(vehicleRef, vehiclePatch);
+    }
+  );
+}
+
+export async function cascadeDriverStatusFromVehicle(
+  vehicleId: string
+) {
+  await db.runTransaction(
+    async (tx: FirebaseFirestore.Transaction) => {
+      const vehicleRef = vehiclesCollection.doc(vehicleId);
+      const vehicleSnapshot = await getDocInTx(tx, vehicleRef);
+      if (!vehicleSnapshot.exists) return;
+
+      const vehicle = vehicleSnapshot.data() as Vehicle;
+      const driverId = (vehicle as any).assignedDriver as
+        | string
+        | null;
+
+      if (!driverId) return;
+
+      const driverRef = driversRef.doc(driverId);
+      const driverSnapshot = await getDocInTx(tx, driverRef);
+      if (!driverSnapshot.exists) return;
+
+      const driver = driverSnapshot.data() as Driver;
+      const driverPatch: Partial<Driver> & { updatedAt: string } = {
+        updatedAt: new Date().toISOString(),
+        assignedVehicleId: vehicleId,
+      };
 
       const needsStartStamp =
-        driver.mileageOnStart === undefined ||
-        driver.mileageOnStart === null ||
-        (typeof driver.mileageOnStart === "number" && driver.mileageOnStart <= 0);
+        (driver as any).mileageOnStart === undefined ||
+        (driver as any).mileageOnStart === null ||
+        (typeof (driver as any).mileageOnStart === "number" &&
+          (driver as any).mileageOnStart <= 0);
 
-      const driverPatch: Partial<Driver> & { updatedAt: string } = {
-        assignedVehicleId: vehicleRef.id,
-        mileageOnEnd: null, // new stint starts -> clear end
-        updatedAt: new Date().toISOString(),
-      };
       if (needsStartStamp) {
-        driverPatch.mileageOnStart = (v as any).currentMileage ?? 0;
+        (driverPatch as any).mileageOnStart =
+          (vehicle as any).currentMileage ?? 0;
+      }
+
+      if ((vehicle as any).status === "inactive") {
+        (driverPatch as any).status = "inactive" as any;
+        if (
+          (driver as any).mileageOnEnd === undefined ||
+          (driver as any).mileageOnEnd === null
+        ) {
+          (driverPatch as any).mileageOnEnd =
+            (vehicle as any).currentMileage ?? null;
+        }
+      } else {
+        if ((driver as any).status !== "active") {
+          (driverPatch as any).status = "active";
+        }
+        (driverPatch as any).mileageOnEnd = null;
       }
 
       tx.update(driverRef, driverPatch);
-      return; // done
     }
-
-    // 3) Otherwise (inactive / no vehicle): detach and stamp mileageOnEnd once
-    let currentVehicleForEnd: FirebaseFirestore.DocumentReference | null = null;
-
-    if (vehicleRef && vehicleSnapshot) {
-      // Driver points to a vehicle but isn't active -> detach from that vehicle
-      currentVehicleForEnd = vehicleRef;
-      tx.update(vehicleRef, {
-        assignedDriver: null,
-        status: "inactive" as any, // optional: reflect no-driver state
-        updatedAt: nowTs(),
-      });
-    } else if (!newVehicleId && !oldVehicleQuerySnapshot.empty) {
-      // Driver no longer points to any vehicle, but some vehicle still references them -> clear it
-      const first = oldVehicleQuerySnapshot.docs[0];
-      currentVehicleForEnd = first.ref;
-      tx.update(first.ref, {
-        assignedDriver: null,
-        status: "inactive" as any, // optional
-        updatedAt: nowTs(),
-      });
-    }
-
-    // Stamp mileageOnEnd from the vehicle we just detached, if not already stamped
-    if (currentVehicleForEnd) {
-      const curSnap = await getDocInTx(tx, currentVehicleForEnd);
-      if (curSnap.exists) {
-        const curV = curSnap.data() as Vehicle;
-
-        const driverEndPatch: Partial<Driver> & { updatedAt: string } = {
-          updatedAt: new Date().toISOString(),
-        };
-
-        if (driver.mileageOnEnd === undefined || driver.mileageOnEnd === null) {
-          driverEndPatch.mileageOnEnd = (curV as any).currentMileage ?? null;
-        }
-        if (driver.assignedVehicleId) {
-          driverEndPatch.assignedVehicleId = null;
-        }
-
-        tx.update(driverRef, driverEndPatch);
-      }
-    }
-  });
-}
-
-export async function cascadeDriverStatusFromVehicle(vehicleId: string) {
-  await db.runTransaction(async (tx: FirebaseFirestore.Transaction) => {
-    const vehicleRef = vehiclesCollection.doc(vehicleId);
-    const vehicleSnapshot  = await getDocInTx(tx, vehicleRef);               // ✅ always a DocumentSnapshot
-    if (!vehicleSnapshot.exists) return;
-
-    const vehicle = vehicleSnapshot.data() as Vehicle;
-    const driverId = (vehicle  as any).assignedDriver as string | null;
-
-    if (!driverId) return; // nothing to sync
-
-    const driverRef = driversRef.doc(driverId);
-    const driverSnapshot = await getDocInTx(tx, driverRef);               // ✅ always a DocumentSnapshot
-    if (!driverSnapshot.exists) return;
-
-    const driver = driverSnapshot.data() as Driver;
-    const driverPatch: Partial<Driver> & { updatedAt: string } = {
-      updatedAt: new Date().toISOString(),
-      assignedVehicleId: vehicleId,
-    };
-
-    // Seed mileageOnStart if missing/zeroish
-    const needsStartStamp =
-      driver.mileageOnStart === undefined ||
-      driver.mileageOnStart === null ||
-      (typeof driver.mileageOnStart === "number" && driver.mileageOnStart <= 0);
-
-    if (needsStartStamp) {
-      driverPatch.mileageOnStart = (vehicle  as any).currentMileage ?? 0;
-    }
-
-    // Reflect vehicle status onto driver + mileageOnEnd
-    if ((vehicle as any).status === "inactive") {
-      driverPatch.status = "inactive" as any; // tighten if you have VehicleStatus/Driver.status types
-      if (driver.mileageOnEnd === undefined || driver.mileageOnEnd === null) {
-        driverPatch.mileageOnEnd = (vehicle as any).currentMileage ?? null;
-      }
-    } else {
-      if (driver.status !== "active") driverPatch.status = "active";
-      driverPatch.mileageOnEnd = null;
-    }
-
-    tx.update(driverRef, driverPatch);
-  });
+  );
 }

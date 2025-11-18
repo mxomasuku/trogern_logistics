@@ -59,7 +59,7 @@ export function VehiclesListTable({ vehicles, onEdit,  cn }: VehiclesTableProps)
               {vehicles.map((vehicle) => (
                 <TableRow
                   key={vehicle.id}
-                  onClick={() => navigate(`/vehicles/profile?id=${vehicle.id}`)}
+                  onClick={() => navigate(`/app/vehicles/profile?id=${vehicle.id}`)}
                   className="cursor-pointer odd:bg-slate-50 hover:bg-blue-50/60 transition-colors"
                 >
                   <TableCell className="font-medium py-2 sm:py-3">

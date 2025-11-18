@@ -57,7 +57,7 @@ function useVehicleProfileData(vehicleId: string) {
     (async () => {
       if (!vehicleId) {
         toast.error("Vehicle ID missing");
-        navigate("/vehicles");
+        navigate("/app/vehicles");
         return;
       }
 
@@ -78,7 +78,7 @@ function useVehicleProfileData(vehicleId: string) {
         }
       } catch (e: any) {
         toast.error(e?.message ?? "Failed to load vehicle profile");
-        navigate("/vehicles");
+        navigate("/app/vehicles");
       } finally {
         if (!cancelled) setLoading(false);
       }

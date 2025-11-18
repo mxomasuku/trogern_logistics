@@ -18,11 +18,11 @@ import {
 import { useLogoutMutation } from "@/pages/auth/authSlice";
 
 const NAV = [
-  { to: "/home", label: "Home", icon: Home },
-  { to: "/drivers", label: "Drivers", icon: Users },
-  { to: "/vehicles", label: "Vehicles", icon: Car },
-  { to: "/service", label: "Service", icon: Wrench },
-  { to: "/income", label: "Income", icon: DollarSign },
+  { to: "/app/home", label: "Home", icon: Home },
+  { to: "/app/drivers", label: "Drivers", icon: Users },
+  { to: "/app/vehicles", label: "Vehicles", icon: Car },
+  { to: "/app/service", label: "Service", icon: Wrench },
+  { to: "/app/income", label: "Income", icon: DollarSign },
 ];
 
 function getDefaultCollapsed(): boolean {
