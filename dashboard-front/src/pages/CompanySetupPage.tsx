@@ -6,20 +6,20 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import ThemeToggle from "@/pages/auth/ThemeToggle";
-// HIGHLIGHT: import FleetType so state matches API payload
 import {
   useCreateCompanyMutation,
   type FleetType,
 } from "@/pages/company/companyApi";
+import { useAuth } from "@/state/AuthContext"; // HIGHLIGHT
 
 export default function CompanySetupPage() {
   const navigate = useNavigate();
   const [createCompany, { isLoading, error }] = useCreateCompanyMutation();
+  const { refreshClaimsFromFirebase } = useAuth(); // HIGHLIGHT
 
   const [companyName, setCompanyName] = useState("");
   const [fleetSize, setFleetSize] = useState("");
   const [employeeCount, setEmployeeCount] = useState("");
-  // HIGHLIGHT: state type aligned with FleetType | ""
   const [fleetType, setFleetType] = useState<FleetType | "">("");
   const [usageDescription, setUsageDescription] = useState("");
   const [formError, setFormError] = useState<string>("");
@@ -58,13 +58,16 @@ export default function CompanySetupPage() {
       name: companyName.trim(),
       fleetSize: fleet,
       employeeCount: employees,
-      fleetType, // already FleetType
+      fleetType,
       usageDescription: usageDescription.trim(),
     });
 
     if ("data" in res && (res.data as any)?.isSuccessful) {
-      // HIGHLIGHT: align with /app/home route structure
-      navigate("/app/home", { replace: true });
+      // HIGHLIGHT: after backend sets claims, pull fresh token into AuthContext
+      await refreshClaimsFromFirebase(); // HIGHLIGHT
+
+      // HIGHLIGHT: now AuthContext should have companyId + role="owner"
+      navigate("/app/home", { replace: true }); // HIGHLIGHT
     } else {
       const apiErr = (res as any).error || {};
       const msg =
@@ -148,9 +151,7 @@ export default function CompanySetupPage() {
           </label>
           <select
             value={fleetType}
-            onChange={(e) =>
-              setFleetType(e.target.value as FleetType | "")
-            }
+            onChange={(e) => setFleetType(e.target.value as FleetType | "")}
             className="mb-3 w-full rounded-xl bg-gray-50 border border-gray-300 px-3 py-2 text-gray-700"
           >
             <option value="">Select fleet type…</option>
@@ -169,7 +170,6 @@ export default function CompanySetupPage() {
             rows={4}
             placeholder="Daily settlements, service records, underperforming vehicles..."
             value={usageDescription}
-            // HIGHLIGHT: fixed onChange typing
             onChange={(e) => setUsageDescription(e.target.value)}
             className="mb-3 rounded-xl bg-gray-50"
           />

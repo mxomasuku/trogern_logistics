@@ -1,33 +1,82 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useLoginMutation } from "@/pages/auth/authSlice";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Loader2, Eye, EyeOff } from "lucide-react";
 import ThemeToggle from "@/pages/auth/ThemeToggle";
+import { useAuth } from "@/state/AuthContext";
+import { firebaseAuth } from "@/lib/firebase";
+import { signInWithEmailAndPassword, getIdTokenResult } from "firebase/auth"; // EDITED
 
 export default function LoginPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+
   const [login, { isLoading, error }] = useLoginMutation();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [formError, setFormError] = useState<string>("");
+  const { refreshClaimsFromFirebase } = useAuth();
 
   const handleSubmit = async () => {
     setFormError("");
-    const res = await login({ email: email.trim(), password });
 
-    if ("data" in res && (res.data as any)?.isSuccessful) {
-      
-      navigate("/app/home", { replace: true });
-    } else {
-      const apiErr = (res as any).error || {};
+    try {
+      const trimmedEmail = email.trim();
+
+      if (!trimmedEmail || !password) {
+        setFormError("Email and password are required.");
+        return;
+      }
+
+      // hit backend first, so we only keep Firebase session if API auth works
+      const apiRes = await login({ email: trimmedEmail, password }).unwrap();
+
+      if (!apiRes?.isSuccessful) {
+        // LoginResponse: { message, isSuccessful, user? }
+        throw new Error(apiRes?.message ?? "Login failed");
+      }
+
+      // sign into Firebase client (same credentials)
+      await signInWithEmailAndPassword(firebaseAuth, trimmedEmail, password);
+
+      // refresh claims so AuthContext gets { companyId, role }
+      await refreshClaimsFromFirebase();
+
+      // ================== EDITED BLOCK: routing logic ==================
+      // read fresh claims directly from Firebase to decide onboarding vs app
+      let hasCompany = false;
+      const currentUser = firebaseAuth.currentUser;
+
+      if (currentUser) {
+        const tokenResult = await getIdTokenResult(currentUser, true);
+        const claims = tokenResult.claims as any;
+        hasCompany = !!claims.companyId;
+      }
+
+      // support redirect from query (?next=/invite/abc or ?next=/app/manage-company)
+      const redirectParam = searchParams.get("next");
+      if (redirectParam && redirectParam.startsWith("/")) {
+        navigate(redirectParam, { replace: true });
+        return;
+      }
+
+      // if user already has a company → go to app
+      if (hasCompany) {
+        navigate("/app/home", { replace: true });
+      } else {
+        // no company yet → go to onboarding entry page
+        navigate("/onboarding", { replace: true });
+      }
+      // ================== EDITED BLOCK ==================
+    } catch (e: any) {
       const msg =
-        apiErr?.data?.error ||
-        apiErr?.error ||
-        apiErr?.message ||
+        e?.message ||
+        (error as any)?.data?.error ||
+        (error as any)?.message ||
         "Invalid email or password.";
       setFormError(msg);
     }

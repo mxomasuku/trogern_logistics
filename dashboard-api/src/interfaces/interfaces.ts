@@ -291,4 +291,27 @@ export interface CompanyDoc {
   usageDescription: string;
   createdAt: FirebaseFirestore.Timestamp;
   updatedAt: FirebaseFirestore.Timestamp;
+
 }
+
+export type AppUserRole = "owner" | "manager" | "employee";
+
+export type InviteRole = Exclude<AppUserRole, "owner">; // only "manager" | "employee"
+
+export interface CompanyInviteDoc {
+  companyId: string;
+  role: InviteRole;
+  createdByUid: string;
+  createdAt: FirebaseFirestore.Timestamp;
+  expiresAt: FirebaseFirestore.Timestamp;
+  used: boolean;
+  usedByUid?: string;
+  usedAt?: FirebaseFirestore.Timestamp;
+  email: string;              // HIGHLIGHT: now required
+  invitedUid?: string;        // HIGHLIGHT: optional strict binding
+}
+
+type AppCustomClaims = {
+  companyId: string;
+  role: "owner" | "manager" | "employee";
+};

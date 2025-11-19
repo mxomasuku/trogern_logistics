@@ -4,9 +4,10 @@ import { Routes, Route } from "react-router-dom";
 import HomeLayout from "@/layouts/HomeLayout/HomeLayout";
 import Protected from "@/components/Protected";
 
-import  {RequireCompany}  from "@/pages/auth/RequireCompany";
-import  {RequireNoCompany}  from "@/pages/auth/RequireCompany";
-
+// guards
+import { RequireCompany } from "@/pages/auth/RequireCompany";
+import { RequireNoCompany } from "@/pages/auth/RequireNoCompany";
+import { RequireOwner } from "@/pages/auth/RequireOwner";
 
 import LandingPage from "@/pages/LandingPage";
 import LoginPage from "@/pages/auth/LoginPage";
@@ -29,6 +30,12 @@ import ServiceRecordsPage from "@/pages/service/page/ServiceRecordsPage";
 import IncomePage from "@/pages/income/IncomePage";
 import AddIncomePage from "@/pages/income/pages/AddIncomePage";
 
+import InviteAcceptPage from "@/pages/auth/AcceptInvitePage";
+import ManageCompany from "@/pages/manage/ManageCompany";
+
+// HIGHLIGHT: new onboarding entry page
+import OnboardingEntryPage from "@/pages/auth/OnboardingEntryPage";
+
 export default function AppRoutes() {
   return (
     <Routes>
@@ -37,7 +44,19 @@ export default function AppRoutes() {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/signup" element={<SignUpPage />} />
 
-      {/* ONBOARDING (requires login, must have NO company yet) */}
+      {/* HIGHLIGHT: ONBOARDING ENTRY (logged in, no company yet) */}
+      <Route
+        path="/onboarding"
+        element={
+          <Protected>
+            <RequireNoCompany>
+              <OnboardingEntryPage />
+            </RequireNoCompany>
+          </Protected>
+        }
+      />
+
+      {/* OWNER COMPANY SETUP (still no company yet) */}
       <Route
         path="/onboarding/company"
         element={
@@ -45,6 +64,16 @@ export default function AppRoutes() {
             <RequireNoCompany>
               <CompanySetupPage />
             </RequireNoCompany>
+          </Protected>
+        }
+      />
+
+      {/* HIGHLIGHT: invite accept must be authenticated but DOES NOT require company */}
+      <Route
+        path="/invite/:token"
+        element={
+          <Protected>
+            <InviteAcceptPage />
           </Protected>
         }
       />
@@ -60,6 +89,16 @@ export default function AppRoutes() {
           </Protected>
         }
       >
+        {/* HIGHLIGHT: owner-only company management area */}
+        <Route
+          path="manage-company"
+          element={
+            <RequireOwner>
+              <ManageCompany />
+            </RequireOwner>
+          }
+        />
+
         <Route path="home" element={<Home />} />
 
         <Route path="drivers" element={<DriversPage />} />

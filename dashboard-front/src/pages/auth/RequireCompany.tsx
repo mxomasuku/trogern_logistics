@@ -1,78 +1,45 @@
-// src/components/auth/RequireNoCompany.tsx
+// src/pages/auth/RequireCompany.tsx
 import type { ReactNode } from "react";
 import { Navigate, useLocation } from "react-router-dom";
-import { useGetMyCompanyQuery } from "@/pages/company/companyApi";
+import { useEffect, useState } from "react";          // HIGHLIGHT
+import { useAuth } from "@/state/AuthContext";        // HIGHLIGHT
 
 type GuardProps = {
   children: ReactNode;
 };
 
-// HIGHLIGHT: requires user to HAVE a company (owner OR employee)
 export function RequireCompany({ children }: GuardProps) {
   const location = useLocation();
-  const { data, isLoading, isError } = useGetMyCompanyQuery();
+  const { user, companyId, loading, refreshClaimsFromFirebase } = useAuth(); // HIGHLIGHT
+  const [triedRefresh, setTriedRefresh] = useState(false);                   // HIGHLIGHT
 
-  if (isLoading) {
+  // HIGHLIGHT: one-shot “second chance” to pull fresh claims
+  useEffect(() => {
+    if (!loading && user && !companyId && !triedRefresh) {
+      setTriedRefresh(true);
+      void refreshClaimsFromFirebase();
+    }
+  }, [loading, user, companyId, triedRefresh, refreshClaimsFromFirebase]);    // HIGHLIGHT
+
+  // still resolving Firebase auth
+  if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center text-gray-700">
-        Checking company configuration…
+        Loading your company…
       </div>
     );
   }
 
-  // If call failed, be strict and push user to onboarding
-  if (isError) {
-    return <Navigate to="/onboarding/company" replace />;
-  }
-
-  const company = data?.company ?? null;
-
-  // No company -> force onboarding
-  if (!company) {
+  // after optional refresh, if there is still no companyId → user is not attached
+  if (!companyId) {
     return (
       <Navigate
-        to="/onboarding/company"
+        to="/onboarding"
         replace
         state={{ from: location.pathname }}
       />
     );
   }
 
-  // Company exists (owner or employee) -> allow access
-  return <>{children}</>;
-}
-
-// HIGHLIGHT: requires user to NOT have a company (onboarding only)
-export function RequireNoCompany({ children }: GuardProps) {
-  const location = useLocation();
-  const { data, isLoading, isError } = useGetMyCompanyQuery();
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center text-gray-700">
-        Checking company configuration…
-      </div>
-    );
-  }
-
-  // If call fails, still show onboarding – better than locking them out
-  if (isError) {
-    return <>{children}</>;
-  }
-
-  const company = data?.company ?? null;
-
-  // If company exists already (owner or employee), kick them into app
-  if (company) {
-    return (
-      <Navigate
-        to="/app/home"
-        replace
-        state={{ from: location.pathname }}
-      />
-    );
-  }
-
-  // No company yet -> allow onboarding page
   return <>{children}</>;
 }

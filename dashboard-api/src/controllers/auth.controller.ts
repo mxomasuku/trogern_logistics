@@ -58,6 +58,7 @@ export async function loginUser(req: Request, res: Response) {
 
     // 3) Decode and upsert user profile
     const decoded = await admin.auth().verifyIdToken(idToken);
+    await upsertUserFromDecodedToken(decoded);
 
     // HIGHLIGHT: ensure users/{uid} exists / is updated on every login
     await upsertUserFromDecodedToken(decoded);
@@ -167,6 +168,7 @@ export async function registerUser(req: Request, res: Response) {
 
     // 3) Decode and upsert user profile into users collection
     const decoded = await admin.auth().verifyIdToken(idToken);
+    await upsertUserFromDecodedToken(decoded);
 
     // HIGHLIGHT: ensure users/{uid} exists right after registration
     await upsertUserFromDecodedToken(decoded);

@@ -1,3 +1,4 @@
+// src/pages/auth/Signup.tsx
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Input } from "@/components/ui/input";
@@ -5,10 +6,14 @@ import { Button } from "@/components/ui/button";
 import { Loader2, Eye, EyeOff } from "lucide-react";
 import ThemeToggle from "@/pages/auth/ThemeToggle";
 import { useRegisterMutation } from "@/pages/auth/authSlice";
+import { useAuth } from "@/state/AuthContext";              // HIGHLIGHT
+import { firebaseAuth } from "@/lib/firebase";              // HIGHLIGHT
+import { signInWithEmailAndPassword } from "firebase/auth"; // HIGHLIGHT
 
 export default function SignUpPage() {
   const navigate = useNavigate();
   const [registerUser, { isLoading, error }] = useRegisterMutation();
+  const { refreshClaimsFromFirebase } = useAuth();          // HIGHLIGHT
 
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
@@ -42,24 +47,44 @@ export default function SignUpPage() {
       return;
     }
 
-    const res = await registerUser({
-      name: fullName.trim(),
-      email: email.trim(),
-      password,
-    });
+    try {
+      const trimmedName = fullName.trim();
+      const trimmedEmail = email.trim();
 
-    console.log("on sign up", res.data);
-    if ("data" in res && (res.data as any)?.isSuccessful) {
-      // HIGHLIGHT: go straight into onboarding flow
-      navigate("/onboarding/company", { replace: true });
-    } else {
-      const apiErr = (res as any).error || {};
-      const msg =
-        apiErr?.data?.error ||
-        apiErr?.error ||
-        apiErr?.message ||
-        "Unable to create account. Please try again.";
-      setFormError(msg);
+      const res = await registerUser({
+        name: trimmedName,
+        email: trimmedEmail,
+        password,
+      });
+
+      console.log("on sign up", (res as any).data);
+
+      if ("data" in res && (res.data as any)?.isSuccessful) {
+        // HIGHLIGHT: sign into Firebase client so AuthContext can see the user
+        await signInWithEmailAndPassword(
+          firebaseAuth,
+          trimmedEmail,
+          password
+        );                                                 // HIGHLIGHT
+
+        // HIGHLIGHT: now refresh claims into AuthContext (even though role is null for now)
+        await refreshClaimsFromFirebase();                 // HIGHLIGHT
+
+        // HIGHLIGHT: then go into the owner/employee choice screen
+        navigate("/onboarding", { replace: true });        // HIGHLIGHT
+      } else {
+        const apiErr = (res as any).error || {};
+        const msg =
+          apiErr?.data?.error ||
+          apiErr?.error ||
+          apiErr?.message ||
+          "Unable to create account. Please try again.";
+        setFormError(msg);
+      }
+    } catch (e: any) {
+      setFormError(
+        e?.message || "Unable to create account. Please try again."
+      );
     }
   };
 

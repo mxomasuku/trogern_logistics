@@ -39,7 +39,7 @@ export interface CompanyPayload {
 }
 
 export interface CompanyMePayload {
-  company: Company | null;
+  company: Company | null; 
 }
 
 export async function login(email: string, password: string): Promise<void> {

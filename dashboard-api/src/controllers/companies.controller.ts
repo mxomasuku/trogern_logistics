@@ -1,7 +1,8 @@
 // src/controllers/companyController.ts
 import { Request, Response } from "express";
 const { admin } = require("../config/firebase");
-
+// HIGHLIGHT
+import { setUserCompanyClaims } from "../utils/authClaims";
 const db = admin.firestore();
 import { FleetType, CompanyDoc } from "../interfaces/interfaces";
 
@@ -39,6 +40,7 @@ async function getUidFromSession(
 }
 
 
+// HIGHLIGHT: updated to also set custom claims + onboardingStatus
 export async function createCompany(req: Request, res: Response) {
   const uid = await getUidFromSession(req, res);
   if (!uid) return;
@@ -106,6 +108,7 @@ export async function createCompany(req: Request, res: Response) {
       docRef = db
         .collection("companies")
         .doc() as FirebaseFirestore.DocumentReference<CompanyDoc>;
+
       await docRef.set({
         companyId: docRef.id,
         ownerUid: uid,
@@ -121,18 +124,22 @@ export async function createCompany(req: Request, res: Response) {
 
     const userRef = db.collection("users").doc(uid);
 
-await userRef.set(
-  {
-    uid,
-    email: null,      // optional: you can fill from decoded token if you want
-    name: null,       // optional
-    companyId: docRef.id,  // HIGHLIGHT: link user to company
-    role: "owner",
-    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    createdAt: admin.firestore.FieldValue.serverTimestamp(),
-  },
-  { merge: true }     // HIGHLIGHT: do not overwrite existing fields
-);
+    await userRef.set(
+      {
+        uid,
+        email: null,      // optional: you can fill from decoded token if you want
+        name: null,       // optional
+        companyId: docRef.id,  // link user to company
+        role: "owner",
+        onboardingStatus: "completed", // HIGHLIGHT
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true }     // do not overwrite existing fields
+    );
+
+    // HIGHLIGHT: set custom claims for owner so frontend can enforce company/role
+    await setUserCompanyClaims(uid, docRef.id, "owner");
 
     // Re-read the document to return canonical shape
     const freshSnap = await docRef.get();
@@ -150,7 +157,6 @@ await userRef.set(
       updatedAt: docData.updatedAt.toDate().toISOString(),
     };
 
-    // HIGHLIGHT: match CreateCompanyResponse { isSuccessful, company }
     return res.status(200).json({
       isSuccessful: true,
       company,
