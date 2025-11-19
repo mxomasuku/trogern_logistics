@@ -14,6 +14,7 @@ import {
   LayoutDashboard,
   Home,
   DollarSign,
+  PersonStanding
 } from "lucide-react";
 import { useLogoutMutation } from "@/pages/auth/authSlice";
 
@@ -23,6 +24,7 @@ const NAV = [
   { to: "/app/vehicles", label: "Vehicles", icon: Car },
   { to: "/app/service", label: "Service", icon: Wrench },
   { to: "/app/income", label: "Income", icon: DollarSign },
+  {to: "/app/manage-company", label: "Manage", icon: PersonStanding}
 ];
 
 function getDefaultCollapsed(): boolean {
