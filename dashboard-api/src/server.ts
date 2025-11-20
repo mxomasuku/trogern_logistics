@@ -17,6 +17,7 @@ import inviteRoutes from './routes/invite.routes';
 // Auth utils/middleware
 import { verifySession } from './utils/firebase-auth';
 import { verifySessionCookie } from './middleware/verifySessionCookie';
+import { attachUserProfile } from './middleware/attachUserProfile';
 
 // ---- Env (load ONCE) ----
 dotenv.config({
@@ -74,7 +75,7 @@ app.use('/api/v1/auth', authRoutes);
 
 // ---- Session populate (attach req.user if valid cookie) ----
 app.use(verifySession);
-app.use("/api/v1", verifySessionCookie, inviteRoutes);
+app.use("/api/v1", verifySessionCookie, attachUserProfile, inviteRoutes);
 app.use("/api/v1/companies", verifySessionCookie, companyRoutes);
 app.use('/api/v1/drivers', verifySessionCookie, driverRoutes);
 app.use('/api/v1/vehicles', verifySessionCookie, vehicleRoutes);

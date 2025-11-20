@@ -4,7 +4,7 @@ export type ServiceItemKind = "consumable" | "labour" | "license" | "other";
 
 export interface ServiceItemPrime {
   // HIGHLIGHT: company-scoped catalog
-  companyId: string;                 // HIGHLIGHT
+  companyId: string; // HIGHLIGHT
   kind: ServiceItemKind;
   name: string;
   value: string;
@@ -15,7 +15,7 @@ export interface ServiceItemPrime {
 export interface ServiceItem {
   kind: ServiceItemKind;
   // HIGHLIGHT: carry companyId on each item
-  companyId: string;                 // HIGHLIGHT
+  companyId: string; // HIGHLIGHT
   name: string;
   value: string;
   unit: string;
@@ -31,7 +31,7 @@ export interface ServiceItem {
 
 export interface ServiceRecord {
   // HIGHLIGHT: service record belongs to a company
-  companyId: string;                 // HIGHLIGHT
+  companyId: string; // HIGHLIGHT
   vehicleId: string;
   date: FirebaseFirestore.Timestamp;
   mechanic: string;
@@ -46,7 +46,7 @@ export interface ServiceRecord {
 export interface VehicleServiceTrackerSummary {
   vehicleId: string;
   // HIGHLIGHT: multi-tenant tracker
-  companyId: string;                 // HIGHLIGHT
+  companyId: string; // HIGHLIGHT
   lastServiceDate: FirebaseFirestore.Timestamp | null;
   lastServiceMileage: number | null;
   updatedAt: FirebaseFirestore.Timestamp;
@@ -56,7 +56,7 @@ export interface VehicleServiceTrackerSummary {
 export interface VehicleServiceTrackerItemDoc {
   vehicleId: string;
   // HIGHLIGHT: company on each tracker item as well
-  companyId: string;                 // HIGHLIGHT
+  companyId: string; // HIGHLIGHT
   kind: ServiceItemKind;
   name: string;
   value: string;
