@@ -1,5 +1,5 @@
 import { auth } from "firebase-admin";
-import { AppUserRole } from "../interfaces/interfaces";
+import { AppUserRole } from "../types/index";
 
 
 export type AppCustomClaims = {

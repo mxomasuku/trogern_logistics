@@ -1,7 +1,7 @@
 // src/repos/status-sync.repo.ts
 const { db } = require("../config/firebase");
 import { Timestamp as FirestoreTimestamp } from "firebase-admin/firestore";
-import { Driver, Vehicle } from "../interfaces/interfaces";
+import { Driver, Vehicle } from "../types/index";
 
 const driversRef = db.collection("drivers");
 const vehiclesCollection: FirebaseFirestore.CollectionReference =

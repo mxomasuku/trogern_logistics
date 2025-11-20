@@ -4,7 +4,7 @@ import { DateTime } from "luxon";
 const { db, admin } = require("../config/firebase"); // HIGHLIGHT: add admin
 import { success, failure } from "../utils/apiResponse";
 import { signedAmount, tsToDateTime } from "../utils/kpi-utils";
-import type { DriverKpiResult, IncomeLog } from "../interfaces/interfaces";
+import type { DriverKpiResult, IncomeLog } from "../types/index";
 
 /* ──────────────────────────── COLLECTION REFS ──────────────────────────── */
 const driversCol = db.collection("drivers");

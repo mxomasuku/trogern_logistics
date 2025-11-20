@@ -2,7 +2,7 @@ import { Response, Request } from "express";
 import { DateTime } from "luxon";
 const { db, admin } = require("../config/firebase");
 import { success, failure } from "../utils/apiResponse";
-import { IncomeLog, LedgerType } from "../interfaces/interfaces";
+import { IncomeLog, LedgerType } from "../types/index";
 
 // HIGHLIGHT: company context helper
 import { requireCompanyContext } from "../utils/companyContext";

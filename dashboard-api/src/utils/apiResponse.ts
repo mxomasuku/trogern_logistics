@@ -1,5 +1,5 @@
 
-import { ApiResponse } from "../interfaces/interfaces"
+import { ApiResponse } from "../types/index"
 
 export function success<T>(data: T): ApiResponse<T> {
   return { isSuccessful: true, data, error: null };

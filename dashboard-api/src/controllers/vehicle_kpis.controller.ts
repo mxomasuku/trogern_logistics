@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 import { DateTime } from "luxon";
 const { db } = require("../config/firebase");
 import { success, failure } from "../utils/apiResponse";
-import type { IncomeLog, VehicleKpiResponse } from "../interfaces/interfaces";
+import type { IncomeLog, VehicleKpiResponse } from "../types/index";
 
 // HIGHLIGHT: pull company context (same helper you use in other controllers)
 import { requireCompanyContext } from "../utils/companyContext";

@@ -4,7 +4,7 @@ const { admin } = require("../config/firebase");
 // HIGHLIGHT
 import { setUserCompanyClaims } from "../utils/authClaims";
 const db = admin.firestore();
-import { FleetType, CompanyDoc } from "../interfaces/interfaces";
+import { FleetType, CompanyDoc } from "../types/index";
 
 
 

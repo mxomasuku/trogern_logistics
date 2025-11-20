@@ -1,5 +1,5 @@
 import { DateTime } from "luxon";
-import type { IncomeLog } from "../interfaces/interfaces";
+import type { IncomeLog } from "../types/index";
 
 /**
  * Converts a Firestore Timestamp / JS Date / ISO string into a Luxon DateTime.

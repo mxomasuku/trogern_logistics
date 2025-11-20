@@ -5,8 +5,8 @@ import {
   ServiceRecordDTO,
   ServiceItem,
   ServiceItemPrime,
-} from "../interfaces/interfaces";
-import type { ServiceItemKind } from "../interfaces/interfaces";
+} from "../types/index";
+import type { ServiceItemKind } from "../types/index";
 
 const { db, admin } = require("../config/firebase");
 import { success, failure } from "../utils/apiResponse";

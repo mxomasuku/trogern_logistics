@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 const { db, admin } = require("../config/firebase");
 import { success, failure } from "../utils/apiResponse";
 import { setUserCompanyClaims } from "../utils/authClaims";
-import { AppUserRole, CompanyInviteDoc, InviteRole} from "../interfaces/interfaces";
+import { AppUserRole, CompanyInviteDoc, InviteRole} from "../types/index";
 
 // HIGHLIGHT: shared types
 
