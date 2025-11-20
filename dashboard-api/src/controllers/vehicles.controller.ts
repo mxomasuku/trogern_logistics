@@ -5,7 +5,7 @@ import {
   VehicleUpdateDTO,
   VehicleStatus,
   RouteType,
-} from '../interfaces/interfaces';
+} from '../types/index';
 const { db, admin } = require('../config/firebase');
 import { success, failure } from '../utils/apiResponse';
 import { updateDriverStatusFromVehicle } from './status_sync_repo';

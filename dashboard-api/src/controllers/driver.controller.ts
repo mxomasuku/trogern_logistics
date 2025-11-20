@@ -6,7 +6,7 @@ import type {
   Transaction,
 } from "firebase-admin/firestore";
 import { success, failure } from "../utils/apiResponse";
-import { Driver, Vehicle } from "../interfaces/interfaces";
+import { Driver, Vehicle } from "../types/index";
 import { updateVehicleStatusFromDriver } from "./status_sync_repo";
 
 // HIGHLIGHT: company context helper
