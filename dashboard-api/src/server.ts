@@ -13,11 +13,14 @@ import incomeRoutes from './routes/income.routes';
 import companyRoutes from './routes/companyRoutes';
 import serviceRoutes from './routes/service.routes';
 import inviteRoutes from './routes/invite.routes';
+import clientLogRoutes from "./routes/logs.routes";
 
 // Auth utils/middleware
 import { verifySession } from './utils/firebase-auth';
 import { verifySessionCookie } from './middleware/verifySessionCookie';
 import { attachUserProfile } from './middleware/attachUserProfile';
+import { requestMetrics } from "./middleware/requestMetrics";
+import { errorHandler } from "./middleware/errorHandler";
 
 // ---- Env (load ONCE) ----
 dotenv.config({
@@ -64,6 +67,7 @@ app.use(
 // ---- Core middleware ----
 app.use(express.json());
 app.use(cookieParser());
+app.use(requestMetrics);
 
 
 if (process.env.NODE_ENV === 'development') {
@@ -81,9 +85,16 @@ app.use('/api/v1/drivers', verifySessionCookie, driverRoutes);
 app.use('/api/v1/vehicles', verifySessionCookie, vehicleRoutes);
 app.use('/api/v1/income', verifySessionCookie, incomeRoutes);
 app.use('/api/v1/service', verifySessionCookie, serviceRoutes);
+app.use("/api/v1/logs", verifySessionCookie, clientLogRoutes);
 
 
-
+app.get(
+  "/api/v1/debug/crash",
+  verifySessionCookie,               // optional but keeps it behind auth
+  (req: Request, _res: Response) => {
+    throw new Error("Test crash for error handler"); // HIGHLIGHT
+  }
+);
 
 // ---- Healthchecks (must be BEFORE 404) ----
 app.get('/healthz', (_req: Request, res: Response) => res.status(200).send('ok'));
@@ -92,16 +103,10 @@ app.get('/readyz', (_req: Request, res: Response) => {
   return res.status(200).send('ready');
 });
 
-// ---- 404 ----
-app.use((_req, res) => res.status(404).json({ error: 'Route not found' }));
 
-// ---- Error handler ----
-app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-  console.error('💥 Error:', err);
-  res.status(err.statusCode || 500).json({
-    error: err.message || 'Internal Server Error',
-  });
-});
+
+
+app.use(errorHandler);
 
 async function start() {
   try {

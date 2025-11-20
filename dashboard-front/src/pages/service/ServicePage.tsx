@@ -37,7 +37,6 @@ export default function ServiceHubPage() {
             gradient="from-sky-100 via-sky-50 to-white"
             onClick={() => navigate("/app/service/records")}
           />
-
           {/* Add Service Item */}
           <ActionButton
             label="Add Service Item"

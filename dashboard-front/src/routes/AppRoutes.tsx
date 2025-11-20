@@ -32,6 +32,7 @@ import AddIncomePage from "@/pages/income/pages/AddIncomePage";
 
 import InviteAcceptPage from "@/pages/auth/AcceptInvitePage";
 import ManageCompany from "@/pages/manage/ManageCompany";
+// import DebugCrashPage from "../components/DebugCrashPage";
 
 // HIGHLIGHT: new onboarding entry page
 import OnboardingEntryPage from "@/pages/auth/OnboardingEntryPage";
@@ -43,6 +44,8 @@ export default function AppRoutes() {
       <Route path="/" element={<LandingPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/signup" element={<SignUpPage />} />
+
+       {/* <Route path="/debug-crash" element={<DebugCrashPage />} /> */}
 
       {/* HIGHLIGHT: ONBOARDING ENTRY (logged in, no company yet) */}
       <Route
