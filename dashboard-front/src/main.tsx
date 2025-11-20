@@ -7,9 +7,12 @@ import { ThemeProvider } from "@/components/theme-provider";
 import App from "./App";
 import "./index.css";
 import { AuthProvider } from "./state/AuthContext";
+import { GlobalErrorBoundary } from "./components/GlobalErrorBoundary";
+
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
+    <GlobalErrorBoundary>
     <Provider store={store}>
   <AuthProvider>
       <BrowserRouter>
@@ -25,5 +28,6 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
       </BrowserRouter>
       </AuthProvider>
     </Provider>
+    </GlobalErrorBoundary>
   </React.StrictMode>
 );
