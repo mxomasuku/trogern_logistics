@@ -57,7 +57,7 @@ function computeDueValues(
 async function preloadCatalogForItems(
   db: FirebaseFirestore.Firestore,
   items: ServiceItem[],
-  companyId: string            // HIGHLIGHT
+  companyId: string // HIGHLIGHT
 ): Promise<Map<string, ServiceItemPrime>> {
   const catalogByKey = new Map<string, ServiceItemPrime>();
 
@@ -152,7 +152,7 @@ export const createOrUpdateVehicleServiceRecord = onDocumentCreated(
       logger.info("Processing service record for vehicle", {
         serviceRecordId,
         vehicleId,
-        companyId,                            // HIGHLIGHT
+        companyId, // HIGHLIGHT
         itemCount: itemsChanged.length,
       });
 
@@ -188,7 +188,7 @@ export const createOrUpdateVehicleServiceRecord = onDocumentCreated(
 
         const newSummary: VehicleServiceTrackerSummary = {
           vehicleId,
-          companyId,                    // HIGHLIGHT
+          companyId, // HIGHLIGHT
           lastServiceDate: newLastServiceDate,
           lastServiceMileage: newLastServiceMileage,
           updatedAt: now,
@@ -221,7 +221,7 @@ export const createOrUpdateVehicleServiceRecord = onDocumentCreated(
 
         const updatedItem: VehicleServiceTrackerItemDoc = {
           vehicleId,
-          companyId,                      // HIGHLIGHT
+          companyId, // HIGHLIGHT
           kind: item.kind,
           name: item.name,
           value: item.value,
@@ -240,7 +240,7 @@ export const createOrUpdateVehicleServiceRecord = onDocumentCreated(
 
       logger.info("Vehicle service tracker updated successfully", {
         vehicleId,
-        companyId,                        // HIGHLIGHT
+        companyId, // HIGHLIGHT
         serviceRecordId,
         itemCount: itemsChanged.length,
       });
