@@ -9,7 +9,7 @@ import { RequireCompany } from "@/pages/auth/RequireCompany";
 import { RequireNoCompany } from "@/pages/auth/RequireNoCompany";
 import { RequireOwner } from "@/pages/auth/RequireOwner";
 
-import LandingPage from "@/pages/LandingPage";
+import LandingPage from "@/pages/LandingPage/LandingPage";
 import LoginPage from "@/pages/auth/LoginPage";
 import SignUpPage from "@/pages/auth/Signup";
 import CompanySetupPage from "@/pages/CompanySetupPage";
@@ -36,15 +36,19 @@ import ManageCompany from "@/pages/manage/ManageCompany";
 
 // HIGHLIGHT: new onboarding entry page
 import OnboardingEntryPage from "@/pages/auth/OnboardingEntryPage";
+import ProductOverviewPage from "@/pages/ProductOverview/ProductOverviewPage";
+import BookADemoPage from "@/pages/BookADemo/BookADemoPage";
 
 export default function AppRoutes() {
   return (
     <Routes>
       {/* PUBLIC */}
+      
       <Route path="/" element={<LandingPage />} />
+      <Route path="/product-overview" element={<ProductOverviewPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/signup" element={<SignUpPage />} />
-
+      <Route path="/book-a-demo" element={<BookADemoPage />} />
        {/* <Route path="/debug-crash" element={<DebugCrashPage />} /> */}
 
       {/* HIGHLIGHT: ONBOARDING ENTRY (logged in, no company yet) */}
