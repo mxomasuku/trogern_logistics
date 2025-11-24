@@ -14,6 +14,7 @@ import companyRoutes from './routes/companyRoutes';
 import serviceRoutes from './routes/service.routes';
 import inviteRoutes from './routes/invite.routes';
 import clientLogRoutes from "./routes/logs.routes";
+import companyTargetsRoutes from "./routes/companyTargets"; 
 
 // Auth utils/middleware
 import { verifySession } from './utils/firebase-auth';
@@ -86,6 +87,7 @@ app.use('/api/v1/vehicles', verifySessionCookie, vehicleRoutes);
 app.use('/api/v1/income', verifySessionCookie, incomeRoutes);
 app.use('/api/v1/service', verifySessionCookie, serviceRoutes);
 app.use("/api/v1/logs", verifySessionCookie, clientLogRoutes);
+app.use('/api/v1/company-targets', verifySessionCookie, companyTargetsRoutes);
 
 
 app.get(

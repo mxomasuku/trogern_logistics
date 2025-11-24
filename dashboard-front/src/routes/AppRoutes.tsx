@@ -29,15 +29,17 @@ import ServiceRecordsPage from "@/pages/service/page/ServiceRecordsPage";
 
 import IncomePage from "@/pages/income/IncomePage";
 import AddIncomePage from "@/pages/income/pages/AddIncomePage";
-
+import SetTargets from "@/pages/manage/setTargets/SetTargets";
 import InviteAcceptPage from "@/pages/auth/AcceptInvitePage";
 import ManageCompany from "@/pages/manage/ManageCompany";
+import TargetPreviewPage from "@/pages/manage/setTargets/TargetsPreviewPage";
 // import DebugCrashPage from "../components/DebugCrashPage";
 
 // HIGHLIGHT: new onboarding entry page
 import OnboardingEntryPage from "@/pages/auth/OnboardingEntryPage";
 import ProductOverviewPage from "@/pages/ProductOverview/ProductOverviewPage";
 import BookADemoPage from "@/pages/BookADemo/BookADemoPage";
+import InviteEmployeesPanel from "@/pages/manage/InviteEmployeePanel";
 
 export default function AppRoutes() {
   return (
@@ -75,6 +77,7 @@ export default function AppRoutes() {
         }
       />
 
+
       {/* HIGHLIGHT: invite accept must be authenticated but DOES NOT require company */}
       <Route
         path="/invite/:token"
@@ -107,19 +110,18 @@ export default function AppRoutes() {
         />
 
         <Route path="home" element={<Home />} />
-
         <Route path="drivers" element={<DriversPage />} />
         <Route path="drivers/add" element={<AddDriver />} />
         <Route path="drivers/profile" element={<DriverProfile />} />
-
         <Route path="vehicles" element={<VehiclesPage />} />
         <Route path="vehicles/add" element={<AddVehicle />} />
         <Route path="vehicles/profile" element={<VehicleProfile />} />
-
         <Route path="service" element={<ServicePage />} />
         <Route path="service/add" element={<AddServicePage />} />
         <Route path="service/records" element={<ServiceRecordsPage />} />
-
+        <Route path="company/invite" element={<InviteEmployeesPanel />} />
+        <Route path="onboarding/create-targets" element={<SetTargets   />} />
+        <Route path="onboarding/preview-targets" element={<TargetPreviewPage />} />
         <Route path="income" element={<IncomePage />} />
         <Route path="income/add" element={<AddIncomePage />} />
       </Route>

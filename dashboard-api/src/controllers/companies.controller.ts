@@ -5,6 +5,9 @@ const { admin } = require("../config/firebase");
 import { setUserCompanyClaims } from "../utils/authClaims";
 const db = admin.firestore();
 import { FleetType, CompanyDoc } from "../types/index";
+import { requireCompanyContext } from "../utils/companyContext";
+
+const companiesRef = db.collection("companies");
 
 
 
@@ -231,3 +234,94 @@ export async function getMyCompany(req: Request, res: Response) {
     });
   }
 }
+
+
+export const updateCompanyCoreDetails = async (req: Request, res: Response) => {
+  // HIGHLIGHT: enforce company context from auth claims
+  const ctx = await requireCompanyContext(req, res);
+  if (!ctx) return;
+  const { companyId } = ctx;
+
+  const { fleetSize, employeeCount } = req.body;
+
+  // HIGHLIGHT: validate numeric inputs
+  if (
+    fleetSize === undefined ||
+    employeeCount === undefined ||
+    !Number.isFinite(Number(fleetSize)) ||
+    !Number.isFinite(Number(employeeCount))
+  ) {
+    return res.status(400).json({
+      isSuccessful: false,
+      error: {
+        code: "VALIDATION_ERROR",
+        message: "fleetSize and employeeCount must be valid numbers",
+        details: { fleetSize, employeeCount },
+      },
+    });
+  }
+
+  try {
+    const companyRef = companiesRef.doc(companyId);
+    const snap = await companyRef.get();
+
+    if (!snap.exists) {
+      return res.status(404).json({
+        isSuccessful: false,
+        error: {
+          code: "NOT_FOUND",
+          message: "Company not found",
+          details: { companyId },
+        },
+      });
+    }
+
+    const now = admin.firestore.Timestamp.now();
+
+    // HIGHLIGHT: merge only the fields we care about
+    await companyRef.set(
+      {
+        fleetSize: Number(fleetSize),
+        employeeCount: Number(employeeCount),
+        updatedAt: now,
+      },
+      { merge: true }
+    );
+
+    const updatedSnap = await companyRef.get();
+    const data = updatedSnap.data() as CompanyDoc;
+
+    // HIGHLIGHT: defensive timestamp handling
+    const createdAtIso =
+      (data.createdAt as any)?.toDate?.().toISOString?.() ?? null;
+    const updatedAtIso =
+      (data.updatedAt as any)?.toDate?.().toISOString?.() ?? null;
+
+    const company = {
+      companyId: data.companyId,
+      ownerUid: data.ownerUid,
+      name: data.name,
+      fleetSize: data.fleetSize,
+      employeeCount: data.employeeCount,
+      fleetType: data.fleetType,
+      usageDescription: data.usageDescription,
+      createdAt: createdAtIso,
+      updatedAt: updatedAtIso,
+    };
+
+    return res.status(200).json({
+      isSuccessful: true,
+      company,
+    });
+  } catch (error: any) {
+    console.error("Error updating company details:", error);
+    return res.status(500).json({
+      isSuccessful: false,
+      error: {
+        code: "SERVER_ERROR",
+        message: "Failed to update company details",
+        details: error?.message,
+      },
+    });
+  }
+};

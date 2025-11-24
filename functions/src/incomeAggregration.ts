@@ -1,0 +1,196 @@
+import { onDocumentCreated } from "firebase-functions/v2/firestore";
+import * as logger from "firebase-functions/logger";
+
+// HIGHLIGHT: import admin CORE, not firestore submodule yet
+import * as admin from "firebase-admin";
+
+// HIGHLIGHT: ensure initialization happens BEFORE getFirestore()
+if (admin.apps.length === 0) {
+  admin.initializeApp();
+}
+
+// HIGHLIGHT: now safely import Firestore APIs
+import {
+  getFirestore,
+  Timestamp,
+  type Transaction,
+  type QueryDocumentSnapshot,
+  type DocumentData,
+} from "firebase-admin/firestore";
+
+import { getPeriodKeysFromTimestamp, type PeriodType } from "./utils/periodUtils";
+
+// HIGHLIGHT: NOW it's safe to call getFirestore()
+const db = getFirestore();
+// HIGHLIGHT: shared deltas type
+type Deltas = {
+  incomeDelta: number;
+  fuelDelta: number;
+  serviceDelta: number;
+  employeeDelta: number;
+};
+
+// Optional: shape of periodStats doc (for clarity)
+type PeriodStatDoc = {
+  companyId: string;
+  periodType: PeriodType;
+  periodKey: string;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+  income: number;
+  fuelCosts: number;
+  serviceExpense: number;
+  employeeExpense: number;
+  totalExpense: number;
+  serviceExpensesAsPercentage: number;
+  totalExpenseAsPercentage: number;
+  employeeExpensePercentage: number;
+  targetSnapshot: DocumentData | null;
+};
+
+// HIGHLIGHT: v2 Firestore trigger
+export const onIncomeCreated = onDocumentCreated(
+  {
+    document: "income/{incomeId}",
+  },
+  async (event) => {
+    if (!event.data) {
+      logger.warn("onIncomeCreated: no event.data", event.params);
+      return;
+    }
+
+    const incomeId = event.params.incomeId;
+    const data = event.data.data() as DocumentData;
+
+    const companyId = data.companyId as string | undefined;
+    const cashDate = data.cashDate as Timestamp | undefined;
+    const amount = Number(data.amount ?? 0);
+
+    // OPTIONAL future fields
+    const fuelCost = Number(data.fuelCost ?? 0);
+    const serviceCost = Number(data.serviceCost ?? 0);
+    const employeeCost = Number(data.employeeCost ?? 0);
+
+    if (!companyId || !cashDate || !Number.isFinite(amount)) {
+      logger.warn("onIncomeCreated: skipping aggregation – invalid payload", {
+        incomeId,
+        companyId,
+        hasCashDate: !!cashDate,
+        amount,
+      });
+      return;
+    }
+
+    const periodKeys = getPeriodKeysFromTimestamp(cashDate);
+
+    const deltas: Deltas = {
+      incomeDelta: amount,
+      fuelDelta: fuelCost,
+      serviceDelta: serviceCost,
+      employeeDelta: employeeCost,
+    };
+
+    logger.info("onIncomeCreated: updating periodStats for income", {
+      incomeId,
+      companyId,
+      amount,
+      periodKeys,
+    });
+
+    await Promise.all([
+      updatePeriodStat(companyId, "week", periodKeys.weekKey, deltas),
+      updatePeriodStat(companyId, "month", periodKeys.monthKey, deltas),
+      updatePeriodStat(companyId, "quarter", periodKeys.quarterKey, deltas),
+      updatePeriodStat(companyId, "year", periodKeys.yearKey, deltas),
+    ]);
+
+    logger.info("onIncomeCreated: aggregation complete", {
+      incomeId,
+      companyId,
+    });
+  }
+);
+
+// HIGHLIGHT: v2-friendly transaction helper with types
+async function updatePeriodStat(
+  companyId: string,
+  periodType: PeriodType,
+  periodKey: string,
+  deltas: Deltas
+): Promise<void> {
+  const { incomeDelta, fuelDelta, serviceDelta, employeeDelta } = deltas;
+
+  const ref = db
+    .collection("companies")
+    .doc(companyId)
+    .collection("periodStats")
+    .doc(periodKey);
+
+  await db.runTransaction(async (transaction: Transaction) => {
+    const docSnap = await transaction.get(ref);
+    const exists = docSnap.exists;
+    const existing = exists ? (docSnap.data() as Partial<PeriodStatDoc>) : {};
+
+    const now = Timestamp.now();
+
+    const previousIncome = Number(existing.income ?? 0);
+    const previousFuel = Number(existing.fuelCosts ?? 0);
+    const previousService = Number(existing.serviceExpense ?? 0);
+    const previousEmployee = Number(existing.employeeExpense ?? 0);
+
+    const income = previousIncome + incomeDelta;
+    const fuelCosts = previousFuel + fuelDelta;
+    const serviceExpense = previousService + serviceDelta;
+    const employeeExpense = previousEmployee + employeeDelta;
+    const totalExpense = fuelCosts + serviceExpense + employeeExpense;
+
+    const incomeForPercentage = income || 1;
+
+    const serviceExpensesAsPercentage =
+      (serviceExpense / incomeForPercentage) * 100;
+    const totalExpenseAsPercentage =
+      (totalExpense / incomeForPercentage) * 100;
+    const employeeExpensePercentage =
+      (employeeExpense / incomeForPercentage) * 100;
+
+    let targetSnapshot: DocumentData | null =
+      (existing.targetSnapshot as DocumentData | null) ?? null;
+
+    // HIGHLIGHT: only snapshot active target once when doc is first created
+    if (!exists) {
+      const targetQuerySnap = await transaction.get(
+        db
+          .collection("companies")
+          .doc(companyId)
+          .collection("targets")
+          .where("isActive", "==", true)
+          .limit(1)
+      );
+
+      if (!targetQuerySnap.empty) {
+        const targetDoc: QueryDocumentSnapshot<DocumentData> =
+          targetQuerySnap.docs[0];
+        targetSnapshot = targetDoc.data();
+      }
+    }
+
+    const updatedDoc: Partial<PeriodStatDoc> = {
+      companyId,
+      periodType,
+      periodKey,
+      createdAt: (exists && existing.createdAt) || now,
+      updatedAt: now,
+      income,
+      fuelCosts,
+      serviceExpense,
+      employeeExpense,
+      totalExpense,
+      serviceExpensesAsPercentage,
+      totalExpenseAsPercentage,
+      employeeExpensePercentage,
+      targetSnapshot: targetSnapshot ?? null,
+    };
+
+    transaction.set(ref, updatedDoc, { merge: true });
+  });
+}

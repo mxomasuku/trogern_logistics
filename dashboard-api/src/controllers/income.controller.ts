@@ -3,16 +3,12 @@ import { DateTime } from "luxon";
 const { db, admin } = require("../config/firebase");
 import { success, failure } from "../utils/apiResponse";
 import { IncomeLog, LedgerType } from "../types/index";
-
-// HIGHLIGHT: company context helper
 import { requireCompanyContext } from "../utils/companyContext";
+import { derivePeriodFieldsFromTimestamp } from "../utils/periodUtils"; // HIGHLIGHT
 
 const incomeRef = db.collection("income");
 const vehiclesRef = db.collection("vehicles");
 
-// ────────────────────────────────────────────────────────────────
-// Helpers
-// ────────────────────────────────────────────────────────────────
 
 function toFsTimestampAtLocalMidnight(
   value: any,
@@ -91,7 +87,6 @@ async function upsertVehicleMileageIfHigher(
 // ────────────────────────────────────────────────────────────────
 
 export const addIncomeLog = async (req: Request, res: Response) => {
-  // HIGHLIGHT: get company context
   const ctx = await requireCompanyContext(req, res);
   if (!ctx) return;
   const { companyId } = ctx;
@@ -142,8 +137,12 @@ export const addIncomeLog = async (req: Request, res: Response) => {
     const createdAt = admin.firestore.Timestamp.now();
     const cashDateTs = mustParseCashDateToTimestamp(cashDate, "cashDate");
 
-    // HIGHLIGHT: attach companyId
-    const payload: Omit<IncomeLog, "id"> & { companyId: string } = {
+    // HIGHLIGHT: derive period fields for this cashDate
+    const periodFields = derivePeriodFieldsFromTimestamp(cashDateTs); // HIGHLIGHT
+
+    const payload: Omit<IncomeLog, "id"> & {
+      companyId: string;
+    } & typeof periodFields = {
       amount: Number(amount),
       weekEndingMileage: Number(weekEndingMileage),
       vehicle: String(vehicle),
@@ -154,7 +153,8 @@ export const addIncomeLog = async (req: Request, res: Response) => {
       createdAt,
       updatedAt: createdAt,
       cashDate: cashDateTs,
-      companyId, // HIGHLIGHT
+      companyId,
+      ...periodFields, // HIGHLIGHT
     };
 
     const result = await incomeRef.add(payload);
@@ -169,17 +169,12 @@ export const addIncomeLog = async (req: Request, res: Response) => {
     return res
       .status(500)
       .json(
-        failure(
-          "SERVER_ERROR",
-          "Failed to log income",
-          error.message
-        )
+        failure("SERVER_ERROR", "Failed to log income", error.message)
       );
   }
 };
 
 export const updateIncomeLog = async (req: Request, res: Response) => {
-  // HIGHLIGHT: get company context
   const ctx = await requireCompanyContext(req, res);
   if (!ctx) return;
   const { companyId } = ctx;
@@ -204,6 +199,17 @@ export const updateIncomeLog = async (req: Request, res: Response) => {
 
   const patch: Partial<IncomeLog> & {
     updatedAt?: FirebaseFirestore.Timestamp;
+    // HIGHLIGHT: allow period fields when cashDate changes
+    weekId?: string;
+    weekNumber?: number;
+    weekYear?: number;
+    monthId?: string;
+    month?: number;
+    monthYear?: number;
+    quarterId?: string;
+    quarter?: number;
+    yearId?: string;
+    year?: number;
   } = {};
 
   if (amount !== undefined) patch.amount = Number(amount);
@@ -226,6 +232,10 @@ export const updateIncomeLog = async (req: Request, res: Response) => {
   if (cashDate !== undefined) {
     const cdTs = mustParseCashDateToTimestamp(cashDate, "cashDate");
     patch.cashDate = cdTs;
+
+    // HIGHLIGHT: recompute period fields when cashDate changes
+    const periodFields = derivePeriodFieldsFromTimestamp(cdTs); // HIGHLIGHT
+    Object.assign(patch, periodFields); // HIGHLIGHT
   }
 
   patch.updatedAt = admin.firestore.Timestamp.now();
@@ -234,10 +244,7 @@ export const updateIncomeLog = async (req: Request, res: Response) => {
     return res
       .status(400)
       .json(
-        failure(
-          "VALIDATION_ERROR",
-          "No updatable fields provided"
-        )
+        failure("VALIDATION_ERROR", "No updatable fields provided")
       );
   }
 
@@ -252,7 +259,6 @@ export const updateIncomeLog = async (req: Request, res: Response) => {
 
     const existing = doc.data() as IncomeLog & { companyId?: string };
 
-    // HIGHLIGHT: enforce company
     if (!existing.companyId || existing.companyId !== companyId) {
       return res
         .status(404)
@@ -293,8 +299,8 @@ export const updateIncomeLog = async (req: Request, res: Response) => {
   }
 };
 
+// the rest of your getters stay unchanged
 export const getIncomeLogs = async (req: Request, res: Response) => {
-  // HIGHLIGHT: get company context
   const ctx = await requireCompanyContext(req, res);
   if (!ctx) return;
   const { companyId } = ctx;
@@ -326,7 +332,6 @@ export const getIncomeLogs = async (req: Request, res: Response) => {
       200
     );
 
-    // HIGHLIGHT: base query always scoped to companyId
     let q: FirebaseFirestore.Query = incomeRef.where(
       "companyId",
       "==",
@@ -367,7 +372,6 @@ export const getIncomeLogs = async (req: Request, res: Response) => {
       );
   }
 };
-
 // ────────────────────────────────────────────────────────────────
 // Single / Filtered Fetch Controllers
 // ────────────────────────────────────────────────────────────────
