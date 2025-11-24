@@ -40,6 +40,13 @@ const ManageCompany = () => {
   >
     Set Company Targets
   </button>
+  
+    <button
+    onClick={() => navigate("/app/period-stats")}
+    className="w-48 px-4 py-2 rounded-md bg-slate-700 text-white font-medium hover:bg-slate-800"
+  >
+    View Analytics
+  </button>
 
 </div>
       {/* END HIGHLIGHT */}

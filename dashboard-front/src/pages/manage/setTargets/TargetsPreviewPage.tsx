@@ -10,9 +10,7 @@ type LocationState = {
   employeeCount?: number;
 };
 
-const WEEKS_IN_MONTH = 4;
-const WEEKS_IN_QUARTER = 13;
-const WEEKS_IN_YEAR = 52;
+
 
 export default function TargetPreviewPage(): React.JSX.Element {
   const navigate = useNavigate();
@@ -59,13 +57,6 @@ export default function TargetPreviewPage(): React.JSX.Element {
   const totalExpensePercentage =
     targetDraft.totalExpensesPercentageTarget;
 
-  const incomeByPeriod = useMemo(() => {
-    const week = weeklyIncome;
-    const month = week * WEEKS_IN_MONTH;
-    const quarter = week * WEEKS_IN_QUARTER;
-    const year = week * WEEKS_IN_YEAR;
-    return { week, month, quarter, year };
-  }, [weeklyIncome]);
 
   const perVehicleWeeklyIncome = useMemo(
     () => (fleetSize > 0 ? weeklyIncome / fleetSize : 0),

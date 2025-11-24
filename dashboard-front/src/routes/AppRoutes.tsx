@@ -40,6 +40,7 @@ import OnboardingEntryPage from "@/pages/auth/OnboardingEntryPage";
 import ProductOverviewPage from "@/pages/ProductOverview/ProductOverviewPage";
 import BookADemoPage from "@/pages/BookADemo/BookADemoPage";
 import InviteEmployeesPanel from "@/pages/manage/InviteEmployeePanel";
+import PeriodStatsPage from "@/pages/analytics/PeriodStatsPage";
 
 export default function AppRoutes() {
   return (
@@ -122,6 +123,7 @@ export default function AppRoutes() {
         <Route path="company/invite" element={<InviteEmployeesPanel />} />
         <Route path="onboarding/create-targets" element={<SetTargets   />} />
         <Route path="onboarding/preview-targets" element={<TargetPreviewPage />} />
+        <Route path="period-stats" element={<PeriodStatsPage />} />
         <Route path="income" element={<IncomePage />} />
         <Route path="income/add" element={<AddIncomePage />} />
       </Route>

@@ -624,3 +624,45 @@ export const getAllInactiveVehicles = async (req: Request, res: Response) => {
       );
   }
 };
+
+// HIGHLIGHT: NEW — group vehicles by status and count them
+export const getVehicleStatusCounts = async (req: Request, res: Response) => {
+  // HIGHLIGHT: company scoping
+  const ctx = await requireCompanyContext(req, res);
+  if (!ctx) return;
+  const { companyId } = ctx;
+
+  try {
+    const snapshot = await vehiclesCollection
+      .where("companyId", "==", companyId)
+      .get();
+
+    // HIGHLIGHT: initialize counter map
+    const statusCounts: Record<string, number> = {};
+
+    snapshot.forEach((doc) => {
+      const vehicle = doc.data();
+      const status = vehicle.status || "unknown";
+
+      // increment count
+      if (!statusCounts[status]) statusCounts[status] = 0;
+      statusCounts[status]++;
+    });
+
+    return res.status(200).json(
+      success({
+        total: snapshot.size,
+        byStatus: statusCounts, // HIGHLIGHT
+      })
+    );
+  } catch (error: any) {
+    console.error("Error fetching vehicle status counts:", error);
+    return res.status(500).json(
+      failure(
+        "SERVER_ERROR",
+        "Failed to compute vehicle status counts",
+        error.message
+      )
+    );
+  }
+};
