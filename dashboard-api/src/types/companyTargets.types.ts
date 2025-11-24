@@ -32,6 +32,7 @@ export interface CompanyTargets {
 
   fleetTarget: {
     numberOfVehiclesInOperationAtAnyGivenMoment: number;
+    amountEarnedPerVehicle: number; //add this 
   };
 
   metaSnapshot: {

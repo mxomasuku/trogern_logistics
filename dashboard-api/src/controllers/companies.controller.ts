@@ -325,3 +325,63 @@ export const updateCompanyCoreDetails = async (req: Request, res: Response) => {
     });
   }
 };
+
+
+export async function getMyCompanyDetails(req: Request, res: Response) {
+
+  const ctx = await requireCompanyContext(req, res);
+  if (!ctx) return;
+
+  const { companyId } = ctx; 
+
+  try {
+    const companyRef = companiesRef.doc(companyId);
+    const companySnap = await companyRef.get();
+
+    if (!companySnap.exists) {
+      return res.status(404).json({
+        isSuccessful: false,
+        error: {
+          code: "NOT_FOUND",
+          message: "Company not found",
+          details: { companyId },
+        },
+      });
+    }
+
+    const data = companySnap.data() as CompanyDoc;
+
+    // Defensive timestamp handling
+    const createdAtIso =
+      (data.createdAt as any)?.toDate?.().toISOString?.() ?? null;
+    const updatedAtIso =
+      (data.updatedAt as any)?.toDate?.().toISOString?.() ?? null;
+
+    const company = {
+      companyId: data.companyId,
+      ownerUid: data.ownerUid,
+      name: data.name,
+      fleetSize: data.fleetSize,
+      employeeCount: data.employeeCount,
+      fleetType: data.fleetType,
+      usageDescription: data.usageDescription,
+      createdAt: createdAtIso,
+      updatedAt: updatedAtIso,
+    };
+
+    return res.status(200).json({
+      isSuccessful: true,
+      company,
+    });
+  } catch (error: any) {
+    console.error("Error fetching company details:", error);
+    return res.status(500).json({
+      isSuccessful: false,
+      error: {
+        code: "SERVER_ERROR",
+        message: "Failed to fetch company details",
+        details: error?.message,
+      },
+    });
+  }
+}

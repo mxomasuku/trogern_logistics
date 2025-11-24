@@ -148,3 +148,7 @@ export async function requireNoCompany(): Promise<void> {
     throw new Error("COMPANY_ALREADY_CONFIGURED");
   }
 }
+
+// ====================================================================
+// HIGHLIGHT: COMPANY TARGETS HELPERS
+// ====================================================================

@@ -53,3 +53,13 @@ export async function getAllInactiveVehicles(): Promise<Vehicle[]> {
     return data.data;
 }
 
+export async function getVehicleStatusCounts(): Promise<{active: number; inactive: number; maintenance: number;}> {
+  const {data} = await http.get<{isSuccessful: boolean; data: {active: number; inactive: number; maintenance: number;};}>(
+    `/vehicles/status-counts`,
+
+  )
+  if(!data?.isSuccessful) throw new Error("Failed to get vehicle status counts")
+
+    return data.data;
+}
+

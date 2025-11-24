@@ -30,6 +30,7 @@ export interface CompanyTargets {
   // fleet utilisation
   fleetTarget: number
   numberOfVehiclesInOperationAtAnyGivenMoment: number
+  amountEarnedPerVehicle: number // HIGHLIGHT
 
   // percentage-based expense targets (of income)
   serviceExpensesPercentageTarget: number
@@ -70,6 +71,7 @@ type CreateTargetsRequestBody = {
   }
   fleetTarget: {
     numberOfVehiclesInOperationAtAnyGivenMoment: number
+    amountEarnedPerVehicle: number
   }
 }
 
@@ -130,6 +132,7 @@ export async function createIncomeTarget(
       // fall back to fleetTarget for safety
       numberOfVehiclesInOperationAtAnyGivenMoment:
         payload.numberOfVehiclesInOperationAtAnyGivenMoment ?? payload.fleetTarget,
+      amountEarnedPerVehicle: payload.amountEarnedPerVehicle ?? 0, // HIGHLIGHT
     },
   }
 
@@ -164,6 +167,8 @@ export async function createIncomeTarget(
       doc.fleetTarget?.numberOfVehiclesInOperationAtAnyGivenMoment ?? 0,
     numberOfVehiclesInOperationAtAnyGivenMoment:
       doc.fleetTarget?.numberOfVehiclesInOperationAtAnyGivenMoment ?? 0,
+    amountEarnedPerVehicle:
+      doc.fleetTarget?.amountEarnedPerVehicle ?? 0, // HIGHLIGHT
 
     serviceExpensesPercentageTarget:
       doc.expenseTargets?.serviceExpensesAsPercentage ?? 0,
@@ -221,6 +226,8 @@ export async function getActiveTargets(): Promise<CompanyTargets | null> {
       doc.fleetTarget?.numberOfVehiclesInOperationAtAnyGivenMoment ?? 0,
     numberOfVehiclesInOperationAtAnyGivenMoment:
       doc.fleetTarget?.numberOfVehiclesInOperationAtAnyGivenMoment ?? 0,
+    amountEarnedPerVehicle:
+      doc.fleetTarget?.amountEarnedPerVehicle ?? 0, // HIGHLIGHT
 
     serviceExpensesPercentageTarget:
       doc.expenseTargets?.serviceExpensesAsPercentage ?? 0,

@@ -135,12 +135,15 @@ export const createTargets = async (req: Request, res: Response) => {
           expenseTargets.employeeExpensePercentage ?? 0
         ),
       },
-      fleetTarget: {
-        numberOfVehiclesInOperationAtAnyGivenMoment: Number(
-          fleetTarget?.numberOfVehiclesInOperationAtAnyGivenMoment ??
-            company.fleetSize
-        ),
-      },
+    fleetTarget: {
+      numberOfVehiclesInOperationAtAnyGivenMoment: Number(
+      fleetTarget?.numberOfVehiclesInOperationAtAnyGivenMoment ??
+      company.fleetSize
+  ),
+   amountEarnedPerVehicle: Number(
+    fleetTarget?.amountEarnedPerVehicle ?? 0
+  ), 
+},
       metaSnapshot: {
         fleetSize: company.fleetSize,
         employeeCount: company.employeeCount,

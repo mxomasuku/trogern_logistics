@@ -6,7 +6,8 @@ import {
   updateVehicle,
   deleteVehicle,
   getAllActiveVehicles,
-  getAllInactiveVehicles
+  getAllInactiveVehicles,
+  getVehicleStatusCounts
 
 } from '../controllers/vehicles.controller';
 import { getVehicleKpis } from '../controllers/vehicle_kpis.controller';
@@ -14,6 +15,7 @@ import { getVehicleKpis } from '../controllers/vehicle_kpis.controller';
 const router = Router();
 
 router.get('/active', getAllActiveVehicles);
+router.get('/status-counts', getVehicleStatusCounts);
 router.get('/inactive', getAllInactiveVehicles);
 router.get('/get', getAllVehicles);
 router.get('/get-vehicle/:id', getVehicle)
@@ -22,6 +24,7 @@ router.put('/update/:id', updateVehicle);
 router.delete('/delete/:id', deleteVehicle);
 router.get('/:id', getVehicle);
 router.get('/get-vehicle-kpis/:id', getVehicleKpis)
+
 
 
 
