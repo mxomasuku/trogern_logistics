@@ -62,14 +62,14 @@ export default function AddDriver() {
         const found = list.find((d) => d.id === editId);
         if (!found) {
           toast.error("Driver not found");
-          navigate("/drivers");
+          navigate("/app/drivers");
           return;
         }
         if (cancelled) return;
         hydrateForm(found);
       } catch (e: any) {
         toast.error(e?.message ?? "Failed to load driver");
-        navigate("/drivers");
+        navigate("/app/drivers");
       } finally {
         if (!cancelled) setLoadingPrefill(false);
       }
@@ -249,7 +249,7 @@ export default function AddDriver() {
         await addDriver(payload);
         toast.success("Driver added");
       }
-      navigate("/drivers");
+      navigate("/app/drivers");
     } catch (e: any) {
       toast.error(e?.message ?? (editId ? "Failed to update driver" : "Failed to add driver"));
     } finally {
