@@ -6,6 +6,8 @@ import { sendInvite, listInvites, revokeInvite, type InviteSummary, type InviteR
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ArrowLeft } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import {
   Card,
   CardContent,
@@ -45,6 +47,7 @@ export default function InviteEmployeesPanel() {
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<InviteRole>("employee");
   const [submitting, setSubmitting] = useState(false);
+  const navigate = useNavigate();
 
   const [invites, setInvites] = useState<InviteSummary[]>([]);
   const [loadingInvites, setLoadingInvites] = useState(true);
@@ -155,7 +158,20 @@ export default function InviteEmployeesPanel() {
   );
 
   return (
-    <Card className="bg-white shadow-none border-0 rounded-2xl ring-1 ring-black/5">
+
+<div>
+    <div className="flex items-center gap-2">
+        <Button
+          variant="ghost"
+          onClick={() => navigate(-1)}
+          className="text-blue-700 hover:bg-blue-50 hover:text-blue-800"
+        >
+          <ArrowLeft className="mr-2 h-4 w-4" /> Back
+        </Button>
+      </div>
+
+
+         <Card className="bg-white shadow-none border-0 rounded-2xl ring-1 ring-black/5">
       <CardHeader className="pb-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <CardTitle className="text-lg font-semibold text-blue-800">
           Team invitations
@@ -329,5 +345,9 @@ export default function InviteEmployeesPanel() {
         </div>
       </CardContent>
     </Card>
+
+</div>
+
+ 
   );
 }

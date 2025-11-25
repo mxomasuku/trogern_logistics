@@ -18,36 +18,71 @@ const ManageCompany = () => {
       <Card className="bg-white border-0 shadow-none ring-1 ring-black/5 rounded-2xl">
 
            <PageHeader
-          titleMain="Income"
+          titleMain="Company"
           titleAccent="Management"
           enableSearch={false}
    
 
         />
 
-   <div className="flex items-center gap-3 px-4 pb-4">
-
+<div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 px-4 pb-4">
+  {/* HIGHLIGHT: button 1 */}
   <button
     onClick={() => navigate("/app/company/invite")}
-    className="w-48 px-4 py-2 rounded-md bg-slate-700 text-white font-medium hover:bg-slate-800"
+    className="
+      w-full sm:w-48 
+      shrink-0 
+      rounded-md 
+      px-4 py-2 
+      text-sm font-medium 
+      bg-slate-700 
+      text-white 
+      hover:bg-slate-800
+      hover:ring-1 hover:ring-slate-300
+      transition
+    "
   >
     Invite Team Member
   </button>
 
+  {/* HIGHLIGHT: button 2 */}
   <button
     onClick={() => navigate("/app/onboarding/create-targets")}
-    className="w-48 px-4 py-2 rounded-md bg-blue-600 text-white font-medium hover:bg-blue-700"
+    className="
+      w-full sm:w-48 
+      shrink-0 
+      rounded-md 
+      px-4 py-2 
+      text-sm font-medium 
+      bg-blue-700 
+      text-white 
+      hover:bg-blue-50
+      hover:text-blue-700
+      hover:ring-1 hover:ring-blue-200
+      transition
+    "
   >
     Set Company Targets
   </button>
-  
-    <button
+
+  {/* HIGHLIGHT: button 3 */}
+  <button
     onClick={() => navigate("/app/period-stats")}
-    className="w-48 px-4 py-2 rounded-md bg-slate-700 text-white font-medium hover:bg-slate-800"
+    className="
+      w-full sm:w-48 
+      shrink-0 
+      rounded-md 
+      px-4 py-2 
+      text-sm font-medium 
+      bg-slate-700 
+      text-white 
+      hover:bg-slate-800
+      hover:ring-1 hover:ring-slate-300
+      transition
+    "
   >
     View Analytics
   </button>
-
 </div>
       {/* END HIGHLIGHT */}
    </Card>

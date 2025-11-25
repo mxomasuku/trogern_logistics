@@ -1,5 +1,7 @@
 // src/layouts/HomeLayout/index.tsx
-import { Outlet } from "react-router-dom";
+// HIGHLIGHT (ADDED): import hooks + useLocation for mobile sidebar + auto-close
+import { useState, useEffect } from "react";
+import { Outlet, useLocation } from "react-router-dom"; // HIGHLIGHT (EDITED)
 import { Loader2 } from "lucide-react";
 import { useMeQuery } from "@/pages/auth/authSlice";
 import Sidebar from "@/layouts/HomeLayout/Components/Sidebar";
@@ -8,6 +10,15 @@ import TopBar from "@/layouts/HomeLayout/Components/TopBar";
 export default function HomeLayout() {
   const { data: me, isLoading } = useMeQuery();
   const isAuthenticated = !!me?.user;
+
+  // HIGHLIGHT (ADDED): mobile sidebar state
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const location = useLocation(); // HIGHLIGHT (ADDED)
+
+  // HIGHLIGHT (ADDED): close mobile sidebar on route change
+  useEffect(() => {
+    setIsMobileSidebarOpen(false);
+  }, [location.pathname]);
 
   if (isLoading) {
     return (
@@ -25,8 +36,24 @@ export default function HomeLayout() {
     <div className="h-screen overflow-hidden bg-gray-100 text-foreground">
       {isAuthenticated ? (
         <div className="flex h-full">
-          {/* Sidebar stays fixed width; never causes horizontal scroll */}
-          <Sidebar />
+          {/* HIGHLIGHT (EDITED): Desktop sidebar only on lg+; mobile uses overlay */}
+          <div className="hidden lg:block">
+            <Sidebar mode="desktop" />
+          </div>
+
+          {/* HIGHLIGHT (ADDED): Mobile overlay sidebar (on top of content) */}
+          {isMobileSidebarOpen && (
+            <>
+              <div
+                className="fixed inset-0 z-40 bg-black/40 lg:hidden"
+                onClick={() => setIsMobileSidebarOpen(false)}
+              />
+              <Sidebar
+                mode="overlay"
+                onClose={() => setIsMobileSidebarOpen(false)}
+              />
+            </>
+          )}
 
           {/**
            * 2) The content column must NOT force width growth.
@@ -35,7 +62,12 @@ export default function HomeLayout() {
            */}
           <div className="flex min-w-0 grow flex-col overflow-hidden">
             {/* Topbar is sticky within this column, not the whole page */}
-            <TopBar />
+            <TopBar
+              // HIGHLIGHT (ADDED): hamburger toggles mobile sidebar
+              onToggleMobileSidebar={() =>
+                setIsMobileSidebarOpen((open) => !open)
+              }
+            />
 
             {/**
              * 3) This is the ONLY scroll container for the app content.

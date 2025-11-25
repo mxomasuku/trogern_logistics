@@ -10,6 +10,6 @@
     "skipLibCheck": true,
     "strict": true
   },
-  "include": ["src", "src/__tests__", "../functions/src/utils/periodUtils.ts"],
+  "include": ["src", "src/__tests__"],
   "exclude": ["dist"]
 }
