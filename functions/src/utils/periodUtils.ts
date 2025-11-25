@@ -17,7 +17,7 @@ export function getPeriodKeysFromTimestamp(
   const month = d.getMonth() + 1;
   const quarter = Math.floor((month - 1) / 3) + 1;
 
-  const { week, year: isoYear } = getIsoWeekInfo(d);
+  const {week, year: isoYear} = getIsoWeekInfo(d);
   const weekId = `${isoYear}-W${String(week).padStart(2, "0")}`;
 
   return {
@@ -36,5 +36,5 @@ function getIsoWeekInfo(date: Date): { week: number; year: number } {
   const week = Math.ceil(
     ((tempDate.getTime() - yearStart.getTime()) / 86400000 + 1) / 7
   );
-  return { week, year: tempDate.getUTCFullYear() };
+  return {week, year: tempDate.getUTCFullYear()};
 }

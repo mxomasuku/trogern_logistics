@@ -1,4 +1,4 @@
-import { onDocumentCreated } from "firebase-functions/v2/firestore";
+import {onDocumentCreated} from "firebase-functions/v2/firestore";
 import * as logger from "firebase-functions/logger";
 
 // HIGHLIGHT: import admin CORE, not firestore submodule yet
@@ -18,7 +18,7 @@ import {
   type DocumentData,
 } from "firebase-admin/firestore";
 
-import { getPeriodKeysFromTimestamp, type PeriodType } from "./utils/periodUtils";
+import {getPeriodKeysFromTimestamp, type PeriodType} from "./utils/periodUtils";
 
 // HIGHLIGHT: NOW it's safe to call getFirestore()
 const db = getFirestore();
@@ -118,7 +118,7 @@ async function updatePeriodStat(
   periodKey: string,
   deltas: Deltas
 ): Promise<void> {
-  const { incomeDelta, fuelDelta, serviceDelta, employeeDelta } = deltas;
+  const {incomeDelta, fuelDelta, serviceDelta, employeeDelta} = deltas;
 
   const ref = db
     .collection("companies")
@@ -191,6 +191,6 @@ async function updatePeriodStat(
       targetSnapshot: targetSnapshot ?? null,
     };
 
-    transaction.set(ref, updatedDoc, { merge: true });
+    transaction.set(ref, updatedDoc, {merge: true});
   });
 }
