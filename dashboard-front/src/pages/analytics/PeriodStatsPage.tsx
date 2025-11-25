@@ -29,6 +29,10 @@ import {
 
 import { usePeriodStats } from "@/hooks/usePeriodStats";
 import type { PeriodKey, PeriodStatPoint } from "@/api/period-stats";
+import { PageHeader } from "@/layouts/HomeLayout/Components/PageHeader";
+import { Button } from "@/components/ui/button";
+import { ArrowLeft } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 const PERIOD_LABELS: Record<PeriodKey, string> = {
   week: "Weekly",
@@ -67,6 +71,7 @@ const varianceChartConfig: ChartConfig = {
 export default function PeriodStatsPage(): React.JSX.Element {
   const [period, setPeriod] = useState<PeriodKey>(DEFAULT_PERIOD);
   const [windowSize, setWindowSize] = useState<number>(12);
+  const navigate = useNavigate();
 
   const { data, isLoading, error } = usePeriodStats({
     period,
@@ -79,13 +84,37 @@ export default function PeriodStatsPage(): React.JSX.Element {
   }, [data, windowSize]);
 
   return (
-    <div className="max-w-6xl mx-auto px-6 lg:px-10 py-8 space-y-6">
+
+    <div className="max-w-6xl mx-auto px-6 lg:px-10 py-8 space-y-6 ">
+                <div className="flex items-center">
+          <Button
+            variant="ghost"
+            onClick={() => navigate(-1)}
+            className="text-blue-700 hover:bg-blue-50 hover:text-blue-800 px-0"
+          >
+            <ArrowLeft className="mr-2 h-4 w-4" /> Back
+          </Button>
+        </div>
+
+
+
+
+          <div className="max-w-6xl mx-auto px-6 lg:px-10 py-8 space-y-6 bg-white rounded-2xl shadow">
+
+
+     
       {/* HEADER */}
       <header className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-slate-900">
-            Performance over time
-          </h1>
+            <div className="-ml-6">
+                   <PageHeader
+                      titleMain="Company"
+                      titleAccent="Analytics"
+                      enableSearch={false}
+                    />
+
+            </div>
+          
           <p className="text-sm text-slate-600 max-w-xl">
             Track how your actual income compares to target over your chosen
             time window.
@@ -204,6 +233,10 @@ export default function PeriodStatsPage(): React.JSX.Element {
         </>
       )}
     </div>
+    </div>
+
+
+  
   );
 }
 

@@ -3,9 +3,9 @@ import React from "react";
 import { Link } from "react-router-dom"; // HIGHLIGHT
 import {
   motion,
-  useMotionTemplate,    // HIGHLIGHT
+  useMotionTemplate, // HIGHLIGHT
   useMotionValue,
-  useSpring,               // HIGHLIGHT
+  useSpring, // HIGHLIGHT
 } from "framer-motion";
 import { PublicNavbar } from "./PublicNavbar";
 
@@ -21,7 +21,6 @@ interface ThemeConfig {
   gradientLeft: string;
   gradientBlob: string;
 }
-
 
 // --- Reusable Dashboard Card Component ---
 const DashboardCard = ({ theme }: { theme: ThemeConfig }) => {
@@ -41,9 +40,7 @@ const DashboardCard = ({ theme }: { theme: ThemeConfig }) => {
   `;
 
   // HIGHLIGHT: mouse move now drives tilt + glow
-  function handleMouseMove(
-    event: React.MouseEvent<HTMLDivElement>
-  ) {
+  function handleMouseMove(event: React.MouseEvent<HTMLDivElement>) {
     const { currentTarget, clientX, clientY } = event;
     const rect = currentTarget.getBoundingClientRect();
     const relativeX = clientX - rect.left;
@@ -52,11 +49,11 @@ const DashboardCard = ({ theme }: { theme: ThemeConfig }) => {
     mouseX.set(relativeX);
     mouseY.set(relativeY);
 
-    const percentX = (relativeX / rect.width) - 0.5;
-    const percentY = (relativeY / rect.height) - 0.5;
+    const percentX = relativeX / rect.width - 0.5;
+    const percentY = relativeY / rect.height - 0.5;
 
-    rotateY.set(percentX * 16);   // tilt left/right
-    rotateX.set(percentY * -12);  // tilt up/down
+    rotateY.set(percentX * 16); // tilt left/right
+    rotateX.set(percentY * -12); // tilt up/down
   }
 
   // HIGHLIGHT: reset tilt on leave
@@ -72,13 +69,13 @@ const DashboardCard = ({ theme }: { theme: ThemeConfig }) => {
       initial={{ opacity: 0, x: 40 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ delay: 0.4, duration: 0.8 }}
-      onMouseMove={handleMouseMove}     // HIGHLIGHT
-      onMouseLeave={handleMouseLeave}   // HIGHLIGHT
+      onMouseMove={handleMouseMove} // HIGHLIGHT
+      onMouseLeave={handleMouseLeave} // HIGHLIGHT
       className={`group relative backdrop-blur-md rounded-3xl p-6 shadow-2xl border ${theme.cardBg} ${theme.cardBorder}`} // HIGHLIGHT: added group
       style={{
         transformStyle: "preserve-3d",
-        rotateX,                       // HIGHLIGHT
-        rotateY,                       // HIGHLIGHT
+        rotateX, // HIGHLIGHT
+        rotateY, // HIGHLIGHT
       }}
     >
       {/* HIGHLIGHT: cursor glow layer */}
@@ -207,13 +204,13 @@ export const GenericLandingLayout = ({
       />
 
       {/* Main Content */}
-      <main className="relative z-10 max-w-6xl mx-auto px-6 lg:px-10 py-14 lg:py-20 grid lg:grid-cols-2 gap-12 items-center">
-        <div className="space-y-8">
+      <main className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 lg:px-10 py-12 sm:py-14 lg:py-20 grid lg:grid-cols-2 gap-10 lg:gap-12 items-center"> {/* HIGHLIGHT (EDITED): tighter mobile padding */}
+        <div className="space-y-6 sm:space-y-8">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
-            className={`inline-flex items-center text-xs font-medium rounded-full border px-3 py-1 ${theme.cardBorder} bg-white/5 ${theme.textSecondary}`}
+            className={`inline-flex items-center text-[11px] sm:text-xs font-medium rounded-full border px-2.5 sm:px-3 py-1 ${theme.cardBorder} bg-white/5 ${theme.textSecondary}`} // HIGHLIGHT (EDITED): smaller text on mobile
           >
             Built for African fleet operators
           </motion.div>
@@ -222,7 +219,7 @@ export const GenericLandingLayout = ({
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
-            className={`text-4xl sm:text-5xl lg:text-6xl font-semibold leading-tight ${theme.textPrimary}`}
+            className={`text-3xl sm:text-5xl lg:text-6xl font-semibold leading-tight ${theme.textPrimary}`} // HIGHLIGHT (EDITED): smaller base font
           >
             {headline}
           </motion.h1>
@@ -231,7 +228,7 @@ export const GenericLandingLayout = ({
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
-            className={`text-lg max-w-lg leading-relaxed ${theme.textSecondary} opacity-90`}
+            className={`text-base sm:text-lg max-w-lg leading-relaxed ${theme.textSecondary} opacity-90`} // HIGHLIGHT (EDITED): base text smaller
           >
             {subheadline}
           </motion.p>
@@ -240,28 +237,36 @@ export const GenericLandingLayout = ({
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4 }}
-            className="flex flex-wrap items-center gap-4"
+            className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-3 sm:gap-4" // HIGHLIGHT (EDITED): stack on mobile
           >
             <Link
-              to="/book-a-demo"   // HIGHLIGHT
-              className="px-6 py-3 rounded-full text-sm font-semibold text-white shadow-lg hover:brightness-110 transition-all"
+              to="/book-a-demo" // HIGHLIGHT
+              className="w-full sm:w-auto text-center px-6 py-3 rounded-full text-sm font-semibold text-white shadow-lg hover:brightness-110 transition-all"
               style={{ backgroundColor: theme.buttonPrimary }}
             >
               Book a demo
             </Link>
-         
-        <Link
-  to="/product-overview"   // HIGHLIGHT
-  className={`px-6 py-3 rounded-full text-sm border ${theme.cardBorder} ${theme.textPrimary} hover:bg-white/5 transition-colors`}
->
-  Product overview
-</Link>
+
+            <Link
+              to="/product-overview" // HIGHLIGHT
+              className={`w-full sm:w-auto text-center px-6 py-3 rounded-full text-sm border ${theme.cardBorder} ${theme.textPrimary} hover:bg-white/5 transition-colors`}
+            >
+              Product overview
+            </Link>
+
+            {/* HIGHLIGHT (ADDED): explicit Login button visible on mobile and desktop */}
+            <Link
+              to="/login"
+              className={`w-full sm:w-auto text-center px-6 py-3 rounded-full text-sm font-semibold border ${theme.cardBorder} ${theme.textPrimary} bg-white/90/0 sm:bg-transparent hover:bg-white/10 transition-colors`} // HIGHLIGHT
+            >
+              Log in
+            </Link>
           </motion.div>
         </div>
 
         {/* Right Side: Interactive Dashboard */}
         <div
-          className="relative"
+          className="relative mt-8 lg:mt-0"
           style={{ perspective: 1000 }} // HIGHLIGHT: inline perspective instead of class
         >
           <DashboardCard theme={theme} />

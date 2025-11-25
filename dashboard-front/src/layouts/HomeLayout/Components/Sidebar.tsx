@@ -14,9 +14,16 @@ import {
   LayoutDashboard,
   Home,
   DollarSign,
-  PersonStanding
+  PersonStanding,
+  X, // HIGHLIGHT (ADDED): close icon for overlay mode
 } from "lucide-react";
 import { useLogoutMutation } from "@/pages/auth/authSlice";
+
+// HIGHLIGHT (ADDED): explicit sidebar props for desktop vs overlay
+interface SidebarProps {
+  mode?: "desktop" | "overlay";
+  onClose?: () => void;
+}
 
 const NAV = [
   { to: "/app/home", label: "Home", icon: Home },
@@ -24,7 +31,7 @@ const NAV = [
   { to: "/app/vehicles", label: "Vehicles", icon: Car },
   { to: "/app/service", label: "Service", icon: Wrench },
   { to: "/app/income", label: "Income", icon: DollarSign },
-  {to: "/app/manage-company", label: "Manage", icon: PersonStanding}
+  { to: "/app/manage-company", label: "Manage", icon: PersonStanding },
 ];
 
 function getDefaultCollapsed(): boolean {
@@ -38,54 +45,94 @@ function getDefaultCollapsed(): boolean {
   return false;
 }
 
-export default function Sidebar() {
+export default function Sidebar({ mode = "desktop", onClose }: SidebarProps) {
   const [collapsed, setCollapsed] = useState<boolean>(getDefaultCollapsed);
   const location = useLocation();
   const [logout] = useLogoutMutation();
 
+  const isOverlay = mode === "overlay"; // HIGHLIGHT (ADDED)
+
   useEffect(() => {
+    if (isOverlay) return; // HIGHLIGHT (ADDED): do not persist collapsed in overlay
     try {
       localStorage.setItem("sidebar:collapsed", JSON.stringify(collapsed));
     } catch {}
-  }, [collapsed]);
+  }, [collapsed, isOverlay]);
+
+  const widthClass = isOverlay
+    ? "w-64" // HIGHLIGHT (ADDED): fixed width for overlay
+    : collapsed
+    ? "w-16"
+    : "w-64";
+
+  const showCollapsedUI = !isOverlay && collapsed; // HIGHLIGHT (ADDED)
 
   return (
     <aside
       className={cn(
-        // ✅ added subtle border + background blend
-        "sticky top-0 z-30 h-screen flex flex-col bg-white/95 backdrop-blur-sm shadow-sm border-r border-gray-200/70",
+        isOverlay
+          ? // HIGHLIGHT (ADDED): overlay drawer on top of content (mobile only)
+            "fixed inset-y-0 left-0 z-50 flex h-full flex-col bg-white/95 backdrop-blur-sm shadow-lg border-r border-gray-200/70 lg:hidden"
+          : // original desktop behavior
+            "sticky top-0 z-30 h-screen flex flex-col bg-white/95 backdrop-blur-sm shadow-sm border-r border-gray-200/70",
         "transition-[width] duration-300 ease-in-out",
-        collapsed ? "w-16" : "w-64"
+        widthClass
       )}
     >
-      {/* Header / Toggle */}
+      {/* Header / Toggle / Close */}
       <div
         className={cn(
           "flex items-center justify-between gap-2 px-3 py-3 border-b border-gray-100/70",
-          collapsed && "justify-center"
+          showCollapsedUI && "justify-center"
         )}
       >
-        <div className={cn("flex items-center gap-2 overflow-hidden", collapsed && "justify-center")}>
+        <div
+          className={cn(
+            "flex items-center gap-2 overflow-hidden",
+            showCollapsedUI && "justify-center"
+          )}
+        >
           <LayoutDashboard className="h-6 w-6 shrink-0 text-blue-500" />
-          {!collapsed && (
+          {!showCollapsedUI && (
             <span className="truncate font-semibold text-blue-700">
               Trogern Dashboard
             </span>
           )}
         </div>
-        <Button
-          variant="ghost"
-          size="icon"
-          className={cn(
-            "h-8 w-8 shrink-0 text-blue-600 hover:bg-blue-100 hover:text-blue-800 transition-colors",
-            collapsed && "mx-auto"
-          )}
-          onClick={() => setCollapsed((s) => !s)}
-          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-          title={collapsed ? "Expand" : "Collapse"}
-        >
-          {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
-        </Button>
+
+        {/* HIGHLIGHT (EDITED): collapse toggle only on desktop, close button on overlay */}
+        {!isOverlay && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className={cn(
+              "h-8 w-8 shrink-0 text-blue-600 hover:bg-blue-100 hover:text-blue-800 transition-colors",
+              showCollapsedUI && "mx-auto"
+            )}
+            onClick={() => setCollapsed((state) => !state)}
+            aria-label={showCollapsedUI ? "Expand sidebar" : "Collapse sidebar"}
+            title={showCollapsedUI ? "Expand" : "Collapse"}
+          >
+            {showCollapsedUI ? (
+              <ChevronRight className="h-4 w-4" />
+            ) : (
+              <ChevronLeft className="h-4 w-4" />
+            )}
+          </Button>
+        )}
+
+        {isOverlay && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 shrink-0 text-blue-600 hover:bg-blue-100 hover:text-blue-800 transition-colors lg:hidden" // HIGHLIGHT (ADDED)
+            onClick={onClose}
+            aria-label="Close sidebar"
+            title="Close"
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        )}
       </div>
 
       {/* Nav */}
@@ -96,7 +143,7 @@ export default function Sidebar() {
             to={item.to}
             icon={item.icon}
             label={item.label}
-            collapsed={collapsed}
+            collapsed={showCollapsedUI}
             active={location.pathname.startsWith(item.to)}
             className={cn(
               "hover:bg-blue-50 hover:text-blue-700 text-gray-700",
@@ -115,11 +162,11 @@ export default function Sidebar() {
           className={cn(
             "flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all",
             "text-gray-600 hover:bg-blue-100 hover:text-blue-800",
-            collapsed && "justify-center"
+            showCollapsedUI && "justify-center"
           )}
         >
           <LogOut className="h-5 w-5 shrink-0 text-blue-400 hover:text-blue-600 transition-colors" />
-          {!collapsed && <span className="truncate">Logout</span>}
+          {!showCollapsedUI && <span className="truncate">Logout</span>}
         </button>
       </div>
     </aside>
