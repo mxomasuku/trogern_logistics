@@ -18,6 +18,8 @@ import {
   X, // HIGHLIGHT (ADDED): close icon for overlay mode
 } from "lucide-react";
 import { useLogoutMutation } from "@/pages/auth/authSlice";
+// HIGHLIGHT (ADDED): import auth to gate Manage tab
+import { useAuth } from "@/state/AuthContext";
 
 // HIGHLIGHT (ADDED): explicit sidebar props for desktop vs overlay
 interface SidebarProps {
@@ -49,8 +51,9 @@ export default function Sidebar({ mode = "desktop", onClose }: SidebarProps) {
   const [collapsed, setCollapsed] = useState<boolean>(getDefaultCollapsed);
   const location = useLocation();
   const [logout] = useLogoutMutation();
-
   const isOverlay = mode === "overlay"; // HIGHLIGHT (ADDED)
+  // HIGHLIGHT (ADDED): read role flags from auth
+  const { isOwnerOrManager } = useAuth();
 
   useEffect(() => {
     if (isOverlay) return; // HIGHLIGHT (ADDED): do not persist collapsed in overlay
@@ -137,22 +140,32 @@ export default function Sidebar({ mode = "desktop", onClose }: SidebarProps) {
 
       {/* Nav */}
       <nav className="mt-2 px-2 space-y-1 overflow-y-auto flex-1">
-        {NAV.map((item) => (
-          <SideLink
-            key={item.to}
-            to={item.to}
-            icon={item.icon}
-            label={item.label}
-            collapsed={showCollapsedUI}
-            active={location.pathname.startsWith(item.to)}
-            className={cn(
-              "hover:bg-blue-50 hover:text-blue-700 text-gray-700",
-              "transition-all"
-            )}
-            iconClassName="text-blue-400 group-hover:text-blue-600 transition-colors"
-            activeClassName="bg-blue-100 text-blue-800"
-          />
-        ))}
+        {NAV.map((item) => {
+          // HIGHLIGHT (ADDED): hide Manage tab if not owner/manager
+          if (
+            item.to === "/app/manage-company" &&
+            !isOwnerOrManager
+          ) {
+            return null;
+          }
+
+          return (
+            <SideLink
+              key={item.to}
+              to={item.to}
+              icon={item.icon}
+              label={item.label}
+              collapsed={showCollapsedUI}
+              active={location.pathname.startsWith(item.to)}
+              className={cn(
+                "hover:bg-blue-50 hover:text-blue-700 text-gray-700",
+                "transition-all"
+              )}
+              iconClassName="text-blue-400 group-hover:text-blue-600 transition-colors"
+              activeClassName="bg-blue-100 text-blue-800"
+            />
+          );
+        })}
       </nav>
 
       {/* Logout pinned bottom */}

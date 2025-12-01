@@ -8,7 +8,8 @@ import {
 import { createContext, useContext, useEffect, useState } from "react";
 import { firebaseAuth } from "@/lib/firebase";
 
-type UserRole = "owner" | "employee";
+// HIGHLIGHT: extend role model to support manager explicitly
+type UserRole = "owner" | "manager" | "employee";
 
 type AuthContextValue = {
   user: User | null;
@@ -16,6 +17,12 @@ type AuthContextValue = {
   idToken: string | null;
   companyId: string | null;
   role: UserRole | null;
+
+  // HIGHLIGHT: derived helpers for permission checks
+  isOwner: boolean;
+  isManager: boolean;
+  isOwnerOrManager: boolean;
+
   refreshClaimsFromFirebase: () => Promise<void>;
 };
 
@@ -43,8 +50,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const claims = tokenResult.claims as any;
 
-    // HIGHLIGHT: DEBUG LOG ADDED
-    console.log("AuthContext claims →", claims); // HIGHLIGHT
+    // HIGHLIGHT: DEBUG LOG (keep or remove when done)
+    console.log("AuthContext claims →", claims);
 
     setCompanyId((claims.companyId as string) ?? null);
     setRole((claims.role as UserRole) ?? null);
@@ -71,12 +78,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => unsub();
   }, []);
 
+  // HIGHLIGHT: derive role booleans once, reuse everywhere
+  const isOwner = role === "owner";
+  const isManager = role === "manager";
+  const isOwnerOrManager = isOwner || isManager;
+
   const value: AuthContextValue = {
     user,
     loading,
     idToken,
     companyId,
     role,
+
+    // HIGHLIGHT: expose derived flags for permission checks
+    isOwner,
+    isManager,
+    isOwnerOrManager,
+
     refreshClaimsFromFirebase,
   };
 

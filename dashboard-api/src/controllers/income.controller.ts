@@ -9,7 +9,6 @@ import { derivePeriodFieldsFromTimestamp } from "../utils/periodUtils"; // HIGHL
 const incomeRef = db.collection("income");
 const vehiclesRef = db.collection("vehicles");
 
-
 function toFsTimestampAtLocalMidnight(
   value: any,
   zone = "Africa/Harare"
@@ -138,7 +137,7 @@ export const addIncomeLog = async (req: Request, res: Response) => {
     const cashDateTs = mustParseCashDateToTimestamp(cashDate, "cashDate");
 
     // HIGHLIGHT: derive period fields for this cashDate
-    const periodFields = derivePeriodFieldsFromTimestamp(cashDateTs); // HIGHLIGHT
+    const periodFields = derivePeriodFieldsFromTimestamp(cashDateTs);
 
     const payload: Omit<IncomeLog, "id"> & {
       companyId: string;
@@ -154,7 +153,7 @@ export const addIncomeLog = async (req: Request, res: Response) => {
       updatedAt: createdAt,
       cashDate: cashDateTs,
       companyId,
-      ...periodFields, // HIGHLIGHT
+      ...periodFields,
     };
 
     const result = await incomeRef.add(payload);
@@ -163,7 +162,13 @@ export const addIncomeLog = async (req: Request, res: Response) => {
       Number(weekEndingMileage)
     );
 
-    return res.status(201).json(success({ id: result.id, ...payload }));
+    // HIGHLIGHT: spread first, id last to avoid TS duplicate prop warning
+    return res.status(201).json(
+      success({
+        ...payload,
+        id: result.id,
+      })
+    );
   } catch (error: any) {
     console.error("Error adding income log:", error);
     return res
@@ -234,8 +239,8 @@ export const updateIncomeLog = async (req: Request, res: Response) => {
     patch.cashDate = cdTs;
 
     // HIGHLIGHT: recompute period fields when cashDate changes
-    const periodFields = derivePeriodFieldsFromTimestamp(cdTs); // HIGHLIGHT
-    Object.assign(patch, periodFields); // HIGHLIGHT
+    const periodFields = derivePeriodFieldsFromTimestamp(cdTs);
+    Object.assign(patch, periodFields);
   }
 
   patch.updatedAt = admin.firestore.Timestamp.now();
@@ -284,7 +289,13 @@ export const updateIncomeLog = async (req: Request, res: Response) => {
       );
     }
 
-    return res.status(200).json(success({ id, ...updated }));
+    // HIGHLIGHT: spread first, id last
+    return res.status(200).json(
+      success({
+        ...updated,
+        id,
+      })
+    );
   } catch (error: any) {
     console.error("Error updating income log:", error);
     return res
@@ -353,9 +364,14 @@ export const getIncomeLogs = async (req: Request, res: Response) => {
     q = q.orderBy(orderBy, order).limit(limit);
 
     const snap = await q.get();
-    const items = snap.docs.map((doc) => {
+    const items: (IncomeLog & { id: string })[] = snap.docs.map((doc) => {
       const data = doc.data() as IncomeLog;
-      return { ...data };
+
+      // HIGHLIGHT: attach docId, spread first, id last
+      return {
+        ...data,
+        id: doc.id,
+      };
     });
 
     return res.status(200).json(success(items));
@@ -372,6 +388,7 @@ export const getIncomeLogs = async (req: Request, res: Response) => {
       );
   }
 };
+
 // ────────────────────────────────────────────────────────────────
 // Single / Filtered Fetch Controllers
 // ────────────────────────────────────────────────────────────────
@@ -380,7 +397,6 @@ export const getIncomeLogById = async (
   req: Request<{ id: string }>,
   res: Response
 ) => {
-  // HIGHLIGHT: get company context
   const ctx = await requireCompanyContext(req, res);
   if (!ctx) return;
   const { companyId } = ctx;
@@ -404,7 +420,6 @@ export const getIncomeLogById = async (
 
     const data = doc.data() as IncomeLog & { companyId?: string };
 
-    // HIGHLIGHT: enforce company
     if (!data.companyId || data.companyId !== companyId) {
       return res
         .status(404)
@@ -417,7 +432,13 @@ export const getIncomeLogById = async (
         );
     }
 
-    return res.status(200).json(success({ ...data }));
+    // HIGHLIGHT: spread first, id last
+    return res.status(200).json(
+      success({
+        ...data,
+        id,
+      })
+    );
   } catch (error: any) {
     console.error("Error fetching income log by id:", error);
     return res
@@ -436,7 +457,6 @@ export const getIncomeLogsByDriverId = async (
   req: Request<{ driverId: string }>,
   res: Response
 ) => {
-  // HIGHLIGHT: get company context
   const ctx = await requireCompanyContext(req, res);
   if (!ctx) return;
   const { companyId } = ctx;
@@ -454,7 +474,6 @@ export const getIncomeLogsByDriverId = async (
         );
     }
 
-    // HIGHLIGHT: scope by companyId + driverId
     const snapshot = await incomeRef
       .where("companyId", "==", companyId)
       .where("driverId", "==", driverId)
@@ -468,10 +487,16 @@ export const getIncomeLogsByDriverId = async (
       );
     }
 
-    const items: IncomeLog[] = snapshot.docs.map(
-      (doc: FirebaseFirestore.QueryDocumentSnapshot<IncomeLog>) => ({
-        ...(doc.data() as IncomeLog),
-      })
+    const items: (IncomeLog & { id: string })[] = snapshot.docs.map(
+      (doc: FirebaseFirestore.QueryDocumentSnapshot<IncomeLog>) => {
+        const data = doc.data() as IncomeLog;
+
+        // HIGHLIGHT: attach docId, spread first, id last
+        return {
+          ...data,
+          id: doc.id,
+        };
+      }
     );
 
     return res.status(200).json(success(items));
@@ -493,7 +518,6 @@ export const getIncomeLogsByVehicleId = async (
   req: Request<{ vehicle: string }>,
   res: Response
 ) => {
-  // HIGHLIGHT: get company context
   const ctx = await requireCompanyContext(req, res);
   if (!ctx) return;
   const { companyId } = ctx;
@@ -511,7 +535,6 @@ export const getIncomeLogsByVehicleId = async (
         );
     }
 
-    // HIGHLIGHT: scope by companyId + vehicle
     const snapshot = await incomeRef
       .where("companyId", "==", companyId)
       .where("vehicle", "==", vehicle)
@@ -525,10 +548,16 @@ export const getIncomeLogsByVehicleId = async (
       );
     }
 
-    const items: IncomeLog[] = snapshot.docs.map(
-      (doc: FirebaseFirestore.QueryDocumentSnapshot<IncomeLog>) => ({
-        ...(doc.data() as IncomeLog),
-      })
+    const items: (IncomeLog & { id: string })[] = snapshot.docs.map(
+      (doc: FirebaseFirestore.QueryDocumentSnapshot<IncomeLog>) => {
+        const data = doc.data() as IncomeLog;
+
+        // HIGHLIGHT: attach docId, spread first, id last
+        return {
+          ...data,
+          id: doc.id,
+        };
+      }
     );
 
     return res.status(200).json(success(items));
