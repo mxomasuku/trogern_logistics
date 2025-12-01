@@ -47,7 +47,7 @@ export async function updateIncomeLog(
   patch: Partial<Omit<IncomeLog, "id" | "timestamp">> & { timestamp?: string }
 ): Promise<IncomeLog> {
   const { data } = await http.put<ApiResponse<IncomeLog>>(
-    `/income/${id}`,
+    `/income/update/${id}`,
     patch
   );
   if (!data?.isSuccessful) {

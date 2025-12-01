@@ -239,13 +239,13 @@ export const GenericLandingLayout = ({
             transition={{ delay: 0.4 }}
             className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-3 sm:gap-4" // HIGHLIGHT (EDITED): stack on mobile
           >
-            <Link
+            {/* <Link
               to="/book-a-demo" // HIGHLIGHT
               className="w-full sm:w-auto text-center px-6 py-3 rounded-full text-sm font-semibold text-white shadow-lg hover:brightness-110 transition-all"
               style={{ backgroundColor: theme.buttonPrimary }}
             >
               Book a demo
-            </Link>
+            </Link> */}
 
             <Link
               to="/product-overview" // HIGHLIGHT

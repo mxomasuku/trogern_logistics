@@ -9,6 +9,7 @@ export const router = Router();
 
 router.post('/add', addIncomeLog);
 router.get('/get', getIncomeLogs)
+router.get('/get/:id', getIncomeLogById);
 router.put('/update/:id', updateIncomeLog);
 router.get("/get/:driverId", getIncomeLogById);
 router.get("/get-driver-income-logs/:driverId", getIncomeLogsByDriverId);

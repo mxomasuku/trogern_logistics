@@ -1,5 +1,5 @@
+// src/pages/income/components/IncomeList.tsx
 import { useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -25,7 +25,10 @@ type Props = {
   items: IncomeLog[];
   loading: boolean;
   currency: string;
-  onRowClick?: (row: IncomeLog) => void;
+  // HIGHLIGHT: mirror DriverTable – parent decides what “edit” does
+  onEdit?: (row: IncomeLog) => void;
+  // HIGHLIGHT: gate pencil visibility + click
+  canEdit?: boolean;
 };
 
 // match DriversPage soft blue input feel (borderless, crisp focus)
@@ -41,23 +44,26 @@ export function IncomeList({
   items,
   loading = false,
   currency = "USD",
-  onRowClick,
+  onEdit,
+  canEdit = true,
 }: Props) {
   const [search, setSearch] = useState("");
   const [filterType, setFilterType] =
     useState<"all" | "income" | "expense">("all");
-  const navigate = useNavigate();
 
   const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
+    const searchQuery = search.trim().toLowerCase();
     let result = items;
 
-    if (filterType !== "all") result = result.filter((x) => x.type === filterType);
-    if (!q) return result;
+    if (filterType !== "all") {
+      result = result.filter((incomeLog) => incomeLog.type === filterType);
+    }
 
-    return result.filter((x) => {
-      const created = toJsDate((x as any).createdAt);
-      const cash = toJsDate((x as any).cashDate);
+    if (!searchQuery) return result;
+
+    return result.filter((incomeLog) => {
+      const created = toJsDate((incomeLog as any).createdAt);
+      const cash = toJsDate((incomeLog as any).cashDate);
       const dateStrings = [
         created?.toLocaleDateString?.(),
         cash?.toLocaleDateString?.(),
@@ -66,22 +72,32 @@ export function IncomeList({
       ].filter(Boolean) as string[];
 
       return [
-        x.amount,
-        x.weekEndingMileage,
-        x.vehicle,
-        x.driverName,
-        x.driverId,
-        x.note,
+        incomeLog.amount,
+        incomeLog.weekEndingMileage,
+        incomeLog.vehicle,
+        incomeLog.driverName,
+        incomeLog.driverId,
+        incomeLog.note,
         ...dateStrings,
       ]
         .filter(Boolean)
-        .some((v) => String(v).toLowerCase().includes(q));
+        .some((value) => String(value).toLowerCase().includes(searchQuery));
     });
   }, [items, search, filterType]);
 
-  const handleEdit = (row: IncomeLog) => {
+  // HIGHLIGHT: pencil-only click, parent decides navigation
+  const handleEditClick = (row: IncomeLog) => {
+    // HIGHLIGHT: debug log to confirm click + wiring
+    console.log("[IncomeList] pencil clicked", {
+      id: row.id,
+      canEdit,
+      hasOnEdit: !!onEdit,
+    });
+
+    if (!canEdit) return;
     if (!row.id) return;
-    navigate(`/income/add?id=${row.id}`);
+    if (!onEdit) return;
+    onEdit(row);
   };
 
   return (
@@ -94,18 +110,27 @@ export function IncomeList({
             className={`${baseInputClasses()} pl-8 w-64`}
             placeholder="Search…"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(event) => setSearch(event.target.value)}
           />
         </div>
 
-        <Select value={filterType} onValueChange={(v) => setFilterType(v as any)}>
+        <Select
+          value={filterType}
+          onValueChange={(value) => setFilterType(value as any)}
+        >
           <SelectTrigger className={`${baseInputClasses()} w-[180px]`}>
             <SelectValue placeholder="Filter by type" />
           </SelectTrigger>
           <SelectContent className="bg-white text-blue-950 border-0 ring-1 ring-black/5 shadow-xl rounded-lg">
-            <SelectItem value="all" className="focus:bg-blue-50">All</SelectItem>
-            <SelectItem value="income" className="focus:bg-blue-50">Income</SelectItem>
-            <SelectItem value="expense" className="focus:bg-blue-50">Expense</SelectItem>
+            <SelectItem value="all" className="focus:bg-blue-50">
+              All
+            </SelectItem>
+            <SelectItem value="income" className="focus:bg-blue-50">
+              Income
+            </SelectItem>
+            <SelectItem value="expense" className="focus:bg-blue-50">
+              Expense
+            </SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -157,26 +182,32 @@ export function IncomeList({
 
                 {/* Zebra rows + divide-y like DriverTable */}
                 <TableBody className="divide-y divide-slate-100">
-                  {filtered.map((row, idx) => {
+                  {filtered.map((row, index) => {
                     const isExpense = row.type === "expense";
                     const createdDate = toJsDate((row as any).createdAt);
                     const cashDate = toJsDate((row as any).cashDate);
 
                     const amountChip = isExpense ? (
                       <span className="inline-flex items-center justify-end rounded-md px-2 py-0.5 font-semibold text-red-700 bg-red-50">
-                        {Number(row.amount).toLocaleString(undefined, { style: "currency", currency })}
+                        {Number(row.amount).toLocaleString(undefined, {
+                          style: "currency",
+                          currency,
+                        })}
                       </span>
                     ) : (
                       <span className="inline-flex items-center justify-end rounded-md px-2 py-0.5 font-semibold text-emerald-700 bg-emerald-50">
-                        {Number(row.amount).toLocaleString(undefined, { style: "currency", currency })}
+                        {Number(row.amount).toLocaleString(undefined, {
+                          style: "currency",
+                          currency,
+                        })}
                       </span>
                     );
 
                     return (
                       <TableRow
-                        key={row.id ?? idx}
-                        className="odd:bg-slate-50 hover:bg-blue-50/70 transition-colors cursor-pointer"
-                        onClick={() => onRowClick?.(row)}
+                        key={row.id ?? index}
+                        // HIGHLIGHT: row is NOT clickable; normal cursor
+                        className="odd:bg-slate-50 hover:bg-blue-50/70 transition-colors cursor-default"
                       >
                         <TableCell className="text-slate-700">
                           {fmtDate(createdDate)}
@@ -216,18 +247,21 @@ export function IncomeList({
 
                         <TableCell
                           className="text-right"
-                          onClick={(e) => e.stopPropagation()} // prevent bubbling to row click
+                          onClick={(event) => event.stopPropagation()}
                         >
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            onClick={() => handleEdit(row)}
-                            aria-label="Edit"
-                            title="Edit"
-                            className="h-7 w-7 sm:h-8 sm:w-8 text-sky-700 hover:bg-blue-50"
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
+                          {/* HIGHLIGHT: pencil is the ONLY edit affordance + only shows for managers/owners */}
+                          {canEdit && (
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              onClick={() => handleEditClick(row)}
+                              aria-label="Edit income log"
+                              title="Edit"
+                              className="h-7 w-7 sm:h-8 sm:w-8 text-sky-700 hover:bg-blue-50 cursor-pointer" // HIGHLIGHT
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                          )}
                         </TableCell>
                       </TableRow>
                     );
@@ -237,7 +271,10 @@ export function IncomeList({
 
               {/* Footer summary to match DriverTable */}
               <div className="px-4 py-3 text-[10px] sm:text-xs text-slate-500">
-                Showing <strong className="text-slate-700">{filtered.length}</strong>{" "}
+                Showing{" "}
+                <strong className="text-slate-700">
+                  {filtered.length}
+                </strong>{" "}
                 entr{filtered.length === 1 ? "y" : "ies"}
               </div>
             </div>

@@ -16,7 +16,7 @@ export function LandingLayoutLight() {
   return (
     <GenericLandingLayout 
       theme={theme}
-      headline={<>Are you <span className="text-blue-700">making money</span> or just thinking you are?</>}
+      headline={<>Are your vehicles <span className="text-blue-700">making money</span> or just think they are?</>}
       subheadline="Daily cash-ins, expenses, and profit alerts built for SMEs in volatile markets."
     />
   );

@@ -47,7 +47,7 @@ export default function TopBar({ onToggleMobileSidebar }: TopBarProps) {
 
           {/* Actions: keep compact on mobile, no wrap */}
           <div className="flex items-center gap-2 shrink-0 whitespace-nowrap">
-            <ThemeToggle />
+          
             <UserMenu />
           </div>
         </div>

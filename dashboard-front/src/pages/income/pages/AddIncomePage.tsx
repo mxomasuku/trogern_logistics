@@ -1,4 +1,3 @@
-// src/pages/income/AddIncomePage.tsx
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { addIncomeLog, updateIncomeLog, getIncomeLogById } from "@/api/income";
@@ -13,6 +12,8 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Loader2, Save, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import { toDateInputValue } from "@/lib/utils";
+// HIGHLIGHT: bring in auth to gate editing
+import { useAuth } from "@/state/AuthContext";
 
 function baseInputClasses() {
   // Match AddDriver inputs: soft blue surface, no heavy borders, crisp focus ring
@@ -30,6 +31,10 @@ export default function AddIncomePage() {
   const [params] = useSearchParams();
   const editId = params.get("id");
   const isEdit = !!editId;
+
+  // HIGHLIGHT: role-based gate for EDIT only (owners/managers)
+  const { isOwnerOrManager } = useAuth();
+  const canEditIncome = isOwnerOrManager;
 
   // reference data
   const [drivers, setDrivers] = useState<Driver[]>([]);
@@ -49,7 +54,7 @@ export default function AddIncomePage() {
 
   // selected driver
   const selectedDriver = useMemo(
-    () => drivers.find((d) => d.id === driverId),
+    () => drivers.find((driver) => driver.id === driverId),
     [drivers, driverId]
   );
 
@@ -66,13 +71,21 @@ export default function AddIncomePage() {
         setLoadingDrivers(true);
         const list = await getDrivers();
         setDrivers(list);
-      } catch (e: any) {
-        toast.error(e?.message ?? "Failed to load drivers");
+      } catch (error: any) {
+        toast.error(error?.message ?? "Failed to load drivers");
       } finally {
         setLoadingDrivers(false);
       }
     })();
   }, []);
+
+  /* HIGHLIGHT: block edit mode if user is not owner/manager */
+  useEffect(() => {
+    if (isEdit && !canEditIncome) {
+      toast.error("You do not have permission to edit income logs.");
+      navigate("/app/income");
+    }
+  }, [isEdit, canEditIncome, navigate]);
 
   /* Prefill when editing */
   useEffect(() => {
@@ -93,9 +106,9 @@ export default function AddIncomePage() {
 
         setPrefillDriverName(existing.driverName ?? "");
         setPrefillVehicle(existing.vehicle ?? "");
-      } catch (e: any) {
-        toast.error(e?.message ?? "Failed to load income entry");
-        navigate("/income");
+      } catch (error: any) {
+        toast.error(error?.message ?? "Failed to load income entry");
+        navigate("/app/income");
       } finally {
         if (!cancelled) setLoadingPrefill(false);
       }
@@ -112,11 +125,12 @@ export default function AddIncomePage() {
 
     const match =
       drivers.find(
-        (d) => d.name?.toLowerCase() === prefillDriverName.toLowerCase()
+        (driver) =>
+          driver.name?.toLowerCase() === prefillDriverName.toLowerCase()
       ) ||
       drivers.find(
-        (d) =>
-          (d.assignedVehicleId || "").toLowerCase() ===
+        (driver) =>
+          (driver.assignedVehicleId || "").toLowerCase() ===
           prefillVehicle.toLowerCase()
       );
 
@@ -124,22 +138,28 @@ export default function AddIncomePage() {
   }, [isEdit, loadingDrivers, drivers, prefillDriverName, prefillVehicle]);
 
   const onSave = async () => {
-    const amt = Number(amount);
-    const miles = Number(weekEndingMileage);
+    const numericAmount = Number(amount);
+    const numericMiles = Number(weekEndingMileage);
     const missing: string[] = [];
-    if (!Number.isFinite(amt) || amt <= 0) missing.push("amount (> 0)");
-    if (!Number.isFinite(miles) || miles <= 0) missing.push("weekEndingMileage (> 0)");
+
+    if (!Number.isFinite(numericAmount) || numericAmount <= 0) {
+      missing.push("amount (> 0)");
+    }
+    if (!Number.isFinite(numericMiles) || numericMiles <= 0) {
+      missing.push("weekEndingMileage (> 0)");
+    }
     if (!driverId) missing.push("driver");
     if (!vehicle) missing.push("vehicle (assigned or manual)");
     if (!cashDate) missing.push("cashDate");
+
     if (missing.length) {
       toast.error(`Fix: ${missing.join(", ")}`);
       return;
     }
 
     const payload = {
-      amount: amt,
-      weekEndingMileage: miles,
+      amount: numericAmount,
+      weekEndingMileage: numericMiles,
       driverId: selectedDriver?.id || driverId,
       driverName: selectedDriver?.name || prefillDriverName,
       vehicle,
@@ -151,6 +171,7 @@ export default function AddIncomePage() {
     setSaving(true);
     try {
       if (isEdit) {
+        // HIGHLIGHT: this path is only reachable when canEditIncome === true
         await updateIncomeLog(editId!, payload);
         toast.success("Income updated");
       } else {
@@ -158,9 +179,10 @@ export default function AddIncomePage() {
         toast.success("Income logged");
       }
       navigate("/app/income");
-    } catch (e: any) {
+    } catch (error: any) {
       toast.error(
-        e?.message ?? (isEdit ? "Failed to update income" : "Failed to add income")
+        error?.message ??
+          (isEdit ? "Failed to update income" : "Failed to add income")
       );
     } finally {
       setSaving(false);
@@ -195,131 +217,143 @@ export default function AddIncomePage() {
             </div>
           ) : (
             <>
-              {/* Money / mileage / dates */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <Label className="mb-1 inline-block text-blue-900/80">Amount</Label>
-                  <Input
-                    type="number"
-                    className={baseInputClasses()}
-                    value={amount}
-                    onChange={(e) => setAmount(e.target.value)}
-                    min={0}
-                    step={0.01}
-                  />
-                </div>
-                <div>
-                  <Label className="mb-1 inline-block text-blue-900/80">Week-ending mileage</Label>
-                  <Input
-                    type="number"
-                    className={baseInputClasses()}
-                    value={weekEndingMileage}
-                    onChange={(e) => setWeekEndingMileage(e.target.value)}
-                    min={0}
-                  />
-                </div>
-                <div>
-                  <Label className="mb-1 inline-block text-blue-900/80">Cash date</Label>
-                  <Input
-                    type="date"
-                    className={baseInputClasses()}
-                    value={cashDate}
-                    onChange={(e) => setCashDate(e.target.value)}
-                  />
-                </div>
-              </div>
+              {/* HIGHLIGHT: restored full form JSX */}
 
-              {/* Entry type */}
-              <div className="space-y-2">
-                <Label className="inline-block text-blue-900/80">Entry type</Label>
-                <RadioGroup
-                  value={ledgerType}
-                  onValueChange={(v) => setLedgerType(v as LedgerType)}
-                  className="flex gap-4"
-                >
-                  <label className="inline-flex items-center gap-2 cursor-pointer rounded-lg border border-blue-200/70 bg-white px-3 py-2 data-[state=checked]:bg-blue-50">
-                    <RadioGroupItem
-                      id="type-income"
-                      value="income"
-                      className="data-[state=checked]:ring-2 data-[state=checked]:ring-sky-400"
-                    />
-                    <span className="text-sm text-blue-900/80">Income</span>
-                  </label>
-                  <label className="inline-flex items-center gap-2 cursor-pointer rounded-lg border border-blue-200/70 bg-white px-3 py-2 data-[state=checked]:bg-blue-50">
-                    <RadioGroupItem
-                      id="type-expense"
-                      value="expense"
-                      className="data-[state=checked]:ring-2 data-[state=checked]:ring-sky-400"
-                    />
-                    <span className="text-sm text-blue-900/80">Expense</span>
-                  </label>
-                </RadioGroup>
-              </div>
-
-              {/* Drivers radio list */}
-              <div className="space-y-2">
-                <Label className="inline-block text-blue-900/80">Driver (active)</Label>
-                {loadingDrivers ? (
-                  <div className="flex items-center text-sm text-muted-foreground">
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading drivers…
-                  </div>
-                ) : drivers.length === 0 ? (
-                  <div className="text-sm text-muted-foreground">No active drivers found.</div>
-                ) : (
-                  <RadioGroup
-                    value={driverId}
-                    onValueChange={setDriverId}
-                    className="grid gap-2"
-                  >
-                    {drivers.map((driver) => (
-                      <label
-                        key={driver.id}
-                        className="flex items-center justify-between rounded-lg border border-blue-200/70 bg-white p-3 cursor-pointer transition-colors hover:bg-blue-50/60"
-                      >
-                        <div className="flex items-center gap-3">
-                          <RadioGroupItem
-                            value={driver.id!}
-                            id={`driver-${driver.id}`}
-                            className="data-[state=checked]:ring-2 data-[state=checked]:ring-sky-400"
-                          />
-                          <div>
-                            <div className="font-medium text-blue-900">{driver.name}</div>
-                            <div className="text-xs text-muted-foreground">
-                              Vehicle: {driver.assignedVehicleId ?? "—"}
-                            </div>
-                          </div>
-                        </div>
-                      </label>
-                    ))}
-                  </RadioGroup>
-                )}
-              </div>
-
-              {/* Auto / manual vehicle + optional note */}
+              {/* Money & mileage */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label className="mb-1 inline-block text-blue-900/80">
-                    Vehicle {selectedDriver?.assignedVehicleId ? "(auto)" : "(manual)"}
+                <div className="space-y-1">
+                  <Label className="text-sm text-blue-900/80">
+                    Amount <span className="text-red-600">*</span>
                   </Label>
                   <Input
+                    type="number"
+                    value={amount}
+                    onChange={(event) => setAmount(event.target.value)}
                     className={baseInputClasses()}
-                    value={vehicle}
-                    onChange={(e) => setPrefillVehicle(e.target.value)}
-                    readOnly={!!selectedDriver?.assignedVehicleId}
-                    placeholder={selectedDriver?.assignedVehicleId ? "" : "Enter vehicle manually"}
+                    placeholder="e.g. 1200"
                   />
                 </div>
-                <div>
-                  <Label className="mb-1 inline-block text-blue-900/80">Note (optional)</Label>
+
+                <div className="space-y-1">
+                  <Label className="text-sm text-blue-900/80">
+                    Week-ending mileage <span className="text-red-600">*</span>
+                  </Label>
                   <Input
+                    type="number"
+                    value={weekEndingMileage}
+                    onChange={(event) =>
+                      setWeekEndingMileage(event.target.value)
+                    }
                     className={baseInputClasses()}
-                    value={note}
-                    onChange={(e) => setNote(e.target.value)}
+                    placeholder="e.g. 185000"
                   />
                 </div>
               </div>
 
-              <div className="flex justify-end gap-2">
+              {/* Cash date & type */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <Label className="text-sm text-blue-900/80">
+                    Cash date <span className="text-red-600">*</span>
+                  </Label>
+                  <Input
+                    type="date"
+                    value={cashDate}
+                    onChange={(event) => setCashDate(event.target.value)}
+                    className={baseInputClasses()}
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-sm text-blue-900/80">
+                    Type <span className="text-red-600">*</span>
+                  </Label>
+                  <RadioGroup
+                    value={ledgerType}
+                    onValueChange={(value) =>
+                      setLedgerType(value as LedgerType)
+                    }
+                    className="flex items-center gap-4 mt-1"
+                  >
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem
+                        value="income"
+                        id="ledger-income"
+                      />
+                      <Label
+                        htmlFor="ledger-income"
+                        className="text-sm text-blue-900/80"
+                      >
+                        Income
+                      </Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem
+                        value="expense"
+                        id="ledger-expense"
+                      />
+                      <Label
+                        htmlFor="ledger-expense"
+                        className="text-sm text-blue-900/80"
+                      >
+                        Expense
+                      </Label>
+                    </div>
+                  </RadioGroup>
+                </div>
+              </div>
+
+              {/* Driver selection */}
+              <div className="space-y-1">
+                <Label className="text-sm text-blue-900/80">
+                  Driver <span className="text-red-600">*</span>
+                </Label>
+
+                {loadingDrivers ? (
+                  <div className="flex items-center text-sm text-slate-500">
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Loading drivers…
+                  </div>
+                ) : (
+                  <select
+                    value={driverId}
+                    onChange={(event) => setDriverId(event.target.value)}
+                    className={`${baseInputClasses()} w-full`}
+                  >
+                    <option value="">Select driver…</option>
+                    {drivers.map((driver) => (
+                      <option key={driver.id} value={driver.id}>
+                        {driver.name}
+                        {driver.assignedVehicleId
+                          ? ` – ${driver.assignedVehicleId}`
+                          : ""}
+                      </option>
+                    ))}
+                  </select>
+                )}
+
+                {/* Vehicle info (read-only, derived from driver or prefill) */}
+                <p className="text-xs text-slate-500 mt-1">
+                  Vehicle:{" "}
+                  <span className="font-medium text-slate-800">
+                    {vehicle || "Select a driver to link vehicle"}
+                  </span>
+                </p>
+              </div>
+
+              {/* Note */}
+              <div className="space-y-1">
+                <Label className="text-sm text-blue-900/80">Note</Label>
+                <textarea
+                  value={note}
+                  onChange={(event) => setNote(event.target.value)}
+                  className={`${baseInputClasses()} min-h-[80px] resize-y`}
+                  placeholder="Optional notes about this income or expense…"
+                />
+              </div>
+
+              {/* Actions */}
+              <div className="flex justify-end gap-2 pt-2">
                 <Button
                   variant="ghost"
                   onClick={() => navigate("/app/income")}
@@ -330,7 +364,7 @@ export default function AddIncomePage() {
                 </Button>
                 <Button
                   onClick={onSave}
-                  disabled={saving || loadingDrivers}
+                  disabled={saving}
                   className="bg-gradient-to-r from-blue-500 via-sky-500 to-indigo-500 hover:from-blue-600 hover:via-sky-600 hover:to-indigo-600 text-white shadow-sm"
                 >
                   {saving ? (
