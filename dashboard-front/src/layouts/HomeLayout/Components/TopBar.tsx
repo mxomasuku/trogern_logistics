@@ -1,5 +1,4 @@
 // src/layouts/HomeLayout/Components/TopBar.tsx
-import ThemeToggle from "@/pages/auth/ThemeToggle";
 import UserMenu from "./UserMenu";
 import { Menu } from "lucide-react"; // HIGHLIGHT (ADDED)
 
