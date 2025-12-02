@@ -68,6 +68,14 @@ const varianceChartConfig: ChartConfig = {
   },
 };
 
+// HIGHLIGHT: helper to shorten long "Wk of ..." labels for mobile
+function formatPeriodLabelForAxis(label: string): string {
+  if (label.startsWith("Wk of ")) {
+    return label.replace("Wk of ", "");
+  }
+  return label;
+}
+
 export default function PeriodStatsPage(): React.JSX.Element {
   const [period, setPeriod] = useState<PeriodKey>(DEFAULT_PERIOD);
   const [windowSize, setWindowSize] = useState<number>(12);
@@ -84,159 +92,136 @@ export default function PeriodStatsPage(): React.JSX.Element {
   }, [data, windowSize]);
 
   return (
-
     <div className="max-w-6xl mx-auto px-6 lg:px-10 py-8 space-y-6 ">
-                <div className="flex items-center">
-          <Button
-            variant="ghost"
-            onClick={() => navigate(-1)}
-            className="text-blue-700 hover:bg-blue-50 hover:text-blue-800 px-0"
-          >
-            <ArrowLeft className="mr-2 h-4 w-4" /> Back
-          </Button>
-        </div>
+      <div className="flex items-center">
+        <Button
+          variant="ghost"
+          onClick={() => navigate(-1)}
+          className="text-blue-700 hover:bg-blue-50 hover:text-blue-800 px-0"
+        >
+          <ArrowLeft className="mr-2 h-4 w-4" /> Back
+        </Button>
+      </div>
 
-
-
-
-          <div className="max-w-6xl mx-auto px-6 lg:px-10 py-8 space-y-6 bg-white rounded-2xl shadow">
-
-
-     
-      {/* HEADER */}
-      <header className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        <div>
+      <div className="max-w-6xl mx-auto px-6 lg:px-10 py-8 space-y-6 bg-white rounded-2xl shadow">
+        {/* HEADER */}
+        <header className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div>
             <div className="-ml-6">
-                   <PageHeader
-                      titleMain="Company"
-                      titleAccent="Analytics"
-                      enableSearch={false}
-                    />
-
+              <PageHeader
+                titleMain="Company"
+                titleAccent="Analytics"
+                enableSearch={false}
+              />
             </div>
-          
-          <p className="text-sm text-slate-600 max-w-xl">
-            Track how your actual income compares to target over your chosen
-            time window.
-          </p>
-        </div>
 
-        {/* controls for period + window */}
-        <div className="flex flex-wrap gap-3">
-          <div className="flex flex-col text-xs text-slate-600">
-            <span className="mb-1">Period</span>
-            <select
-              className="rounded-md border border-slate-300 px-2 py-1 text-sm"
-              value={period}
-              onChange={(event) =>
-                setPeriod(event.target.value as PeriodKey)
-              }
-            >
-              {(Object.keys(PERIOD_LABELS) as PeriodKey[]).map((periodKey) => (
-                <option key={periodKey} value={periodKey}>
-                  {PERIOD_LABELS[periodKey]}
-                </option>
-              ))}
-            </select>
+            <p className="text-sm text-slate-600 max-w-xl">
+              Track how your actual income compares to target over your chosen
+              time window.
+            </p>
           </div>
 
-          <div className="flex flex-col text-xs text-slate-600">
-            <span className="mb-1">Time window</span>
-            <select
-              className="rounded-md border border-slate-300 px-2 py-1 text-sm"
-              value={String(windowSize)}
-              onChange={(event) =>
-                setWindowSize(Number(event.target.value || 12))
-              }
-            >
-              {PERIOD_WINDOW_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
+          {/* controls for period + window */}
+          <div className="flex flex-wrap gap-3">
+            <div className="flex flex-col text-xs text-slate-600">
+              <span className="mb-1">Period</span>
+              <select
+                className="rounded-md border border-slate-300 px-2 py-1 text-sm"
+                value={period}
+                onChange={(event) =>
+                  setPeriod(event.target.value as PeriodKey)
+                }
+              >
+                {(Object.keys(PERIOD_LABELS) as PeriodKey[]).map(
+                  (periodKey) => (
+                    <option key={periodKey} value={periodKey}>
+                      {PERIOD_LABELS[periodKey]}
+                    </option>
+                  )
+                )}
+              </select>
+            </div>
+
+            <div className="flex flex-col text-xs text-slate-600">
+              <span className="mb-1">Time window</span>
+              <select
+                className="rounded-md border border-slate-300 px-2 py-1 text-sm"
+                value={String(windowSize)}
+                onChange={(event) =>
+                  setWindowSize(Number(event.target.value || 12))
+                }
+              >
+                {PERIOD_WINDOW_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
-        </div>
-      </header>
+        </header>
 
-      {/* STATE HANDLING */}
-      {isLoading && (
-        <div className="text-sm text-slate-500">Loading period stats…</div>
-      )}
+        {/* STATE HANDLING */}
+        {isLoading && (
+          <div className="text-sm text-slate-500">Loading period stats…</div>
+        )}
 
-      {error && (
-        <div className="text-sm text-rose-600">
-          Failed to load period stats.
-        </div>
-      )}
+        {error && (
+          <div className="text-sm text-rose-600">
+            Failed to load period stats.
+          </div>
+        )}
 
-      {!isLoading && !error && trimmedData.length === 0 && (
-        <div className="text-sm text-slate-500">
-          No period stats available for this period yet.
-        </div>
-      )}
+        {!isLoading && !error && trimmedData.length === 0 && (
+          <div className="text-sm text-slate-500">
+            No period stats available for this period yet.
+          </div>
+        )}
 
-      {!isLoading && !error && trimmedData.length > 0 && (
-        <>
-          {/* summary strip */}
-          <section className="grid grid-cols-1 gap-4 md:grid-cols-3">
-            <SummaryCard
-              title="Latest period income"
-              value={trimmedData[trimmedData.length - 1]?.actualIncome}
-              unit="USD"
-            />
-            <SummaryCard
-              title="Latest period target"
-              value={trimmedData[trimmedData.length - 1]?.targetIncome}
-              unit="USD"
-            />
-            <SummaryCard
-              title="Latest variance"
-              value={trimmedData[trimmedData.length - 1]?.variance}
-              unit="USD"
-              highlightVariance
-            />
-          </section>
+        {!isLoading && !error && trimmedData.length > 0 && (
+          <>
+            <section className="grid grid-cols-1 gap-4 md:grid-cols-3">
+              <SummaryCard
+                title="Latest period income"
+                value={trimmedData[trimmedData.length - 1]?.actualIncome}
+                unit="USD"
+              />
+              <SummaryCard
+                title="Latest period target"
+                value={trimmedData[trimmedData.length - 1]?.targetIncome}
+                unit="USD"
+              />
+              <SummaryCard
+                title="Latest variance"
+                value={trimmedData[trimmedData.length - 1]?.variance}
+                unit="USD"
+                highlightVariance
+              />
+            </section>
 
-          {/* main time-series chart */}
-          <section className="border border-slate-200 rounded-2xl p-4 bg-white shadow-sm space-y-4">
-            <div className="flex items-center justify-between gap-2">
-              <div>
-                <h2 className="text-sm font-semibold text-slate-800">
-                  Income vs target over time
-                </h2>
-                <p className="text-xs text-slate-500">
-                  Smooth stacked areas: actual income vs. target per period.
-                </p>
-              </div>
-            </div>
+            {/* HIGHLIGHT: use reusable chart section + horizontal scroll wrapper */}
+            <ChartSection
+              title="Income vs target over time"
+              description="Smooth stacked areas: actual income vs. target per period."
+            >
+              <ScrollableChartContainer>
+                <IncomeAreaChart data={trimmedData} />
+              </ScrollableChartContainer>
+            </ChartSection>
 
-            <IncomeAreaChart data={trimmedData} />
-          </section>
-
-          {/* variance bar chart */}
-          <section className="border border-slate-200 rounded-2xl p-4 bg-white shadow-sm space-y-4">
-            <div className="flex items-center justify-between gap-2">
-              <div>
-                <h2 className="text-sm font-semibold text-slate-800">
-                  Over / under performance
-                </h2>
-                <p className="text-xs text-slate-500">
-                  Positive bars mean you beat target; negative bars mean you
-                  fell short.
-                </p>
-              </div>
-            </div>
-
-            <VarianceNegativeBarChart data={trimmedData} />
-          </section>
-        </>
-      )}
+            {/* HIGHLIGHT: second chart also uses scrollable wrapper */}
+            <ChartSection
+              title="Over / under performance"
+              description="Positive bars mean you beat target; negative bars mean you fell short."
+            >
+              <ScrollableChartContainer>
+                <VarianceNegativeBarChart data={trimmedData} />
+              </ScrollableChartContainer>
+            </ChartSection>
+          </>
+        )}
+      </div>
     </div>
-    </div>
-
-
-  
   );
 }
 
@@ -287,6 +272,44 @@ function SummaryCard({
 
 interface ChartProps {
   data: PeriodStatPoint[];
+}
+
+// HIGHLIGHT: reusable chart section shell
+interface ChartSectionProps {
+  title: string;
+  description: string;
+  children: React.ReactNode;
+}
+
+function ChartSection({
+  title,
+  description,
+  children,
+}: ChartSectionProps): React.JSX.Element {
+  return (
+    <section className="border border-slate-200 rounded-2xl p-4 bg-white shadow-sm space-y-4">
+      <div className="flex items-center justify-between gap-2">
+        <div>
+          <h2 className="text-sm font-semibold text-slate-800">{title}</h2>
+          <p className="text-xs text-slate-500">{description}</p>
+        </div>
+      </div>
+      {children}
+    </section>
+  );
+}
+
+// HIGHLIGHT: horizontally scrollable container for charts on mobile
+function ScrollableChartContainer({
+  children,
+}: {
+  children: React.ReactNode;
+}): React.JSX.Element {
+  return (
+    <div className="-mx-4 sm:mx-0 overflow-x-auto">
+      <div className="min-w-[640px] md:min-w-0 md:w-full">{children}</div>
+    </div>
+  );
 }
 
 // Income vs target area chart
@@ -401,6 +424,7 @@ function IncomeAreaChart({ data }: ChartProps): React.JSX.Element {
 }
 
 // Variance bar chart with blue-only palette and negative support
+// Variance bar chart with blue-only palette and negative support
 function VarianceNegativeBarChart({ data }: ChartProps): React.JSX.Element {
   const chartData = data.map((point) => ({
     label: point.label,
@@ -431,14 +455,21 @@ function VarianceNegativeBarChart({ data }: ChartProps): React.JSX.Element {
             strokeDasharray="3 3"
             stroke="hsl(var(--muted))"
           />
+
+          {/* HIGHLIGHT: still use full label in data, but shorten it only for axis ticks */}
           <XAxis
             dataKey="label"
             tickLine={false}
             axisLine={false}
             tickMargin={10}
             minTickGap={24}
-            tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+            tick={{
+              fontSize: 11,
+              fill: "hsl(var(--muted-foreground))",
+            }}
+            tickFormatter={(value: string) => formatPeriodLabelForAxis(value)} // HIGHLIGHT
           />
+
           <YAxis
             tickLine={false}
             axisLine={false}
@@ -451,17 +482,23 @@ function VarianceNegativeBarChart({ data }: ChartProps): React.JSX.Element {
             strokeWidth={1}
           />
 
+          {/* HIGHLIGHT: show full week label in tooltip */}
           <ChartTooltip
             cursor={false}
             content={
-              <ChartTooltipContent hideLabel hideIndicator />
+              <ChartTooltipContent
+                hideIndicator
+                labelFormatter={(label) => String(label)} // full "Wk of 2025-09-29"
+              />
             }
           />
 
           <Bar dataKey="variance" name="Variance (USD)">
+            {/* HIGHLIGHT: labels on bars now show numeric variance only */}
             <LabelList
               position="top"
-              dataKey="label"
+              dataKey="variance"
+              formatter={(value: number) => value.toFixed(0)}
               fillOpacity={1}
               style={{
                 fontSize: 10,
@@ -474,7 +511,7 @@ function VarianceNegativeBarChart({ data }: ChartProps): React.JSX.Element {
                 fill={
                   item.variance >= 0
                     ? "var(--color-variance)" // HIGHLIGHT: primary blue from config
-                    : "#93c5fd"               // HIGHLIGHT: lighter blue for negatives
+                    : "#93c5fd" // HIGHLIGHT: lighter blue for negatives
                 }
               />
             ))}
