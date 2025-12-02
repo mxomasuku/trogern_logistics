@@ -17,6 +17,7 @@ async function upsertUserFromDecodedToken(
       uid: decoded.uid,
       email: decoded.email ?? null,
       name: decoded.name ?? null,
+      role: decoded.role ?? null,
       picture: decoded.picture ?? null,
       // NOTE: companyId and role are owned by company/membership logic, not auth
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -67,6 +68,7 @@ export async function loginUser(req: Request, res: Response) {
       uid: decoded.uid,
       email: decoded.email ?? null,
       name: decoded.name ?? null,
+      role: decoded.role ?? null,
       picture: decoded.picture ?? null,
     };
 
@@ -99,6 +101,7 @@ export async function me(req: Request, res: Response) {
         uid: decoded.uid,
         email: decoded.email ?? null,
         name: decoded.name ?? null,
+        role: decoded.role ?? null,
         picture: decoded.picture ?? null,
       },
     });
@@ -177,6 +180,7 @@ export async function registerUser(req: Request, res: Response) {
       uid: decoded.uid,
       email: decoded.email ?? null,
       name: decoded.name ?? null,
+      role: decoded.role ?? null,
       picture: decoded.picture ?? null,
     };
 
