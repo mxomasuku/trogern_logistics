@@ -1,7 +1,15 @@
+// src/pages/auth/authSlice.ts
 import { createSlice } from "@reduxjs/toolkit";
 import { api } from "@/app/rtk";
 
-type User = { uid: string; email?: string | null; name?: string | null } | null;
+// HIGHLIGHT: include role on User type
+type User = {
+  uid: string;
+  email?: string | null;
+  name?: string | null;
+  role?: string | null; // HIGHLIGHT
+} | null;
+
 type MeResponse = { user: User };
 type LoginResponse = { message: string; isSuccessful: boolean; user?: User };
 
@@ -18,11 +26,16 @@ export const authApi = api.injectEndpoints({
     }),
 
     // ============================================
-    // HIGHLIGHT: REGISTER MUTATION
+    // REGISTER MUTATION
     // ============================================
     register: build.mutation<
       LoginResponse,
-      { name: string; email: string; password: string }
+      {
+        name: string;
+        email: string;
+        password: string;
+        role?: string | null; // HIGHLIGHT: allow sending role on register
+      }
     >({
       query: (body) => ({
         url: "/auth/register",
@@ -62,7 +75,6 @@ const slice = createSlice({
 });
 
 export default slice.reducer;
-
 
 export const {
   useMeQuery,

@@ -7,6 +7,7 @@ export interface MePayload {
     uid: string;
     email: string;
     name?: string;
+    role?: string;
   } | null;
 }
 

@@ -1,13 +1,20 @@
-// src/layouts/HomeLayout/Components/TopBar.tsx
-import UserMenu from "./UserMenu";
-import { Menu } from "lucide-react"; // HIGHLIGHT (ADDED)
+import { Menu, Bell } from "lucide-react"; // HIGHLIGHT (EDITED)
 
-// HIGHLIGHT (ADDED): props for mobile sidebar toggle
+// HIGHLIGHT (EDITED): props for mobile sidebar toggle + user identity
 interface TopBarProps {
   onToggleMobileSidebar?: () => void;
+  userName?: string;
+  userRole?: string; // HIGHLIGHT
 }
 
-export default function TopBar({ onToggleMobileSidebar }: TopBarProps) {
+export default function TopBar({
+  onToggleMobileSidebar,
+  userName,
+  userRole,
+}: TopBarProps) {
+
+    console.log("user object:", userRole);
+
   return (
     <header
       role="banner"
@@ -19,7 +26,7 @@ export default function TopBar({ onToggleMobileSidebar }: TopBarProps) {
       "
     >
       <div className="flex h-12 items-center gap-3 px-3 sm:px-4">
-        {/* HIGHLIGHT (ADDED): hamburger for mobile, does NOT push layout */}
+        {/* HIGHLIGHT: hamburger for mobile, does NOT push layout */}
         <button
           type="button"
           onClick={onToggleMobileSidebar}
@@ -29,27 +36,42 @@ export default function TopBar({ onToggleMobileSidebar }: TopBarProps) {
           <Menu className="h-4 w-4" />
         </button>
 
-        {/* HIGHLIGHT (EDITED): breadcrumbs + scroll kept, but in inner flex */}
-        <div
-          className="flex h-full flex-1 items-center gap-3 overflow-x-auto overscroll-x-contain"
-          style={{ scrollbarWidth: "thin" }}
-        >
-          <div className="flex items-center gap-2 min-w-0 whitespace-nowrap">
-            <span className="text-sm text-slate-400 shrink-0">/</span>
-            <span className="text-sm font-medium truncate text-slate-800">
-              Home
-            </span>
-          </div>
+        {/* HIGHLIGHT (EDITED): right cluster = notifications + user identity + menu */}
+        <div className="flex h-full flex-1 items-center justify-between gap-3">
+          {/* Left side placeholder (breadcrumbs / title in future) */}
+          <div className="min-w-0" />
 
-          {/* Flexible spacer */}
-          <div className="flex-1 min-w-[1rem]" />
+          {/* Right side: notifications + user info */}
+          <div className="flex items-center gap-3 shrink-0">
+            {/* HIGHLIGHT: notifications icon (future dropdown entrypoint) */}
+            <button
+              type="button"
+              className="inline-flex h-8 w-8 items-center justify-center rounded-md text-slate-600 hover:bg-slate-100"
+              aria-label="Notifications"
+            >
+              <Bell className="h-4 w-4" />
+            </button>
 
-          {/* Actions: keep compact on mobile, no wrap */}
-          <div className="flex items-center gap-2 shrink-0 whitespace-nowrap">
-          
-            <UserMenu />
+            {/* HIGHLIGHT: user identity block + online indicator */}
+            <div className="flex items-center gap-2">
+              <div className="flex max-w-[140px] flex-col items-end leading-tight sm:max-w-[180px]">
+                <span className="text-sm font-medium truncate text-slate-800">
+                  {userName ?? ""}
+                </span>
+                <div className="flex items-center gap-1 text-[11px] text-slate-500">
+                  <span className="h-2 w-2 rounded-full bg-emerald-500" />{" "}
+                  {/* HIGHLIGHT: green dot = connected */}
+                  <span className="truncate">
+                    {userRole ?? "Connected"} {/* HIGHLIGHT: role subtext */}
+                  </span>
+                </div>
+              </div>
+
+           
+            </div>
           </div>
         </div>
+        {/* HIGHLIGHT END */}
       </div>
     </header>
   );
