@@ -115,7 +115,7 @@ export async function getSubscriptionsPage(
         .get();
 
       usersSnapshot.docs.forEach((doc) => {
-        usersMap.set(doc.id, { id: doc.id, ...doc.data() } as AppUser);
+        usersMap.set(doc.id, { uid: doc.id, ...doc.data() } as unknown as AppUser);
       });
     }
   }
@@ -194,7 +194,7 @@ export async function getSubscriptionDetail(subscriptionId: string): Promise<{
   if (subscription.userId) {
     const userDoc = await db.collection(Collections.USERS).doc(subscription.userId).get();
     if (userDoc.exists) {
-      user = { id: userDoc.id, ...userDoc.data() } as AppUser;
+      user = { uid: userDoc.id, ...userDoc.data() } as unknown as AppUser;
     }
   }
 
@@ -375,7 +375,7 @@ export async function applyFreeTrial(
   const now = new Date();
 
   const subscription: Omit<Subscription, "id"> = {
-    userId: company.ownerUserId,
+    userId: company.ownerUid,
     companyId,
     planId: planId || "trial",
     status: "trialing",

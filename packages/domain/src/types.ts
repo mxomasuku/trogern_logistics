@@ -11,7 +11,7 @@ export type FleetType = "small taxis" | "kombis" | "buses" | "trucks" | "mixed";
 export interface Company {
   id: string;
   name: string;
-  ownerUserId: string;
+  ownerUid: string;
   status: CompanyStatus;
   createdAt: Timestamp;
   updatedAt: Timestamp;
@@ -44,7 +44,7 @@ export type AppUserRole = "owner" | "manager" | "employee" | "technician" | "dri
 export type UserStatus = "active" | "suspended" | "deleted";
 
 export interface AppUser {
-  id: string;
+  uid: string;
   email: string;
   name?: string;
   companyId: string;
@@ -98,7 +98,7 @@ export interface AdminUser {
 // SUBSCRIPTION TYPES
 // ============================================
 
-export type SubscriptionStatus = 
+export type SubscriptionStatus =
   | "trialing"
   | "active"
   | "cancelled"

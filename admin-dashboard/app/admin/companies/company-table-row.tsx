@@ -66,7 +66,7 @@ export function CompanyTableRow({ company }: CompanyTableRowProps) {
                 </Link>
             </TableCell>
             <TableCell>
-                <p className="text-sm text-neutral-900">{company.ownerUserId}</p>
+                <p className="text-sm text-neutral-900">{company.ownerUid}</p>
             </TableCell>
             <TableCell>
                 <Badge
