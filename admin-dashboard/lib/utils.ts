@@ -156,17 +156,82 @@ export function sleep(ms: number): Promise<void> {
 }
 
 /**
- * Convert Firestore timestamp to Date
+ * Firebase timestamp type (as received from API/Firestore)
  */
-export function timestampToDate(timestamp: any): Date | null {
+export interface FirebaseTimestamp {
+  _seconds: number;
+  _nanoseconds: number;
+}
+
+/**
+ * Convert FirebaseTimestamp to Date
+ */
+export function timestampToDate(timestamp: FirebaseTimestamp | null | undefined): Date | null {
   if (!timestamp) return null;
-  if (timestamp.toDate) {
-    return timestamp.toDate();
+  return new Date(timestamp._seconds * 1000);
+}
+
+/**
+ * Format a Firebase timestamp to a date string
+ */
+export function formatFirebaseTimestamp(
+  timestamp: FirebaseTimestamp | null | undefined,
+  options: Intl.DateTimeFormatOptions = {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
   }
-  if (timestamp._seconds) {
-    return new Date(timestamp._seconds * 1000);
+): string {
+  const date = timestampToDate(timestamp);
+  if (!date) return "-";
+  return date.toLocaleDateString("en-US", options);
+}
+
+/**
+ * Format a Firebase timestamp to date and time string
+ */
+export function formatFirebaseDateTime(
+  timestamp: FirebaseTimestamp | null | undefined,
+  options: Intl.DateTimeFormatOptions = {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
   }
-  return new Date(timestamp);
+): string {
+  const date = timestampToDate(timestamp);
+  if (!date) return "-";
+  return date.toLocaleString("en-US", options);
+}
+
+/**
+ * Format a Firebase timestamp to relative time (e.g., "2 hours ago")
+ */
+export function formatFirebaseRelativeTime(
+  timestamp: FirebaseTimestamp | null | undefined
+): string {
+  const date = timestampToDate(timestamp);
+  if (!date) return "-";
+
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffSecs = Math.floor(diffMs / 1000);
+  const diffMins = Math.floor(diffSecs / 60);
+  const diffHours = Math.floor(diffMins / 60);
+  const diffDays = Math.floor(diffHours / 24);
+
+  if (diffSecs < 60) {
+    return "just now";
+  } else if (diffMins < 60) {
+    return `${diffMins}m ago`;
+  } else if (diffHours < 24) {
+    return `${diffHours}h ago`;
+  } else if (diffDays < 7) {
+    return `${diffDays}d ago`;
+  } else {
+    return date.toLocaleDateString();
+  }
 }
 
 /**

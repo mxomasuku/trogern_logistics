@@ -29,37 +29,37 @@ interface NavItem {
 const navItems: NavItem[] = [
   {
     label: "Overview",
-    href: "/founder",
+    href: "/admin",
     icon: <LayoutDashboard className="w-5 h-5" />,
   },
   {
     label: "Companies",
-    href: "/founder/companies",
+    href: "/admin/companies",
     icon: <Building2 className="w-5 h-5" />,
   },
   {
     label: "Users",
-    href: "/founder/users",
+    href: "/admin/users",
     icon: <Users className="w-5 h-5" />,
   },
   {
     label: "Subscriptions",
-    href: "/founder/subscriptions",
+    href: "/admin/subscriptions",
     icon: <CreditCard className="w-5 h-5" />,
   },
   {
     label: "Support",
-    href: "/founder/support",
+    href: "/admin/support",
     icon: <MessageSquare className="w-5 h-5" />,
   },
   {
     label: "Analytics",
-    href: "/founder/analytics",
+    href: "/admin/analytics",
     icon: <BarChart3 className="w-5 h-5" />,
   },
   {
     label: "Notifications",
-    href: "/founder/notifications",
+    href: "/admin/notifications",
     icon: <Bell className="w-5 h-5" />,
   },
 ];
@@ -67,7 +67,7 @@ const navItems: NavItem[] = [
 const bottomNavItems: NavItem[] = [
   {
     label: "Settings",
-    href: "/founder/settings",
+    href: "/admin/settings",
     icon: <Settings className="w-5 h-5" />,
   },
 ];
@@ -81,8 +81,8 @@ export function Sidebar({ notificationCount = 0 }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
 
   const isActive = (href: string) => {
-    if (href === "/founder") {
-      return pathname === "/founder";
+    if (href === "/admin") {
+      return pathname === "/admin";
     }
     return pathname.startsWith(href);
   };
@@ -90,7 +90,7 @@ export function Sidebar({ notificationCount = 0 }: SidebarProps) {
   // Update notification badge in nav items
   const itemsWithBadges = navItems.map((item) => ({
     ...item,
-    badge: item.href === "/founder/notifications" ? notificationCount : undefined,
+    badge: item.href === "/admin/notifications" ? notificationCount : undefined,
   }));
 
   return (
@@ -102,7 +102,7 @@ export function Sidebar({ notificationCount = 0 }: SidebarProps) {
     >
       {/* Logo */}
       <div className="h-16 flex items-center px-4 border-b border-neutral-200">
-        <Link href="/founder" className="flex items-center gap-3">
+        <Link href="/admin" className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-navy-900 to-navy-700 flex items-center justify-center flex-shrink-0">
             <Truck className="w-5 h-5 text-white" />
           </div>

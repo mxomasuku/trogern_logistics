@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { PageHeader } from "@/components/layout/page-header";
 import { Card } from "@/components/ui/index";
-import { Button, Badge } from "@/components/ui/index";
+import { Button } from "@/components/ui/index";
 import { SearchInput } from "@/components/ui/form";
 import {
   Table,
@@ -14,10 +14,9 @@ import {
   EmptyState,
 } from "@/components/ui/table";
 import { getCompaniesPage } from "@trogern/domain";
-import { formatDate, getStatusColor } from "@/lib/utils";
-import Link from "next/link";
-import { Building2, Plus, Filter, MoreVertical, Users, Truck } from "lucide-react";
-import { Dropdown } from "@/components/ui/modal";
+import { Building2, Plus, Filter, AlertTriangle } from "lucide-react";
+import { CompanyTableRow } from "./company-table-row";
+import { Company } from "@/types/types";
 
 interface CompaniesPageProps {
   searchParams: Promise<{
@@ -53,6 +52,13 @@ async function CompaniesTable({ searchParams }: { searchParams: Awaited<Companie
 
     const totalPages = Math.ceil(result.total / limit);
 
+    // Convert Firestore Timestamps to plain objects for serialization
+    const serializedCompanies = result.data.map((company) => ({
+      ...company,
+      createdAt: company.createdAt?.toDate?.() ? company.createdAt.toDate().toISOString() : company.createdAt,
+      updatedAt: company.updatedAt?.toDate?.() ? company.updatedAt.toDate().toISOString() : company.updatedAt,
+    }));
+
     return (
       <>
         <Table>
@@ -67,76 +73,8 @@ async function CompaniesTable({ searchParams }: { searchParams: Awaited<Companie
             </TableRow>
           </TableHeader>
           <TableBody>
-            {result.data.map((company) => (
-              <TableRow key={company.id}>
-                <TableCell>
-                  <Link
-                    href={`/founder/companies/${company.id}`}
-                    className="flex items-center gap-3 hover:text-electric-500 transition-colors"
-                  >
-                    <div className="w-10 h-10 rounded-lg bg-navy-100 flex items-center justify-center">
-                      <Building2 className="w-5 h-5 text-navy-600" />
-                    </div>
-                    <div>
-                      <p className="font-medium text-neutral-900">{company.name}</p>
-                      <p className="text-xs text-neutral-500">{company.id}</p>
-                    </div>
-                  </Link>
-                </TableCell>
-                <TableCell>
-                  <p className="text-sm text-neutral-900">{company.ownerUserId}</p>
-                </TableCell>
-                <TableCell>
-                  <Badge
-                    variant={
-                      company.status === "active"
-                        ? "success"
-                        : company.status === "suspended"
-                        ? "error"
-                        : "neutral"
-                    }
-                  >
-                    {company.status}
-                  </Badge>
-                </TableCell>
-                <TableCell>
-                  <div className="flex items-center gap-2">
-                    <Truck className="w-4 h-4 text-neutral-400" />
-                    <span className="text-sm">{company.fleetSize || 0}</span>
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <span className="text-sm text-neutral-600">
-                    {company.createdAt ? formatDate(company.createdAt.toDate()) : "-"}
-                  </span>
-                </TableCell>
-                <TableCell>
-                  <Dropdown
-                    trigger={
-                      <button className="p-1.5 hover:bg-neutral-100 rounded-lg transition-colors">
-                        <MoreVertical className="w-4 h-4 text-neutral-500" />
-                      </button>
-                    }
-                    items={[
-                      {
-                        label: "View Details",
-                        onClick: () => {},
-                        icon: <Building2 className="w-4 h-4" />,
-                      },
-                      {
-                        label: "View Users",
-                        onClick: () => {},
-                        icon: <Users className="w-4 h-4" />,
-                      },
-                      {
-                        label: company.status === "active" ? "Suspend" : "Reinstate",
-                        onClick: () => {},
-                        variant: company.status === "active" ? "danger" : "default",
-                      },
-                    ]}
-                  />
-                </TableCell>
-              </TableRow>
+            {serializedCompanies.map((company) => (
+              <CompanyTableRow key={company.id} company={company as unknown as Company} />
             ))}
           </TableBody>
         </Table>
@@ -146,127 +84,20 @@ async function CompaniesTable({ searchParams }: { searchParams: Awaited<Companie
             <Pagination
               currentPage={currentPage}
               totalPages={totalPages}
-              onPageChange={() => {}}
+              onPageChange={() => { }}
             />
           </div>
         )}
       </>
     );
   } catch (error) {
-    // Mock data for development
-    const mockCompanies = [
-      {
-        id: "comp-1",
-        name: "Sunrise Transport Co.",
-        ownerUserId: "user-1",
-        status: "active",
-        fleetSize: 25,
-        createdAt: new Date(),
-      },
-      {
-        id: "comp-2",
-        name: "Metro Fleet Services",
-        ownerUserId: "user-2",
-        status: "active",
-        fleetSize: 42,
-        createdAt: new Date(Date.now() - 86400000),
-      },
-      {
-        id: "comp-3",
-        name: "Highway Logistics Ltd",
-        ownerUserId: "user-3",
-        status: "suspended",
-        fleetSize: 15,
-        createdAt: new Date(Date.now() - 172800000),
-      },
-    ];
-
+    console.error("Failed to fetch companies:", error);
     return (
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableCell header>Company</TableCell>
-            <TableCell header>Owner</TableCell>
-            <TableCell header>Status</TableCell>
-            <TableCell header>Fleet Size</TableCell>
-            <TableCell header>Created</TableCell>
-            <TableCell header className="w-12"></TableCell>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {mockCompanies.map((company) => (
-            <TableRow key={company.id}>
-              <TableCell>
-                <Link
-                  href={`/founder/companies/${company.id}`}
-                  className="flex items-center gap-3 hover:text-electric-500 transition-colors"
-                >
-                  <div className="w-10 h-10 rounded-lg bg-navy-100 flex items-center justify-center">
-                    <Building2 className="w-5 h-5 text-navy-600" />
-                  </div>
-                  <div>
-                    <p className="font-medium text-neutral-900">{company.name}</p>
-                    <p className="text-xs text-neutral-500">{company.id}</p>
-                  </div>
-                </Link>
-              </TableCell>
-              <TableCell>
-                <p className="text-sm text-neutral-900">{company.ownerUserId}</p>
-              </TableCell>
-              <TableCell>
-                <Badge
-                  variant={
-                    company.status === "active"
-                      ? "success"
-                      : company.status === "suspended"
-                      ? "error"
-                      : "neutral"
-                  }
-                >
-                  {company.status}
-                </Badge>
-              </TableCell>
-              <TableCell>
-                <div className="flex items-center gap-2">
-                  <Truck className="w-4 h-4 text-neutral-400" />
-                  <span className="text-sm">{company.fleetSize || 0}</span>
-                </div>
-              </TableCell>
-              <TableCell>
-                <span className="text-sm text-neutral-600">
-                  {formatDate(company.createdAt)}
-                </span>
-              </TableCell>
-              <TableCell>
-                <Dropdown
-                  trigger={
-                    <button className="p-1.5 hover:bg-neutral-100 rounded-lg transition-colors">
-                      <MoreVertical className="w-4 h-4 text-neutral-500" />
-                    </button>
-                  }
-                  items={[
-                    {
-                      label: "View Details",
-                      onClick: () => {},
-                      icon: <Building2 className="w-4 h-4" />,
-                    },
-                    {
-                      label: "View Users",
-                      onClick: () => {},
-                      icon: <Users className="w-4 h-4" />,
-                    },
-                    {
-                      label: company.status === "active" ? "Suspend" : "Reinstate",
-                      onClick: () => {},
-                      variant: company.status === "active" ? "danger" : "default",
-                    },
-                  ]}
-                />
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+      <EmptyState
+        icon={<AlertTriangle className="w-12 h-12 text-error-500" />}
+        title="Failed to load companies"
+        description="There was an error loading the companies. Please try again later."
+      />
     );
   }
 }

@@ -186,7 +186,7 @@ function UsersTab() {
         <CardTitle>Company Users</CardTitle>
         <Button variant="outline" size="sm">Add User</Button>
       </div>
-      
+
       <Table>
         <TableHeader>
           <TableRow>
@@ -314,10 +314,10 @@ export default async function CompanyDetailPage({ params }: CompanyDetailPagePro
       <PageHeader
         title={mockCompany.name}
         description={`Company ID: ${companyId}`}
-        backHref="/founder/companies"
+        backHref="/admin/companies"
         breadcrumbs={[
-          { label: "Dashboard", href: "/founder" },
-          { label: "Companies", href: "/founder/companies" },
+          { label: "Dashboard", href: "/admin" },
+          { label: "Companies", href: "/admin/companies" },
           { label: mockCompany.name },
         ]}
         actions={
