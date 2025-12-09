@@ -35,6 +35,7 @@ export function Header({
   const handleLogout = async () => {
     try {
       await fetch("/api/auth/logout", { method: "POST" });
+
       window.location.href = "/login";
     } catch (error) {
       console.error("Logout error:", error);
@@ -60,7 +61,7 @@ export function Header({
       <div className="flex items-center gap-4">
         {/* Notifications */}
         <Link
-          href="/founder/notifications"
+          href="/admin/notifications"
           className="relative p-2 text-neutral-500 hover:text-neutral-700 hover:bg-neutral-100 rounded-lg transition-colors"
         >
           <Bell className="w-5 h-5" />
@@ -96,7 +97,7 @@ export function Header({
 
               <div className="py-1">
                 <Link
-                  href="/founder/settings"
+                  href="/admin/settings"
                   className="flex items-center gap-3 px-4 py-2 text-sm text-neutral-700 hover:bg-neutral-50 transition-colors"
                   onClick={() => setShowUserMenu(false)}
                 >
