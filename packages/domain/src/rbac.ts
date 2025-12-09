@@ -145,7 +145,7 @@ export async function ensureUserAccess(
     throw new AuthorizationError(`User not found: ${userId}`);
   }
 
-  return { id: userDoc.id, ...userDoc.data() } as AppUser;
+  return { uid: userDoc.id, ...userDoc.data() } as unknown as AppUser;
 }
 
 /**

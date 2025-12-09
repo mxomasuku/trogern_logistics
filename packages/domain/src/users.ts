@@ -77,9 +77,9 @@ export async function getUsersPage(
   const resultDocs = docs.slice(0, limit);
 
   const users = resultDocs.map((doc) => ({
-    id: doc.id,
+    uid: doc.id,
     ...doc.data(),
-  })) as AppUser[];
+  })) as unknown as AppUser[];
 
   // Fetch company data for each user
   const companyIds = [...new Set(users.map((u) => u.companyId).filter(Boolean))];
@@ -124,7 +124,7 @@ export async function getUsersPage(
 /**
  * Get detailed user information including related data
  */
-export async function getUserDetail(userId: string): Promise<{
+export async function getUserDetail(uid: string): Promise<{
   user: AppUser;
   company: Company | null;
   subscription: Subscription | null;
@@ -135,13 +135,13 @@ export async function getUserDetail(userId: string): Promise<{
   const db = getDb();
 
   // Get user
-  const userDoc = await db.collection(Collections.USERS).doc(userId).get();
+  const userDoc = await db.collection(Collections.USERS).doc(uid).get();
 
   if (!userDoc.exists) {
-    throw new Error(`User not found: ${userId}`);
+    throw new Error(`User not found: ${uid}`);
   }
 
-  const user = { id: userDoc.id, ...userDoc.data() } as AppUser;
+  const user = { uid: userDoc.id, ...userDoc.data() } as unknown as AppUser;
 
   // Get company
   let company: Company | null = null;
@@ -164,7 +164,7 @@ export async function getUserDetail(userId: string): Promise<{
   // Get recent events
   const eventsSnapshot = await db
     .collection(Collections.EVENTS)
-    .where("userId", "==", userId)
+    .where("uid", "==", uid)
     .orderBy("createdAt", "desc")
     .limit(20)
     .get();
@@ -177,7 +177,7 @@ export async function getUserDetail(userId: string): Promise<{
   // Get tickets
   const ticketsSnapshot = await db
     .collection(Collections.SUPPORT_TICKETS)
-    .where("userId", "==", userId)
+    .where("uid", "==", uid)
     .orderBy("createdAt", "desc")
     .limit(10)
     .get();
@@ -191,7 +191,7 @@ export async function getUserDetail(userId: string): Promise<{
   const auditSnapshot = await db
     .collection(Collections.AUDIT_LOGS)
     .where("targetType", "==", "user")
-    .where("targetId", "==", userId)
+    .where("targetId", "==", uid)
     .orderBy("createdAt", "desc")
     .limit(20)
     .get();
@@ -227,7 +227,7 @@ export async function suspendUser(
   await logUserAction(adminUser, "user_suspended", userId, { reason });
 
   const updated = await userRef.get();
-  return { id: updated.id, ...updated.data() } as AppUser;
+  return { uid: updated.id, ...updated.data() } as AppUser;
 }
 
 /**
@@ -252,7 +252,7 @@ export async function reinstateUser(
   await logUserAction(adminUser, "user_reinstated", userId);
 
   const updated = await userRef.get();
-  return { id: updated.id, ...updated.data() } as AppUser;
+  return { uid: updated.id, ...updated.data() } as AppUser;
 }
 
 /**
@@ -343,7 +343,7 @@ export async function updateUser(
   await logUserAction(adminUser, "user_updated", userId, { updates });
 
   const updated = await userRef.get();
-  return { id: updated.id, ...updated.data() } as AppUser;
+  return { uid: updated.id, ...updated.data() } as AppUser;
 }
 
 /**
@@ -380,7 +380,7 @@ export async function deleteUser(
   });
 
   const updated = await userRef.get();
-  return { id: updated.id, ...updated.data() } as AppUser;
+  return { uid: updated.id, ...updated.data() } as AppUser;
 }
 
 /**

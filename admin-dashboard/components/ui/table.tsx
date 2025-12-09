@@ -51,16 +51,19 @@ interface TableCellProps {
   children?: ReactNode;
   className?: string;
   header?: boolean;
+  colSpan?: number;
 }
 
-export function TableCell({ children, className, header = false }: TableCellProps) {
+export function TableCell({ children, className, header = false, colSpan }: TableCellProps) {
   if (header) {
     return (
-      <th className={cn("px-4 py-3 font-medium", className)}>{children}</th>
+      <th className={cn("px-4 py-3 font-medium", className)} colSpan={colSpan}>
+        {children}
+      </th>
     );
   }
   return (
-    <td className={cn("px-4 py-3 border-t border-neutral-100", className)}>
+    <td className={cn("px-4 py-3 border-t border-neutral-100", className)} colSpan={colSpan}>
       {children}
     </td>
   );

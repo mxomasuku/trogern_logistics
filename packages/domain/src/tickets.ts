@@ -87,7 +87,7 @@ export async function getSupportTicketsPage(
         .get();
 
       usersSnapshot.docs.forEach((doc) => {
-        usersMap.set(doc.id, { id: doc.id, ...doc.data() } as AppUser);
+        usersMap.set(doc.id, { uid: doc.id, ...doc.data() } as unknown as AppUser);
       });
     }
   }
@@ -150,7 +150,7 @@ export async function getSupportTicketDetail(ticketId: string): Promise<{
   if (ticket.userId) {
     const userDoc = await db.collection(Collections.USERS).doc(ticket.userId).get();
     if (userDoc.exists) {
-      user = { id: userDoc.id, ...userDoc.data() } as AppUser;
+      user = { uid: userDoc.id, ...userDoc.data() } as unknown as AppUser;
     }
   }
 

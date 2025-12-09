@@ -44,7 +44,7 @@ export type EventPlatform = "web" | "mobile";
 export interface Company {
     id: string;
     name: string;
-    ownerUserId: string;
+    ownerUid: string;
     status: CompanyStatus;
     createdAt: FirebaseTimestamp;
     updatedAt?: FirebaseTimestamp;

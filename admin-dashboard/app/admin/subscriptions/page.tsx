@@ -1,33 +1,12 @@
 import { Suspense } from "react";
 import { PageHeader } from "@/components/layout/page-header";
 import { Card, Badge, Button } from "@/components/ui/index";
-import { StatCard, StatsGrid } from "@/components/ui/stats";
-import { SearchInput } from "@/components/ui/form";
-import {
-  Table,
-  TableHeader,
-  TableBody,
-  TableRow,
-  TableCell,
-  Pagination,
-  TableSkeleton,
-} from "@/components/ui/table";
-import { Dropdown } from "@/components/ui/modal";
-import { formatDate, formatCurrency } from "@/lib/utils";
-import Link from "next/link";
-import {
-  CreditCard,
-  Filter,
-  MoreVertical,
-  Building2,
-  DollarSign,
-  TrendingUp,
-  Users,
-  RefreshCw,
-  XCircle,
-  ArrowUpCircle,
-} from "lucide-react";
 
+import { SearchInput } from "@/components/ui/form";
+import { StatsSection } from "./stats-section";
+import { SubscriptionsTable } from "./subscriptions-table";
+import { TableSkeleton } from "@/components/ui/table";
+import { Filter } from "lucide-react";
 // Mock data
 const mockStats = {
   total: 89,
@@ -107,139 +86,9 @@ const mockSubscriptions = [
   },
 ];
 
-function StatsSection() {
-  return (
-    <StatsGrid columns={4}>
-      <StatCard
-        title="Monthly Recurring Revenue"
-        value={formatCurrency(mockStats.mrr)}
-        change={8}
-        changeLabel="vs last month"
-        icon={<DollarSign className="w-5 h-5 text-success-600" />}
-        iconBg="bg-success-100"
-      />
-      <StatCard
-        title="Active Subscriptions"
-        value={mockStats.active.toString()}
-        icon={<CreditCard className="w-5 h-5 text-electric-600" />}
-        iconBg="bg-electric-100"
-      />
-      <StatCard
-        title="Trialing"
-        value={mockStats.trialing.toString()}
-        icon={<TrendingUp className="w-5 h-5 text-warning-600" />}
-        iconBg="bg-warning-100"
-      />
-      <StatCard
-        title="Past Due"
-        value={mockStats.pastDue.toString()}
-        icon={<XCircle className="w-5 h-5 text-error-600" />}
-        iconBg="bg-error-100"
-      />
-    </StatsGrid>
-  );
-}
 
-function SubscriptionsTable() {
-  return (
-    <>
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableCell header>Company</TableCell>
-            <TableCell header>Plan</TableCell>
-            <TableCell header>Status</TableCell>
-            <TableCell header>MRR</TableCell>
-            <TableCell header>Period Ends</TableCell>
-            <TableCell header>Provider</TableCell>
-            <TableCell header className="w-12"></TableCell>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {mockSubscriptions.map((sub) => (
-            <TableRow key={sub.id}>
-              <TableCell>
-                <Link
-                  href={`/founder/companies/${sub.companyId}`}
-                  className="flex items-center gap-2 hover:text-electric-500 transition-colors"
-                >
-                  <Building2 className="w-4 h-4 text-neutral-400" />
-                  <span className="font-medium">{sub.companyName}</span>
-                </Link>
-              </TableCell>
-              <TableCell>
-                <span className="text-sm">{sub.planName}</span>
-              </TableCell>
-              <TableCell>
-                <Badge
-                  variant={
-                    sub.status === "active" ? "success" :
-                    sub.status === "trialing" ? "warning" :
-                    sub.status === "past_due" ? "error" :
-                    sub.status === "cancelled" ? "neutral" : "info"
-                  }
-                >
-                  {sub.status.replace("_", " ")}
-                </Badge>
-              </TableCell>
-              <TableCell>
-                <span className="font-medium">{formatCurrency(sub.mrr)}</span>
-              </TableCell>
-              <TableCell>
-                <span className="text-sm text-neutral-600">
-                  {formatDate(sub.currentPeriodEnd)}
-                </span>
-              </TableCell>
-              <TableCell>
-                <span className="text-sm capitalize">{sub.billingProvider}</span>
-              </TableCell>
-              <TableCell>
-                <Dropdown
-                  trigger={
-                    <button className="p-1.5 hover:bg-neutral-100 rounded-lg transition-colors">
-                      <MoreVertical className="w-4 h-4 text-neutral-500" />
-                    </button>
-                  }
-                  items={[
-                    {
-                      label: "View Details",
-                      onClick: () => {},
-                      icon: <CreditCard className="w-4 h-4" />,
-                    },
-                    {
-                      label: "Change Plan",
-                      onClick: () => {},
-                      icon: <ArrowUpCircle className="w-4 h-4" />,
-                    },
-                    {
-                      label: "Apply Trial",
-                      onClick: () => {},
-                      icon: <RefreshCw className="w-4 h-4" />,
-                    },
-                    {
-                      label: "Cancel Subscription",
-                      onClick: () => {},
-                      icon: <XCircle className="w-4 h-4" />,
-                      variant: "danger",
-                    },
-                  ]}
-                />
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
 
-      <div className="mt-4 pt-4 border-t border-neutral-100">
-        <Pagination
-          currentPage={1}
-          totalPages={5}
-          onPageChange={() => {}}
-        />
-      </div>
-    </>
-  );
-}
+
 
 export default function SubscriptionsPage() {
   return (
@@ -254,14 +103,14 @@ export default function SubscriptionsPage() {
       />
 
       {/* Stats */}
-      <StatsSection />
+      <StatsSection mockStats={mockStats} />
 
       {/* Subscriptions Table */}
       <Card padding="md">
         <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
           <div className="flex flex-wrap items-center gap-3">
             <SearchInput placeholder="Search subscriptions..." />
-            
+
             <select className="select w-40">
               <option value="">All Status</option>
               <option value="active">Active</option>
@@ -282,14 +131,14 @@ export default function SubscriptionsPage() {
               More Filters
             </Button>
           </div>
-          
+
           <div className="text-sm text-neutral-500">
             Showing {mockSubscriptions.length} subscriptions
           </div>
         </div>
 
         <Suspense fallback={<TableSkeleton rows={10} cols={7} />}>
-          <SubscriptionsTable />
+          <SubscriptionsTable mockSubscriptions={mockSubscriptions} />
         </Suspense>
       </Card>
     </div>

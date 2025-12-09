@@ -107,9 +107,9 @@ export async function getCompanyDetail(companyId: string): Promise<{
     .get();
 
   const users = usersSnapshot.docs.map((doc) => ({
-    id: doc.id,
+    uid: doc.id,
     ...doc.data(),
-  })) as AppUser[];
+  })) as unknown as AppUser[];
 
   // Get user count
   const userCountSnapshot = await db
@@ -120,7 +120,7 @@ export async function getCompanyDetail(companyId: string): Promise<{
   const userCount = userCountSnapshot.data().count;
 
   // Get owner
-  const owner = users.find((u) => u.id === company.ownerUserId) || null;
+  const owner = users.find((u) => u.uid === company.ownerUid) || null;
 
   // Get subscription
   let subscription: Subscription | null = null;
@@ -215,7 +215,7 @@ export async function deleteCompany(
   await logCompanyAction(adminUser, "company_deleted", companyId, {
     reason,
     companyName: companyData?.name,
-    ownerUserId: companyData?.ownerUserId,
+    ownerUid: companyData?.ownerUid,
   });
 
   const updated = await companyRef.get();

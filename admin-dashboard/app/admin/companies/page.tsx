@@ -53,10 +53,17 @@ async function CompaniesTable({ searchParams }: { searchParams: Awaited<Companie
     const totalPages = Math.ceil(result.total / limit);
 
     // Convert Firestore Timestamps to plain objects for serialization
-    const serializedCompanies = result.data.map((company) => ({
+    const serializedCompanies = result.data.map((company: any) => ({
       ...company,
       createdAt: company.createdAt?.toDate?.() ? company.createdAt.toDate().toISOString() : company.createdAt,
       updatedAt: company.updatedAt?.toDate?.() ? company.updatedAt.toDate().toISOString() : company.updatedAt,
+      subscriptionCurrentPeriodEnd: company.subscriptionCurrentPeriodEnd?.toDate?.()
+        ? company.subscriptionCurrentPeriodEnd.toDate().toISOString()
+        : company.subscriptionCurrentPeriodEnd,
+      subscriptionCurrentPeriodStart: company.subscriptionCurrentPeriodStart?.toDate?.()
+        ? company.subscriptionCurrentPeriodStart.toDate().toISOString()
+        : company.subscriptionCurrentPeriodStart,
+      trialEnd: company.trialEnd?.toDate?.() ? company.trialEnd.toDate().toISOString() : company.trialEnd,
     }));
 
     return (
