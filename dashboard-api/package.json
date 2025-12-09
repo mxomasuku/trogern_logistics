@@ -6,17 +6,20 @@
   "engines": {
     "node": ">=20"
   },
-"scripts": {
-  "test": "jest",
-  "build": "tsc -p tsconfig.json",
-  "gcp-build": "npm run build",
-  "start": "node dist/server.js",
-  "deploy": "bash ./scripts/deploy-api.sh",
-  "set-emulators": "cross-env FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099",
-  "dev": "NODE_OPTIONS='--max-http-header-size=16384' nodemon --watch src --ext ts,js --exec ts-node src/server.ts",
-  "serve-local-dev": "npm run set-emulators && npm run dev",
-  "prod": "cross-env NODE_ENV=production node dist/server.js"
-},
+  "scripts": {
+    "test": "jest",
+    "build": "tsc -p tsconfig.json",
+    "gcp-build": "npm run build",
+    "start": "node dist/server.js",
+    "deploy": "bash ./scripts/deploy-api.sh",
+    "test-domain-emulator": "ts-node scripts/test-domain-emulator.ts",
+    "list-users-emulator": "ts-node scripts/list-users.ts",
+    "create-admin-user": "ts-node scripts/create-admin-user.ts",
+    "set-emulators": "cross-env FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099",
+    "dev": "NODE_OPTIONS='--max-http-header-size=16384' nodemon --watch src --ext ts,js --exec ts-node src/server.ts",
+    "serve-local-dev": "npm run set-emulators && npm run dev",
+    "prod": "cross-env NODE_ENV=production node dist/server.js"
+  },
   "dependencies": {
     "axios": "^1.11.0",
     "cookie-parser": "^1.4.7",

@@ -1,0 +1,17 @@
+{
+  "name": "trogern-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "admin-dashboard"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace=admin-dashboard",
+    "build": "npm run build --workspace=admin-dashboard",
+    "lint": "npm run lint --workspace=admin-dashboard"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3"
+  }
+}

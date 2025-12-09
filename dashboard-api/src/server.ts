@@ -14,7 +14,7 @@ import companyRoutes from './routes/companyRoutes';
 import serviceRoutes from './routes/service.routes';
 import inviteRoutes from './routes/invite.routes';
 import clientLogRoutes from "./routes/logs.routes";
-import companyTargetsRoutes from "./routes/companyTargets"; 
+import companyTargetsRoutes from "./routes/companyTargets";
 import periodStatsRoutes from "./routes/periodStats.routes";
 
 // Auth utils/middleware
@@ -26,7 +26,7 @@ import { errorHandler } from "./middleware/errorHandler";
 
 // ---- Env (load ONCE) ----
 dotenv.config({
-  path: process.env.NODE_ENV === 'development' ? '.env.development' : '.env',
+  path: process.env.NODE_ENV === 'development' ? 'env.development' : '.env',
   override: true,
 });
 
@@ -44,7 +44,7 @@ if (process.env.NODE_ENV === 'production') {
 // ---- CORS (single mount; no wildcard paths) ----
 const ORIGINS = [
   'http://localhost:5173',
-   'https://localhost:5173',
+  'https://localhost:5173',
   'http://127.0.0.1:5173',
   'https://trogern-logistics.web.app',
   'https://trogern-logistics.firebaseapp.com',
