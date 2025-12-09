@@ -1,14 +1,6 @@
 import {onDocumentCreated} from "firebase-functions/v2/firestore";
 import * as logger from "firebase-functions/logger";
 
-// HIGHLIGHT: import admin CORE, not firestore submodule yet
-import * as admin from "firebase-admin";
-
-// HIGHLIGHT: ensure initialization happens BEFORE getFirestore()
-if (admin.apps.length === 0) {
-  admin.initializeApp();
-}
-
 // HIGHLIGHT: now safely import Firestore APIs
 import {
   getFirestore,
@@ -20,8 +12,6 @@ import {
 
 import {getPeriodKeysFromTimestamp, type PeriodType} from "./utils/periodUtils";
 
-// HIGHLIGHT: NOW it's safe to call getFirestore()
-const db = getFirestore();
 // HIGHLIGHT: shared deltas type
 type Deltas = {
   incomeDelta: number;
@@ -54,6 +44,9 @@ export const onIncomeCreated = onDocumentCreated(
     document: "income/{incomeId}",
   },
   async (event) => {
+    // HIGHLIGHT: Initialize DB inside the function or globally if Admin initialized
+    const db = getFirestore();
+    
     if (!event.data) {
       logger.warn("onIncomeCreated: no event.data", event.params);
       return;
@@ -98,10 +91,10 @@ export const onIncomeCreated = onDocumentCreated(
     });
 
     await Promise.all([
-      updatePeriodStat(companyId, "week", periodKeys.weekKey, deltas),
-      updatePeriodStat(companyId, "month", periodKeys.monthKey, deltas),
-      updatePeriodStat(companyId, "quarter", periodKeys.quarterKey, deltas),
-      updatePeriodStat(companyId, "year", periodKeys.yearKey, deltas),
+      updatePeriodStat(db, companyId, "week", periodKeys.weekKey, deltas),
+      updatePeriodStat(db, companyId, "month", periodKeys.monthKey, deltas),
+      updatePeriodStat(db, companyId, "quarter", periodKeys.quarterKey, deltas),
+      updatePeriodStat(db, companyId, "year", periodKeys.yearKey, deltas),
     ]);
 
     logger.info("onIncomeCreated: aggregation complete", {
@@ -113,6 +106,7 @@ export const onIncomeCreated = onDocumentCreated(
 
 // HIGHLIGHT: v2-friendly transaction helper with types
 async function updatePeriodStat(
+  db: FirebaseFirestore.Firestore,
   companyId: string,
   periodType: PeriodType,
   periodKey: string,

@@ -43,28 +43,84 @@ export interface ServiceRecord {
 }
 
 // Vehicle tracker summary at: vehicleServiceTracker/{vehicleId}
-export interface VehicleServiceTrackerSummary {
-  vehicleId: string;
-  // HIGHLIGHT: multi-tenant tracker
-  companyId: string; // HIGHLIGHT
-  lastServiceDate: FirebaseFirestore.Timestamp | null;
-  lastServiceMileage: number | null;
-  updatedAt: FirebaseFirestore.Timestamp;
-}
+// export interface VehicleServiceTrackerSummary {
+//   vehicleId: string;
+//   // HIGHLIGHT: multi-tenant tracker
+//   companyId: string; // HIGHLIGHT
+//   lastServiceDate: FirebaseFirestore.Timestamp | null;
+//   lastServiceMileage: number | null;
+//   updatedAt: FirebaseFirestore.Timestamp;
+// }
 
-// Per-item tracker at: vehicleServiceTracker/{vehicleId}/items/{itemKey}
-export interface VehicleServiceTrackerItemDoc {
-  vehicleId: string;
-  // HIGHLIGHT: company on each tracker item as well
-  companyId: string; // HIGHLIGHT
+// // Per-item tracker at: vehicleServiceTracker/{vehicleId}/items/{itemKey}
+// export interface VehicleServiceTrackerItemDoc {
+//   vehicleId: string;
+//   // HIGHLIGHT: company on each tracker item as well
+//   companyId: string; // HIGHLIGHT
+//   kind: ServiceItemKind;
+//   name: string;
+//   value: string;
+//   lastChangedAt: FirebaseFirestore.Timestamp;
+//   lastChangedMileage: number;
+//   dueForChangeOnDate: FirebaseFirestore.Timestamp | null;
+//   dueForChangeOnMileage: number | null;
+//   lastServiceRecordDocId: string;
+//   createdAt: FirebaseFirestore.Timestamp;
+//   updatedAt: FirebaseFirestore.Timestamp;
+// }
+
+
+// HIGHLIGHT: REPLACED SUMMARY + ITEM DOC WITH FLATTENED DOC SHAPE
+export interface VehicleServiceTrackerItemState {
   kind: ServiceItemKind;
   name: string;
   value: string;
-  lastChangedAt: FirebaseFirestore.Timestamp;
+  lastChangedAt: FirebaseFirestore.Timestamp;                 // HIGHLIGHT: Timestamp type
   lastChangedMileage: number;
-  dueForChangeOnDate: FirebaseFirestore.Timestamp | null;
+  dueForChangeOnDate: FirebaseFirestore.Timestamp | null;     // HIGHLIGHT: Timestamp type
   dueForChangeOnMileage: number | null;
   lastServiceRecordDocId: string;
-  createdAt: FirebaseFirestore.Timestamp;
-  updatedAt: FirebaseFirestore.Timestamp;
+  createdAt: FirebaseFirestore.Timestamp;                     // HIGHLIGHT: Timestamp type
+  updatedAt: FirebaseFirestore.Timestamp;                     // HIGHLIGHT: Timestamp type
+}
+
+// HIGHLIGHT: central state doc for all cron logic
+export interface VehicleServiceTrackerDoc {
+  vehicleId: string;
+  companyId: string;
+
+  // service aggregation
+  lastServiceDate: FirebaseFirestore.Timestamp | null;        // HIGHLIGHT: Timestamp type
+  lastServiceMileage: number | null;
+  nextServiceDueDate: FirebaseFirestore.Timestamp | null;     // HIGHLIGHT: Timestamp type
+  nextServiceDueMileage: number | null;
+
+  // income aggregation
+  lastIncomeLogAt: FirebaseFirestore.Timestamp | null;        // HIGHLIGHT: Timestamp type
+
+  // optional
+  currentMileage?: number | null;
+
+  updatedAt: FirebaseFirestore.Timestamp;                     // HIGHLIGHT: Timestamp type
+
+  items: Record<string, VehicleServiceTrackerItemState>;
+}
+
+// HIGHLIGHT: report doc
+export type ReportPeriod = "weekly" | "monthly" | "quarterly";
+
+export interface CompanyReportSnapshot {
+  companyId: string;
+  period: ReportPeriod;
+  periodStart: FirebaseFirestore.Timestamp;
+  periodEnd: FirebaseFirestore.Timestamp;
+  generatedAt: FirebaseFirestore.Timestamp;
+
+  // numbers you care about:
+  totalIncome: number;
+  totalExpenses: number;
+  kmDriven: number;
+  serviceCount: number;
+  overdueServiceCount: number;
+  // etc
 }

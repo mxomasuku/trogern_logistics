@@ -1,37 +1,136 @@
-# Node
+# ============================================
+# NODE & DEPENDENCIES
+# ============================================
 **/node_modules/
 **/dist/
-**/.env
-**/.DS_Store
+**/.pnp
+**/.pnp.js
 
-# Package lock files (pick your package manager)
+# Package lock files (pick your package manager - keep ONE, ignore others)
 **/package-lock.json
 **/yarn.lock
 **/pnpm-lock.yaml
 **/bun.lockb
 
-# Firebase service accounts (DON'T LEAK THIS)
-**/dashboard-api/*firebase-adminsdk.json
+# ============================================
+# ENVIRONMENT FILES (SECRETS - NEVER COMMIT)
+# ============================================
+**/.env
+**/.env.local
+**/.env.development
+**/.env.development.local
+**/.env.production
+**/.env.production.local
+**/.env.test
+**/.env.test.local
 
-# Logs
-**/logs
-**/*.log
+# Firebase service accounts (CRITICAL - NEVER COMMIT)
+**/*firebase-adminsdk*.json
+**/*service-account*.json
+**/serviceAccountKey.json
 
-# Testing outputs
+# ============================================
+# NEXT.JS SPECIFIC
+# ============================================
+.next/
+out/
+build/
+.swc/
+
+# Next.js static export
+/admin-dashboard/out/
+
+# Vercel
+.vercel
+
+# ============================================
+# TYPESCRIPT
+# ============================================
+*.tsbuildinfo
+next-env.d.ts
+
+# Compiled output (for packages/domain)
+packages/domain/dist/
+
+# ============================================
+# TESTING
+# ============================================
 **/coverage/
+**/.nyc_output/
+*.lcov
 
-# IDE junk
+# Playwright
+**/playwright-report/
+**/playwright/.cache/
+
+# ============================================
+# LOGS
+# ============================================
+**/logs/
+**/*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# ============================================
+# IDE & EDITOR
+# ============================================
 .vscode/
 .idea/
 *.swp
+*.swo
+*~
+*.sublime-workspace
+*.sublime-project
 
-# Optional: macOS + Linux junk
+# ============================================
+# OS JUNK
+# ============================================
+**/.DS_Store
+**/Thumbs.db
 **/.Trash
+**/.Spotlight-V100
+**/.Trashes
+
+# ============================================
+# CACHE & TEMP FILES
+# ============================================
 **/.cache/
 **/.parcel-cache/
+**/.turbo/
+**/.eslintcache
+**/.stylelintcache
+*.tmp
+*.temp
 
-# Optional: Compiled TS if you ever use `tsc` outside build folder
-*.js
-*.js.map
+# ============================================
+# FIREBASE & EMULATORS
+# ============================================
+firebase-debug.log
+firebase-debug.*.log
+firestore-debug.log
+ui-debug.log
+pubsub-debug.log
+.firebase/
 
-.env.development
+# Emulator data exports (optional - you might want to keep these)
+emulator-data/
+firestore-export/
+
+# ============================================
+# MISC
+# ============================================
+# Sentry
+.sentryclirc
+
+# PWA files
+**/sw.*
+**/workbox-*
+
+# Storybook
+storybook-static/
+
+# Debug
+.debug/
+```

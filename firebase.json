@@ -1,7 +1,11 @@
 {
   "hosting": {
     "public": "dashboard-front/dist",
-    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
     "rewrites": [
       {
         "source": "/api/**",
@@ -10,11 +14,12 @@
           "region": "us-central1"
         }
       },
-      { "source": "**", "destination": "/index.html" }
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
     ]
   },
-
-
   "emulators": {
     "auth": {
       "port": 9099
@@ -28,10 +33,19 @@
     "storage": {
       "port": 9199
     },
+    "pubsub": {
+      "port": 8085
+    },
     "ui": {
       "enabled": true
     },
-    "singleProjectMode": true
+    "singleProjectMode": true,
+    "hosting": {
+      "port": 5000
+    },
+    "tasks": {
+      "port": 9499
+    }
   },
   "storage": {
     "rules": "storage.rules"
@@ -40,23 +54,23 @@
     "rules": "firestore.rules",
     "indexes": "firestore.indexes.json"
   },
- 
-
-  "functions": [
-    {
-      "source": "functions",
-      "codebase": "default",
-      "ignore": [
-        "node_modules",
-        ".git",
-        "firebase-debug.log",
-        "firebase-debug.*.log",
-        "*.local"
-      ],
-      "predeploy": [
-        "npm --prefix \"$RESOURCE_DIR\" run lint",
-        "npm --prefix \"$RESOURCE_DIR\" run build"
-      ]
-    }
-  ]
+  "functions": {
+    "source": "functions",
+    "codebase": "default",
+    "runtime": "nodejs22",
+    "ignore": [
+      "node_modules",
+      ".git",
+      "firebase-debug.log",
+      "firebase-debug.*.log",
+      "*.local"
+    ],
+    "build": {
+      "command": "npm --prefix \"$RESOURCE_DIR\" run build",
+      "watch": "npm --prefix \"$RESOURCE_DIR\" run build:watch"
+    },
+    "predeploy": [
+      "npm --prefix \"$RESOURCE_DIR\" run lint"
+    ]
+  }
 }
