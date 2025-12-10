@@ -47,6 +47,7 @@ export interface AppUser {
   uid: string;
   email: string;
   name?: string;
+  onBoardingStatus: string;
   companyId: string;
   role: AppUserRole;
   status: UserStatus;
@@ -54,7 +55,7 @@ export interface AppUser {
   lastLoginAt?: Timestamp;
   lastActiveAt?: Timestamp;
   subscriptionId?: string;
-  avatarUrl?: string;
+  picture: string | null;
   phone?: string;
 }
 
@@ -90,9 +91,24 @@ export interface AdminUser {
   email: string;
   name?: string;
   role: AdminRole;
-  createdAt: Timestamp;
+  createdAt?: Timestamp;
+  updatedAt?: Timestamp;
+  lastLoginAt?: Timestamp;
+  lastActiveAt?: Timestamp;
   isActive: boolean;
 }
+
+export interface AdminUserDto {
+  id: string;
+  email: string;
+  name?: string;
+  role: AdminRole;
+  createdAt?: { _seconds: number, _nanoseconds: number };
+  updatedAt?: { _seconds: number, _nanoseconds: number };
+  lastLoginAt?: { _seconds: number, _nanoseconds: number };
+  isActive: boolean;
+}
+
 
 // ============================================
 // SUBSCRIPTION TYPES

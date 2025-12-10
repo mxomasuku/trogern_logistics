@@ -232,3 +232,24 @@ export interface VehicleKpiResponse {
     lifetime: VehicleKpiSlice;
   };
 }
+
+
+export type FleetType = "small taxis" | "kombis" | "buses" | "trucks" | "mixed";
+
+export interface CompanyDoc {
+  companyId: string;
+  ownerUid: string;
+  name: string;
+  fleetSize: number;
+  employeeCount: number;
+  fleetType: FleetType;
+  usageDescription: string;
+  createdAt: { _seconds: number; _nanoseconds: number }, 
+  updatedAt: { _seconds: number; _nanoseconds: number }, 
+  subscriptionStatus: "active" | "suspended" | "cancelled" | "inactive" | "trial";
+  subscriptionPlan: "free" | "standard" | "premium"| "enterprise";
+  subscriptionBillingProvider: "stripe" | "manual";
+  subscriptionCurrentPeriodEnd: { _seconds: number; _nanoseconds: number }, 
+  country: string;
+  status: "active" | "inactive" | "blocked" | "trial";
+}

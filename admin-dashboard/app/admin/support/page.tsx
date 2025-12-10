@@ -3,29 +3,13 @@ import { PageHeader } from "@/components/layout/page-header";
 import { Card, Badge, Button } from "@/components/ui/index";
 import { StatCard, StatsGrid } from "@/components/ui/stats";
 import { SearchInput } from "@/components/ui/form";
+import { TicketsTable } from "./tickets-table";
+import { StatsSection } from "./stats-section";
 import {
-  Table,
-  TableHeader,
-  TableBody,
-  TableRow,
-  TableCell,
-  Pagination,
-  TableSkeleton,
-} from "@/components/ui/table";
-import { Dropdown } from "@/components/ui/modal";
-import { formatDate, formatRelativeTime } from "@/lib/utils";
-import Link from "next/link";
-import {
-  MessageSquare,
-  Filter,
-  MoreVertical,
-  User,
-  Clock,
-  AlertCircle,
-  CheckCircle,
-  XCircle,
-  ArrowRight,
+  Filter
 } from "lucide-react";
+import { TableSkeleton } from "@/components/ui/table";
+
 
 // Mock data
 const mockStats = {
@@ -104,126 +88,9 @@ const mockTickets = [
   },
 ];
 
-function StatsSection() {
-  return (
-    <StatsGrid columns={4}>
-      <StatCard
-        title="Open Tickets"
-        value={mockStats.open.toString()}
-        icon={<AlertCircle className="w-5 h-5 text-warning-600" />}
-        iconBg="bg-warning-100"
-      />
-      <StatCard
-        title="In Progress"
-        value={mockStats.inProgress.toString()}
-        icon={<Clock className="w-5 h-5 text-info-600" />}
-        iconBg="bg-info-100"
-      />
-      <StatCard
-        title="High Priority"
-        value={mockStats.highPriority.toString()}
-        icon={<AlertCircle className="w-5 h-5 text-error-600" />}
-        iconBg="bg-error-100"
-      />
-      <StatCard
-        title="Resolved (30d)"
-        value={mockStats.closed.toString()}
-        icon={<CheckCircle className="w-5 h-5 text-success-600" />}
-        iconBg="bg-success-100"
-      />
-    </StatsGrid>
-  );
-}
 
-function TicketsTable() {
-  return (
-    <>
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableCell header>Subject</TableCell>
-            <TableCell header>Submitted By</TableCell>
-            <TableCell header>Status</TableCell>
-            <TableCell header>Priority</TableCell>
-            <TableCell header>Last Updated</TableCell>
-            <TableCell header className="w-12"></TableCell>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {mockTickets.map((ticket) => (
-            <TableRow key={ticket.id}>
-              <TableCell>
-                <Link
-                  href={`/founder/support/${ticket.id}`}
-                  className="hover:text-electric-500 transition-colors"
-                >
-                  <p className="font-medium text-neutral-900">{ticket.subject}</p>
-                  <p className="text-xs text-neutral-500">#{ticket.id}</p>
-                </Link>
-              </TableCell>
-              <TableCell>
-                <div>
-                  <Link
-                    href={`/founder/users/${ticket.userId}`}
-                    className="text-sm font-medium hover:text-electric-500"
-                  >
-                    {ticket.userName}
-                  </Link>
-                  <p className="text-xs text-neutral-500">{ticket.companyName}</p>
-                </div>
-              </TableCell>
-              <TableCell>
-                <Badge
-                  variant={
-                    ticket.status === "open" ? "warning" :
-                    ticket.status === "in_progress" ? "info" :
-                    ticket.status === "closed" ? "neutral" : "success"
-                  }
-                >
-                  {ticket.status.replace("_", " ")}
-                </Badge>
-              </TableCell>
-              <TableCell>
-                <Badge
-                  variant={
-                    ticket.priority === "high" ? "error" :
-                    ticket.priority === "medium" ? "warning" : "info"
-                  }
-                >
-                  {ticket.priority}
-                </Badge>
-              </TableCell>
-              <TableCell>
-                <div>
-                  <p className="text-sm">{formatRelativeTime(ticket.updatedAt)}</p>
-                  <p className="text-xs text-neutral-500">
-                    by {ticket.lastUpdatedBy === "admin" ? "Admin" : "User"}
-                  </p>
-                </div>
-              </TableCell>
-              <TableCell>
-                <Link
-                  href={`/founder/support/${ticket.id}`}
-                  className="p-1.5 hover:bg-neutral-100 rounded-lg transition-colors inline-flex"
-                >
-                  <ArrowRight className="w-4 h-4 text-neutral-500" />
-                </Link>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
 
-      <div className="mt-4 pt-4 border-t border-neutral-100">
-        <Pagination
-          currentPage={1}
-          totalPages={8}
-          onPageChange={() => {}}
-        />
-      </div>
-    </>
-  );
-}
+
 
 export default function SupportPage() {
   return (
@@ -238,14 +105,14 @@ export default function SupportPage() {
       />
 
       {/* Stats */}
-      <StatsSection />
+      <StatsSection mockStats={mockStats} />
 
       {/* Tickets Table */}
       <Card padding="md">
         <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
           <div className="flex flex-wrap items-center gap-3">
             <SearchInput placeholder="Search tickets..." />
-            
+
             <select className="select w-40">
               <option value="">All Status</option>
               <option value="open">Open</option>
@@ -265,14 +132,14 @@ export default function SupportPage() {
               More Filters
             </Button>
           </div>
-          
+
           <div className="text-sm text-neutral-500">
             Showing {mockTickets.length} tickets
           </div>
         </div>
 
         <Suspense fallback={<TableSkeleton rows={10} cols={6} />}>
-          <TicketsTable />
+          <TicketsTable mockTickets={mockTickets} />
         </Suspense>
       </Card>
     </div>

@@ -10,6 +10,7 @@
     "create-admin-user": "ts-node scripts/create-admin-user.ts"
   },
   "dependencies": {
+    "@headlessui/react": "^2.2.9",
     "@trogern/domain": "*",
     "clsx": "^2.1.0",
     "date-fns": "^3.0.0",

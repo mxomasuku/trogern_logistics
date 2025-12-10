@@ -58,19 +58,21 @@ export interface Company {
 
 // ============================================
 // USER INTERFACE (Client-safe)
-// ============================================
+
+
 export interface AppUser {
-    id: string;
+    uid: string;
     email: string;
     name?: string;
+    onBoardingStatus: string;
     companyId: string;
     role: AppUserRole;
     status: UserStatus;
     createdAt: FirebaseTimestamp;
-    lastLoginAt?: FirebaseTimestamp;
-    lastActiveAt?: FirebaseTimestamp;
+    lastLoginAt: FirebaseTimestamp;
+    lastActiveAt: FirebaseTimestamp;
     subscriptionId?: string;
-    avatarUrl?: string;
+    picture: string | null;
     phone?: string;
 }
 
@@ -82,7 +84,9 @@ export interface AdminUser {
     email: string;
     name?: string;
     role: AdminRole;
-    createdAt: FirebaseTimestamp;
+    createdAt?: FirebaseTimestamp;
+    updatedAt?: FirebaseTimestamp;
+    lastLoginAt?: FirebaseTimestamp;
     isActive: boolean;
 }
 
@@ -172,4 +176,19 @@ export interface Plan {
     maxVehicles?: number;
     features: string[];
     isActive: boolean;
+}
+
+// ============================================
+// AUTH STATE INTERFACE (Client-safe)
+// ============================================
+export interface AdminAuthState {
+    adminUser: AdminUser | null;
+    isLoading: boolean;
+    isAuthenticated: boolean;
+    error: Error | null;
+}
+
+export interface AdminAuthContextType extends AdminAuthState {
+    signInWithGoogle: () => Promise<void>;
+    signOut: () => Promise<void>;
 }

@@ -3,18 +3,10 @@ import { PageHeader } from "@/components/layout/page-header";
 import { Card, Badge, Button } from "@/components/ui/index";
 import { SearchInput } from "@/components/ui/form";
 import {
-  Table,
-  TableHeader,
-  TableBody,
-  TableRow,
-  TableCell,
-  Pagination,
   TableSkeleton,
 } from "@/components/ui/table";
-import { formatDate, formatRelativeTime } from "@/lib/utils";
-import Link from "next/link";
-import { Filter, Building2 } from "lucide-react";
-import { UserActionsDropdown } from "./user-actions-dropdown";
+
+import { Filter, } from "lucide-react";
 import { UsersTable } from "./users-table"
 import { AppUserRole, AppUser } from "@/types/types";
 
@@ -41,6 +33,7 @@ const mockUsers: AppUser[] = [
     companyId: "comp-1",
     createdAt: { _seconds: 3939939339, _nanoseconds: 393939 },
     lastActiveAt: { _seconds: 3939939339, _nanoseconds: 393939 },
+    lastLoginAt: { _seconds: 3939939339, _nanoseconds: 393939 },
   },
   {
     uid: "user-2",
@@ -52,6 +45,7 @@ const mockUsers: AppUser[] = [
     status: "active",
     companyId: "comp-2",
     createdAt: { _seconds: 3939939339, _nanoseconds: 393939 },
+    lastLoginAt: { _seconds: 3939939339, _nanoseconds: 393939 },
     lastActiveAt: { _seconds: 3939939339, _nanoseconds: 393939 },
   },
   {
@@ -63,6 +57,7 @@ const mockUsers: AppUser[] = [
     role: "driver",
     status: "active",
     companyId: "comp-3",
+    lastLoginAt: { _seconds: 3939939339, _nanoseconds: 393939 },
     createdAt: { _seconds: 3939939339, _nanoseconds: 393939 },
     lastActiveAt: { _seconds: 3939939339, _nanoseconds: 393939 },
   },
@@ -74,6 +69,7 @@ const mockUsers: AppUser[] = [
     email: "grace@sunrise-transport.co.zw",
     role: "employee",
     status: "suspended",
+    lastLoginAt: { _seconds: 3939939339, _nanoseconds: 393939 },
     companyId: "comp-1",
     createdAt: { _seconds: 3939939339, _nanoseconds: 393939 },
     lastActiveAt: { _seconds: 3939939339, _nanoseconds: 393939 },
@@ -87,6 +83,7 @@ const mockUsers: AppUser[] = [
     role: "owner",
     status: "active",
     companyId: "comp-4",
+    lastLoginAt: { _seconds: 3939939339, _nanoseconds: 393939 },
     createdAt: { _seconds: 3939939339, _nanoseconds: 393939 },
     lastActiveAt: { _seconds: 3939939339, _nanoseconds: 393939 },
   },

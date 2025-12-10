@@ -1,3 +1,4 @@
+// components/layout/page-header.tsx
 "use client";
 
 import { cn } from "@/lib/utils";
@@ -38,7 +39,9 @@ export function PageHeader({
         <nav className="flex items-center gap-1 text-sm mb-3">
           {breadcrumbs.map((crumb, index) => (
             <div key={index} className="flex items-center gap-1">
-              {index > 0 && <ChevronRight className="w-4 h-4 text-neutral-400" />}
+              {index > 0 && (
+                <ChevronRight className="w-4 h-4 text-neutral-400" />
+              )}
               {crumb.href ? (
                 <Link
                   href={crumb.href}
@@ -47,7 +50,9 @@ export function PageHeader({
                   {crumb.label}
                 </Link>
               ) : (
-                <span className="text-neutral-900 font-medium">{crumb.label}</span>
+                <span className="text-neutral-900 font-medium">
+                  {crumb.label}
+                </span>
               )}
             </div>
           ))}
@@ -72,7 +77,6 @@ export function PageHeader({
             )}
           </div>
         </div>
-
         {actions && <div className="flex items-center gap-3">{actions}</div>}
       </div>
     </div>
@@ -97,7 +101,9 @@ export function SectionHeader({
   className,
 }: SectionHeaderProps) {
   return (
-    <div className={cn("flex items-start justify-between gap-4 mb-4", className)}>
+    <div
+      className={cn("flex items-start justify-between gap-4 mb-4", className)}
+    >
       <div>
         <h2 className="text-lg font-semibold text-neutral-900">{title}</h2>
         {description && (

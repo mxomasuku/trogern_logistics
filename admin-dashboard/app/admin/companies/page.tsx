@@ -118,7 +118,7 @@ export default async function CompaniesPage({ searchParams }: CompaniesPageProps
         title="Companies"
         description="Manage all companies on the platform"
         breadcrumbs={[
-          { label: "Dashboard", href: "/founder" },
+          { label: "Dashboard", href: "/admin" },
           { label: "Companies" },
         ]}
         actions={
