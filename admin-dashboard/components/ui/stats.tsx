@@ -17,6 +17,7 @@ interface StatCardProps {
   icon?: ReactNode;
   iconBg?: string;
   loading?: boolean;
+  subtitle?: string;
 }
 
 export function StatCard({
@@ -27,6 +28,7 @@ export function StatCard({
   icon,
   iconBg = "bg-electric-100",
   loading = false,
+  subtitle,
 }: StatCardProps) {
   if (loading) {
     return (
@@ -49,6 +51,9 @@ export function StatCard({
         <div>
           <p className="text-sm font-medium text-neutral-500">{title}</p>
           <p className="text-2xl font-bold text-neutral-900 mt-1">{value}</p>
+          {subtitle && (
+            <p className="text-xs text-neutral-400 mt-1">{subtitle}</p>
+          )}
         </div>
         {icon && (
           <div className={cn("p-2.5 rounded-lg", iconBg)}>

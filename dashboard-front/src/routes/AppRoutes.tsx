@@ -41,18 +41,19 @@ import ProductOverviewPage from "@/pages/ProductOverview/ProductOverviewPage";
 import BookADemoPage from "@/pages/BookADemo/BookADemoPage";
 import InviteEmployeesPanel from "@/pages/manage/InviteEmployeePanel";
 import PeriodStatsPage from "@/pages/analytics/PeriodStatsPage";
+import SupportPage from "@/pages/support/SupportPage";
 
 export default function AppRoutes() {
   return (
     <Routes>
       {/* PUBLIC */}
-      
+
       <Route path="/" element={<LandingPage />} />
       <Route path="/product-overview" element={<ProductOverviewPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/signup" element={<SignUpPage />} />
       <Route path="/book-a-demo" element={<BookADemoPage />} />
-       {/* <Route path="/debug-crash" element={<DebugCrashPage />} /> */}
+      {/* <Route path="/debug-crash" element={<DebugCrashPage />} /> */}
 
       {/* HIGHLIGHT: ONBOARDING ENTRY (logged in, no company yet) */}
       <Route
@@ -121,11 +122,12 @@ export default function AppRoutes() {
         <Route path="service/add" element={<AddServicePage />} />
         <Route path="service/records" element={<ServiceRecordsPage />} />
         <Route path="company/invite" element={<InviteEmployeesPanel />} />
-        <Route path="onboarding/create-targets" element={<SetTargets   />} />
+        <Route path="onboarding/create-targets" element={<SetTargets />} />
         <Route path="onboarding/preview-targets" element={<TargetPreviewPage />} />
         <Route path="period-stats" element={<PeriodStatsPage />} />
         <Route path="income" element={<IncomePage />} />
         <Route path="income/add" element={<AddIncomePage />} />
+        <Route path="support" element={<SupportPage />} />
       </Route>
     </Routes>
   );
