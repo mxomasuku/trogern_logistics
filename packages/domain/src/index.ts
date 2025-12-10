@@ -50,7 +50,10 @@ export {
   updateCompany,
   getCompanyStats,
   getCompanyRecentActivity,
+  getCompanyActivityLogs,
 } from "./companies";
+
+export type { ActivityLog } from "./companies";
 
 // Users
 export {

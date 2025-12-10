@@ -7,12 +7,12 @@ import { SimpleTabs } from "@/components/ui/tabs";
 import { formatDate, formatRelativeTime } from "@/lib/utils";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getCompanyDetail } from "@trogern/domain";
+import { getCompanyDetail, getCompanyActivityLogs, type ActivityLog } from "@trogern/domain";
 import { Company, FirebaseTimestamp } from "@/types/types";
 import { timestampToDate } from "@/lib/utils";
 import { UsersTab } from "./users-tab";
 import { ActionsTab } from "./actions-tab";
-import { ActivityTab } from "./activity-tab"
+import { ActivityTab, ClientActivityLog } from "./activity-tab"
 import {
   Building2,
   Users,
@@ -30,7 +30,7 @@ interface CompanyDetailPageProps {
   params: Promise<{ companyId: string }>;
 }
 
-// Mock data for development - Subscriptions and Activity kept as requested
+// Mock data for development - Subscriptions kept as requested
 const mockSubscription = {
   id: "sub-1",
   planId: "fleet-pro",
@@ -39,11 +39,6 @@ const mockSubscription = {
   billingProvider: "stripe",
 };
 
-const mockActivity = [
-  { id: "1", type: "user_login", description: "John Moyo logged in", timestamp: new Date() },
-  { id: "2", type: "vehicle_added", description: "New vehicle added to fleet", timestamp: new Date(Date.now() - 3600000) },
-  { id: "3", type: "user_invited", description: "Invited grace@sunrise-transport.co.zw", timestamp: new Date(Date.now() - 86400000) },
-];
 
 function OverviewTab({ company, owner, subscription, userCount, activeUserCount }: { company: any, owner: any, subscription: any, userCount: number, activeUserCount: number }) {
   // Helper to safely get Date object
@@ -216,10 +211,28 @@ export default async function CompanyDetailPage({ params }: CompanyDetailPagePro
     lastActiveAt: u.lastActiveAt ? toClientTimestamp(u.lastActiveAt) : undefined,
   }));
 
+  // Fetch activity logs for this company
+  let activityLogs: ClientActivityLog[] = [];
+  try {
+    const domainActivityLogs = await getCompanyActivityLogs(companyId, 20);
+    activityLogs = domainActivityLogs.map((log: ActivityLog) => ({
+      id: log.id,
+      message: log.message,
+      timestamp: toClientTimestamp(log.timestamp),
+      companyId: log.companyId,
+      email: log.email,
+      uid: log.uid,
+      level: log.level,
+      tags: log.tags,
+    }));
+  } catch (error) {
+    console.error("Error fetching activity logs:", error);
+  }
+
   const tabs = [
     { id: "overview", label: "Overview", content: <OverviewTab company={company} owner={owner} subscription={mockSubscription} userCount={userCount} activeUserCount={activeUserCount} /> },
     { id: "users", label: "Users", content: <UsersTab users={clientUsers} /> },
-    { id: "activity", label: "Activity", content: <ActivityTab mockActivity={mockActivity} /> },
+    { id: "activity", label: "Activity", content: <ActivityTab activity={activityLogs} /> },
     { id: "actions", label: "Actions", content: <ActionsTab companyId={companyId} companyStatus={company.status} /> },
   ];
 
