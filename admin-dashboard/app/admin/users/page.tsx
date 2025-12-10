@@ -1,98 +1,89 @@
 import { Suspense } from "react";
 import { PageHeader } from "@/components/layout/page-header";
-import { Card, Badge, Button } from "@/components/ui/index";
-import { SearchInput } from "@/components/ui/form";
-import {
-  TableSkeleton,
-} from "@/components/ui/table";
-
-import { Filter, } from "lucide-react";
-import { UsersTable } from "./users-table"
-import { AppUserRole, AppUser } from "@/types/types";
+import { Card } from "@/components/ui/index";
+import { TableSkeleton } from "@/components/ui/table";
+import { getUsersPage } from "@trogern/domain";
+import { UsersTable, UserWithCompany } from "./users-table";
+import { UserFilters } from "./user-filters";
+import { CursorPagination } from "./cursor-pagination";
+import type { AppUserRole, UserStatus } from "@trogern/domain";
 
 interface UsersPageProps {
   searchParams: Promise<{
     search?: string;
     status?: string;
-    role?: AppUserRole;
+    role?: string;
     companyId?: string;
-    page?: string;
+    limit?: string;
+    cursor?: string;
+    prevCursors?: string;
   }>;
 }
 
-// Mock data for development
-const mockUsers: AppUser[] = [
-  {
-    uid: "user-1",
-    name: "John Moyo",
-    onBoardingStatus: "completed",
-    email: "john@sunrise-transport.co.zw",
-    role: "owner",
-    picture: "",
-    status: "active",
-    companyId: "comp-1",
-    createdAt: { _seconds: 3939939339, _nanoseconds: 393939 },
-    lastActiveAt: { _seconds: 3939939339, _nanoseconds: 393939 },
-    lastLoginAt: { _seconds: 3939939339, _nanoseconds: 393939 },
-  },
-  {
-    uid: "user-2",
-    name: "Sarah Ncube",
-    picture: "",
-    onBoardingStatus: "completed",
-    email: "sarah@metro-fleet.co.zw",
-    role: "manager",
-    status: "active",
-    companyId: "comp-2",
-    createdAt: { _seconds: 3939939339, _nanoseconds: 393939 },
-    lastLoginAt: { _seconds: 3939939339, _nanoseconds: 393939 },
-    lastActiveAt: { _seconds: 3939939339, _nanoseconds: 393939 },
-  },
-  {
-    uid: "user-3",
-    name: "Peter Dube",
-    picture: "",
-    onBoardingStatus: "completed",
-    email: "peter@highway-logistics.co.zw",
-    role: "driver",
-    status: "active",
-    companyId: "comp-3",
-    lastLoginAt: { _seconds: 3939939339, _nanoseconds: 393939 },
-    createdAt: { _seconds: 3939939339, _nanoseconds: 393939 },
-    lastActiveAt: { _seconds: 3939939339, _nanoseconds: 393939 },
-  },
-  {
-    uid: "user-4",
-    name: "Grace Zimba",
-    picture: "",
-    onBoardingStatus: "completed",
-    email: "grace@sunrise-transport.co.zw",
-    role: "employee",
-    status: "suspended",
-    lastLoginAt: { _seconds: 3939939339, _nanoseconds: 393939 },
-    companyId: "comp-1",
-    createdAt: { _seconds: 3939939339, _nanoseconds: 393939 },
-    lastActiveAt: { _seconds: 3939939339, _nanoseconds: 393939 },
-  },
-  {
-    uid: "user-5",
-    name: "Tendai Chipo",
-    onBoardingStatus: "completed",
-    picture: "",
-    email: "tendai@express-cargo.co.zw",
-    role: "owner",
-    status: "active",
-    companyId: "comp-4",
-    lastLoginAt: { _seconds: 3939939339, _nanoseconds: 393939 },
-    createdAt: { _seconds: 3939939339, _nanoseconds: 393939 },
-    lastActiveAt: { _seconds: 3939939339, _nanoseconds: 393939 },
-  },
-];
-
-
+// Helper to convert domain timestamps to client format
+function toClientTimestamp(ts: any): { _seconds: number; _nanoseconds: number } {
+  if (!ts) return { _seconds: Date.now() / 1000, _nanoseconds: 0 };
+  return {
+    _seconds: ts.seconds || ts._seconds || 0,
+    _nanoseconds: ts.nanoseconds || ts._nanoseconds || 0,
+  };
+}
 
 export default async function UsersPage({ searchParams }: UsersPageProps) {
   const params = await searchParams;
+
+  // Parse pagination params
+  const limit = parseInt(params.limit || "20");
+  const cursor = params.cursor || undefined;
+  const previousCursors: string[] = params.prevCursors
+    ? JSON.parse(params.prevCursors)
+    : [];
+
+  // Build filter params for the domain function
+  const filterParams = {
+    search: params.search || undefined,
+    status: (params.status as UserStatus) || undefined,
+    role: (params.role as AppUserRole) || undefined,
+    companyId: params.companyId || undefined,
+    limit,
+    startAfter: cursor,
+  };
+
+  // Fetch users from domain
+  let result;
+  try {
+    result = await getUsersPage(filterParams);
+  } catch (error) {
+    console.error("Error fetching users:", error);
+    // Return empty result on error
+    result = {
+      data: [],
+      total: 0,
+      hasMore: false,
+      nextCursor: undefined,
+    };
+  }
+
+  // Convert domain users to client format
+  const clientUsers: UserWithCompany[] = result.data.map((user: any) => ({
+    uid: user.uid,
+    email: user.email,
+    name: user.name,
+    role: user.role,
+    status: user.status,
+    companyId: user.companyId,
+    createdAt: toClientTimestamp(user.createdAt),
+    lastActiveAt: user.lastActiveAt ? toClientTimestamp(user.lastActiveAt) : undefined,
+    lastLoginAt: user.lastLoginAt ? toClientTimestamp(user.lastLoginAt) : undefined,
+    picture: user.picture,
+    company: user.company ? {
+      id: user.company.id,
+      name: user.company.name,
+    } : undefined,
+  }));
+
+  // Determine if filters are active
+  const hasFilters = !!(params.search || params.status || params.role || params.companyId);
 
   return (
     <div className="space-y-6">
@@ -100,47 +91,36 @@ export default async function UsersPage({ searchParams }: UsersPageProps) {
         title="Users"
         description="Manage all users across all companies"
         breadcrumbs={[
-          { label: "Dashboard", href: "/founder" },
+          { label: "Dashboard", href: "/admin" },
           { label: "Users" },
         ]}
       />
 
       <Card padding="md">
-        {/* Filters */}
-        <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
-          <div className="flex flex-wrap items-center gap-3">
-            <SearchInput placeholder="Search users..." />
-
-            <select className="select w-40">
-              <option value="">All Status</option>
-              <option value="active">Active</option>
-              <option value="suspended">Suspended</option>
-              <option value="deleted">Deleted</option>
-            </select>
-
-            <select className="select w-40">
-              <option value="">All Roles</option>
-              <option value="owner">Owner</option>
-              <option value="manager">Manager</option>
-              <option value="employee">Employee</option>
-              <option value="driver">Driver</option>
-            </select>
-
-            <Button variant="outline" size="sm">
-              <Filter className="w-4 h-4" />
-              More Filters
-            </Button>
-          </div>
-
-          <div className="text-sm text-neutral-500">
-            Showing {mockUsers.length} users
-          </div>
-        </div>
+        {/* Filters - Client Component */}
+        <Suspense fallback={<div className="h-14 animate-pulse bg-neutral-100 rounded-lg" />}>
+          <UserFilters
+            totalCount={result.total}
+            filteredCount={clientUsers.length}
+          />
+        </Suspense>
 
         {/* Table */}
         <Suspense fallback={<TableSkeleton rows={10} cols={7} />}>
-          <UsersTable mockUsers={mockUsers} />
+          <UsersTable users={clientUsers} />
         </Suspense>
+
+        {/* Pagination - Client Component */}
+        {(result.hasMore || previousCursors.length > 0 || cursor) && (
+          <CursorPagination
+            hasMore={result.hasMore}
+            nextCursor={result.nextCursor}
+            currentCursor={cursor}
+            previousCursors={previousCursors}
+            showingCount={clientUsers.length}
+            totalCount={result.total}
+          />
+        )}
       </Card>
     </div>
   );
