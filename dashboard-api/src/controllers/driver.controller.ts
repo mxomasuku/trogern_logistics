@@ -8,6 +8,7 @@ import type {
 import { success, failure } from "../utils/apiResponse";
 import { Driver, Vehicle } from "../types/index";
 import { updateVehicleStatusFromDriver } from "./status_sync_repo";
+import { logInfo } from "../utils/logger";
 
 // HIGHLIGHT: company context helper
 import { requireCompanyContext } from "../utils/companyContext";
@@ -198,6 +199,19 @@ export const addDriver = async (
     // HIGHLIGHT: reconcile still works, driver doc now has companyId inside
     await reconcileDriverVehicleAssignment(cleanLicenseNumber);
 
+    // HIGHLIGHT: Log driver added
+    void logInfo("driver_added", {
+      uid: ctx.uid,
+      email: ctx.email,
+      companyId,
+      path: req.path,
+      method: "POST",
+      driverId: cleanLicenseNumber,
+      driverName: name,
+      tags: ["driver", "create"],
+      message: `${ctx.email} added driver ${name} (${cleanLicenseNumber})`,
+    });
+
     return res
       .status(201)
       .json(
@@ -274,6 +288,18 @@ export const updateDriver = async (req: Request, res: Response) => {
 
     await updateVehicleStatusFromDriver(id, previousVehicleId);
 
+    // HIGHLIGHT: Log driver updated
+    void logInfo("driver_updated", {
+      uid: ctx.uid,
+      email: ctx.email,
+      companyId,
+      path: req.path,
+      method: "PUT",
+      driverId: id,
+      tags: ["driver", "update"],
+      message: `${ctx.email} updated driver ${id}`,
+    });
+
     return res.status(200).json(success({ id, ...patch }));
   } catch (error: any) {
     console.error("Error updating driver:", error);
@@ -335,7 +361,7 @@ export const deleteDriver = async (req: Request, res: Response) => {
           tx.update(dRef, {
             mileageOnEnd:
               (d as any).mileageOnEnd === undefined ||
-              (d as any).mileageOnEnd === null
+                (d as any).mileageOnEnd === null
                 ? (v as any).currentMileage ?? null
                 : (d as any).mileageOnEnd,
             updatedAt: new Date().toISOString(),
@@ -350,6 +376,18 @@ export const deleteDriver = async (req: Request, res: Response) => {
       }
 
       tx.delete(dRef);
+    });
+
+    // HIGHLIGHT: Log driver deleted
+    void logInfo("driver_deleted", {
+      uid: ctx.uid,
+      email: ctx.email,
+      companyId,
+      path: req.path,
+      method: "DELETE",
+      driverId: id,
+      tags: ["driver", "delete"],
+      message: `${ctx.email} deleted driver ${id}`,
     });
 
     return res.status(200).json(success({ id }));

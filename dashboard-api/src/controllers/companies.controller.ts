@@ -6,6 +6,7 @@ import { setUserCompanyClaims } from "../utils/authClaims";
 const db = admin.firestore();
 import { FleetType, CompanyDoc } from "../types/index";
 import { requireCompanyContext } from "../utils/companyContext";
+import { logInfo } from "../utils/logger";
 
 const companiesRef = db.collection("companies");
 
@@ -168,6 +169,19 @@ export async function createCompany(req: Request, res: Response) {
       updatedAt: docData.updatedAt.toDate().toISOString(),
     };
 
+    // HIGHLIGHT: Log company created/updated
+    void logInfo(existingSnap.empty ? "company_created" : "company_updated", {
+      uid,
+      companyId: docRef.id,
+      companyName: name,
+      path: req.path,
+      method: "POST",
+      tags: ["company", existingSnap.empty ? "create" : "update"],
+      message: existingSnap.empty
+        ? `User ${uid} created company ${name}`
+        : `User ${uid} updated company ${name}`,
+    });
+
     return res.status(200).json({
       isSuccessful: true,
       company,
@@ -329,6 +343,20 @@ export const updateCompanyCoreDetails = async (req: Request, res: Response) => {
       status: data.status,
     };
 
+    // HIGHLIGHT: Log company details updated
+    void logInfo("company_details_updated", {
+      uid: ctx.uid,
+      email: ctx.email,
+      companyId,
+      companyName: data.name,
+      path: req.path,
+      method: "PUT",
+      fleetSize: Number(fleetSize),
+      employeeCount: Number(employeeCount),
+      tags: ["company", "update"],
+      message: `${ctx.email} updated company details for ${data.name}`,
+    });
+
     return res.status(200).json({
       isSuccessful: true,
       company,
@@ -352,7 +380,7 @@ export async function getMyCompanyDetails(req: Request, res: Response) {
   const ctx = await requireCompanyContext(req, res);
   if (!ctx) return;
 
-  const { companyId } = ctx; 
+  const { companyId } = ctx;
 
   try {
     const companyRef = companiesRef.doc(companyId);

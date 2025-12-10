@@ -6,8 +6,9 @@ const { db } = require("../config/firebase"); // HIGHLIGHT
 // HIGHLIGHT: shape of a log entry
 export interface LogContext {
   correlationId?: string;
-  userId?: string;
-  companyId?: string;
+  uid?: string | null;
+  email?: string | null;
+  companyId?: string | null;
   path?: string;
   method?: string;
   statusCode?: number;
@@ -26,7 +27,7 @@ export function getRequestContext(req: Request): Partial<LogContext> {
 
   return {
     correlationId: anyReq.correlationId,
-    userId: anyReq.user?.uid,
+    uid: anyReq.user?.uid,
     companyId: anyReq.user?.companyId,
     path: req.path,
     method: req.method,

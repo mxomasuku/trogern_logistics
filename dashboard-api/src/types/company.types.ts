@@ -37,7 +37,18 @@ export interface CompanyInviteDoc {
   invitedUid?: string;        // optional strict binding
 }
 
+
+export interface ClientTemporaryInviteLink {
+  companyId: string;
+  role: "client";
+  createdByUid: string;
+  validUntil: FirebaseFirestore.Timestamp;
+  email: string;
+  clientId: string;
+  isLinkActive: boolean;
+}
+
 export type AppCustomClaims = {
   companyId: string;
-  role: "owner" | "manager" | "employee";
+  role: "owner" | "ops-manager" | "employee" | "director" | "auditor" |"client";
 };

@@ -10,6 +10,7 @@ const { db, admin } = require('../config/firebase');
 import { success, failure } from '../utils/apiResponse';
 import { updateDriverStatusFromVehicle } from './status_sync_repo';
 import { assignDriverToVehicleOnAdd } from './status_sync_repo';
+import { logInfo } from '../utils/logger';
 
 // HIGHLIGHT: company context helper
 import { requireCompanyContext } from "../utils/companyContext";
@@ -403,6 +404,19 @@ export const addVehicle = async (
       }
     }
 
+    // HIGHLIGHT: Log vehicle added
+    void logInfo("vehicle_added", {
+      uid: ctx.uid,
+      email: ctx.email,
+      companyId,
+      path: req.path,
+      method: "POST",
+      vehicleId: plateId,
+      plateNumber: plateId,
+      tags: ["vehicle", "create"],
+      message: `${ctx.email} added vehicle ${plateId}`,
+    });
+
     return res.status(201).json(success(vehicleDocToJson(createdSnap)));
   } catch (error: any) {
     console.error("Error adding vehicle:", error);
@@ -497,6 +511,19 @@ export const updateVehicle = async (
     );
 
     const updatedSnap = await vehicleRef.get();
+
+    // HIGHLIGHT: Log vehicle updated
+    void logInfo("vehicle_updated", {
+      uid: ctx.uid,
+      email: ctx.email,
+      companyId,
+      path: req.path,
+      method: "PUT",
+      vehicleId,
+      tags: ["vehicle", "update"],
+      message: `${ctx.email} updated vehicle ${vehicleId}`,
+    });
+
     return res.status(200).json(success(vehicleDocToJson(updatedSnap)));
   } catch (error: any) {
     console.error("Error updating vehicle:", error);
@@ -548,6 +575,19 @@ export const deleteVehicle = async (req: Request, res: Response) => {
     }
 
     await vehicleRef.delete();
+
+    // HIGHLIGHT: Log vehicle deleted
+    void logInfo("vehicle_deleted", {
+      uid: ctx.uid,
+      email: ctx.email,
+      companyId,
+      path: req.path,
+      method: "DELETE",
+      vehicleId,
+      tags: ["vehicle", "delete"],
+      message: `${ctx.email} deleted vehicle ${vehicleId}`,
+    });
+
     return res.status(200).json(success({ id: vehicleId }));
   } catch (error: any) {
     console.error("Error deleting vehicle:", error);

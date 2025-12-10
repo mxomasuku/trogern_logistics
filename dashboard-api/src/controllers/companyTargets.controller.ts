@@ -5,6 +5,7 @@ const { db, admin } = require("../config/firebase");
 import { success, failure } from "../utils/apiResponse";
 import { CompanyTargets, CompanyDoc } from "../types/index";
 import { requireCompanyContext } from "../utils/companyContext";
+import { logInfo } from "../utils/logger";
 
 const companiesRef = db.collection("companies");
 
@@ -135,15 +136,15 @@ export const createTargets = async (req: Request, res: Response) => {
           expenseTargets.employeeExpensePercentage ?? 0
         ),
       },
-    fleetTarget: {
-      numberOfVehiclesInOperationAtAnyGivenMoment: Number(
-      fleetTarget?.numberOfVehiclesInOperationAtAnyGivenMoment ??
-      company.fleetSize
-  ),
-   amountEarnedPerVehicle: Number(
-    fleetTarget?.amountEarnedPerVehicle ?? 0
-  ), 
-},
+      fleetTarget: {
+        numberOfVehiclesInOperationAtAnyGivenMoment: Number(
+          fleetTarget?.numberOfVehiclesInOperationAtAnyGivenMoment ??
+          company.fleetSize
+        ),
+        amountEarnedPerVehicle: Number(
+          fleetTarget?.amountEarnedPerVehicle ?? 0
+        ),
+      },
       metaSnapshot: {
         fleetSize: company.fleetSize,
         employeeCount: company.employeeCount,
@@ -153,6 +154,18 @@ export const createTargets = async (req: Request, res: Response) => {
     batch.set(targetRef, payload);
 
     await batch.commit();
+
+    // HIGHLIGHT: Log targets created
+    void logInfo("targets_created", {
+      uid: ctx.uid,
+      email: ctx.email,
+      companyId,
+      path: req.path,
+      method: "POST",
+      targetId: targetRef.id,
+      tags: ["targets", "create"],
+      message: `${ctx.email} created new company targets`,
+    });
 
     return res
       .status(201)

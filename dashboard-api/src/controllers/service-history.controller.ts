@@ -14,7 +14,8 @@ import {
   upsertLastServiceDateIfNewer,
   recomputeLastServiceDateFromRecords,
 } from "./vehicles.controller";
-import { createOrEditServiceExpenseIncomeLog} from "../utils/service-utils";
+import { createOrEditServiceExpenseIncomeLog } from "../utils/service-utils";
+import { logInfo } from "../utils/logger";
 
 /** Collections */
 const vehiclesCollection: FirebaseFirestore.CollectionReference =
@@ -121,7 +122,7 @@ function removeUndefinedDeep<T>(obj: T): T {
     return obj.map((v) => removeUndefinedDeep(v)) as unknown as T;
   if (typeof obj === "object" && !isTs(obj)) {
     const out: any = {};
-    for (const [k, v] of Object.entries(obj as Record<string, unknown>) ){
+    for (const [k, v] of Object.entries(obj as Record<string, unknown>)) {
       if (v !== undefined) out[k] = removeUndefinedDeep(v);
     }
     return out;
@@ -388,6 +389,19 @@ export const addServiceRecord = async (
 
     const savedItems = await readItemsSubcollection(serviceId);
 
+    // HIGHLIGHT: Log service record added
+    void logInfo("service_record_added", {
+      uid: ctx.uid,
+      companyId,
+      path: req.path,
+      method: "POST",
+      serviceId,
+      vehicleId,
+      cost: totalCost,
+      tags: ["service", "create"],
+      message: `${ctx.uid} added service record for vehicle ${vehicleId} (cost: ${totalCost})`,
+    });
+
     return res.status(201).json(
       success({
         id: serviceId,
@@ -574,7 +588,7 @@ export const updateServiceRecord = async (
         updatePayload.vehicleId || latest.vehicleId || oldVehicleId;
       const baseMileage =
         "serviceMileage" in updatePayload &&
-        updatePayload.serviceMileage != null
+          updatePayload.serviceMileage != null
           ? (updatePayload.serviceMileage as number)
           : latest.serviceMileage;
 
@@ -671,6 +685,18 @@ export const updateServiceRecord = async (
     }
 
     const items = await readItemsSubcollection(serviceId);
+
+    // HIGHLIGHT: Log service record updated
+    void logInfo("service_record_updated", {
+      uid: ctx.uid,
+      companyId,
+      path: req.path,
+      method: "PUT",
+      serviceId,
+      vehicleId: updated.vehicleId,
+      tags: ["service", "update"],
+      message: `${ctx.uid} updated service record ${serviceId}`,
+    });
 
     return res.status(200).json(
       success({
@@ -962,6 +988,18 @@ export const deleteServiceRecord = async (
     await cascadeDeleteItems(serviceId);
     await recordRef.delete();
 
+    // HIGHLIGHT: Log service record deleted
+    void logInfo("service_record_deleted", {
+      uid: ctx.uid,
+      companyId,
+      path: req.path,
+      method: "DELETE",
+      serviceId,
+      vehicleId: data.vehicleId,
+      tags: ["service", "delete"],
+      message: `${ctx.uid} deleted service record ${serviceId}`,
+    });
+
     return res.status(200).json(success({ id: serviceId }));
   } catch (error: any) {
     console.error("Error deleting service record:", error);
@@ -1036,6 +1074,20 @@ export const addServiceItem = async (req: Request, res: Response) => {
     const docRef = await serviceItemsCatalogCollection.add(
       removeUndefinedDeep(newItem)
     );
+
+    // HIGHLIGHT: Log service item added
+    void logInfo("service_item_added", {
+      uid: ctx.uid,
+      companyId,
+      path: req.path,
+      method: "POST",
+      serviceItemId: docRef.id,
+      itemName: newItem.name,
+      itemKind: kind,
+      tags: ["service-item", "create"],
+      message: `${ctx.uid} added service item ${newItem.name}`,
+    });
+
     return res.status(201).json(success({ id: docRef.id, ...newItem }));
   } catch (error: any) {
     console.error("Error adding service item:", error);
@@ -1124,6 +1176,19 @@ export const deleteServiceItem = async (
     }
 
     await docRef.delete();
+
+    // HIGHLIGHT: Log service item deleted
+    void logInfo("service_item_deleted", {
+      uid: ctx.uid,
+      companyId,
+      path: req.path,
+      method: "DELETE",
+      serviceItemId: id,
+      itemName: data.name,
+      tags: ["service-item", "delete"],
+      message: `${ctx.uid} deleted service item ${data.name}`,
+    });
+
     return res.status(200).json(success({ deletedId: id }));
   } catch (error: any) {
     console.error("Error deleting service item:", error);

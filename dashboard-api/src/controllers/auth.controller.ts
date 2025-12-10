@@ -1,6 +1,7 @@
 // src/controllers/authController.ts
 import { Request, Response } from "express";
 import { signInWithEmailAndPassword } from "../utils/emulated-auth";
+import { logInfo, logError } from "../utils/logger";
 const { admin } = require("../config/firebase");
 
 // HIGHLIGHT: firestore handle for users collection
@@ -44,8 +45,8 @@ export async function loginUser(req: Request, res: Response) {
     const isProd = process.env.NODE_ENV === "production";
     const sameSite: "lax" | "none" =
       isProd &&
-      process.env.FRONTEND_ORIGIN &&
-      !process.env.FRONTEND_ORIGIN.includes("localhost")
+        process.env.FRONTEND_ORIGIN &&
+        !process.env.FRONTEND_ORIGIN.includes("localhost")
         ? "none" // cross-site in prod needs HTTPS + SameSite=None
         : "lax";
 
@@ -64,11 +65,34 @@ export async function loginUser(req: Request, res: Response) {
     // HIGHLIGHT: ensure users/{uid} exists / is updated on every login
     await upsertUserFromDecodedToken(decoded);
 
+    // 4) Fetch user profile to get companyId for logging
+    const userDoc = await db.collection("users").doc(decoded.uid).get();
+    const userData = userDoc.exists ? userDoc.data() : {};
+    const companyId = userData?.companyId || null;
+    const role = userData?.role || decoded.role || null;
+
+    // HIGHLIGHT: Log successful login event
+    void logInfo("user_login", {
+      uid: decoded.uid,
+      email: decoded.email || email,
+      companyId,
+      role,
+      path: req.path,
+      method: "POST",
+      tags: ["auth", "login", "success"],
+      message: `${decoded.email || email} logged in successfully`,
+    });
+
+    // Update lastLoginAt in users collection
+    await db.collection("users").doc(decoded.uid).update({
+      lastLoginAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
     const user = {
       uid: decoded.uid,
       email: decoded.email ?? null,
       name: decoded.name ?? null,
-      role: decoded.role ?? null,
+      role: role,
       picture: decoded.picture ?? null,
     };
 
@@ -76,6 +100,16 @@ export async function loginUser(req: Request, res: Response) {
       .status(200)
       .json({ message: "Login successful", user, isSuccessful: true });
   } catch (e: any) {
+    // HIGHLIGHT: Log failed login attempt
+    void logError("login_failed", {
+      email, // log attempted email for failed logins
+      path: req.path,
+      method: "POST",
+      errorMessage: e.message || "Authentication failed",
+      tags: ["auth", "login", "failed"],
+      message: `Login attempt failed for ${email}`,
+    });
+
     return res.status(401).json({ error: e.message || "Authentication failed" });
   }
 }
@@ -110,12 +144,35 @@ export async function me(req: Request, res: Response) {
   }
 }
 
-export function logoutUser(_req: Request, res: Response) {
+export async function logoutUser(req: Request, res: Response) {
+  // Try to get user info before logging out for the log entry
+  let uid: string | null = null;
+  let email: string | null = null;
+  let companyId: string | null = null;
+
+  try {
+    const sessionCookie = req.cookies?.session;
+    if (sessionCookie) {
+      const decoded = await admin.auth().verifySessionCookie(sessionCookie, false);
+      uid = decoded.uid;
+      email = decoded.email || null;
+
+      // Fetch companyId from user profile
+      const userDoc = await db.collection("users").doc(decoded.uid).get();
+      if (userDoc.exists) {
+        const userData = userDoc.data();
+        companyId = userData?.companyId || null;
+      }
+    }
+  } catch {
+    // Session might be expired, continue with logout
+  }
+
   const isProd = process.env.NODE_ENV === "production";
   const sameSite: "lax" | "none" =
     isProd &&
-    process.env.FRONTEND_ORIGIN &&
-    !process.env.FRONTEND_ORIGIN.includes("localhost")
+      process.env.FRONTEND_ORIGIN &&
+      !process.env.FRONTEND_ORIGIN.includes("localhost")
       ? "none"
       : "lax";
 
@@ -125,6 +182,20 @@ export function logoutUser(_req: Request, res: Response) {
     sameSite,
     path: "/",
   });
+
+  // HIGHLIGHT: Log logout event
+  if (uid) {
+    void logInfo("user_logout", {
+      uid,
+      email,
+      companyId,
+      path: req.path,
+      method: "POST",
+      tags: ["auth", "logout"],
+      message: `${email || uid} logged out`,
+    });
+  }
+
   return res.status(200).json({ message: "Logged out" });
 }
 
@@ -156,8 +227,8 @@ export async function registerUser(req: Request, res: Response) {
     const isProd = process.env.NODE_ENV === "production";
     const sameSite: "lax" | "none" =
       isProd &&
-      process.env.FRONTEND_ORIGIN &&
-      !process.env.FRONTEND_ORIGIN.includes("localhost")
+        process.env.FRONTEND_ORIGIN &&
+        !process.env.FRONTEND_ORIGIN.includes("localhost")
         ? "none"
         : "lax";
 
@@ -176,6 +247,16 @@ export async function registerUser(req: Request, res: Response) {
     // HIGHLIGHT: ensure users/{uid} exists right after registration
     await upsertUserFromDecodedToken(decoded);
 
+    // HIGHLIGHT: Log successful registration event
+    void logInfo("user_registered", {
+      uid: decoded.uid,
+      email: decoded.email || email,
+      path: req.path,
+      method: "POST",
+      tags: ["auth", "register", "success"],
+      message: `New user ${decoded.email || email} registered successfully`,
+    });
+
     const user = {
       uid: decoded.uid,
       email: decoded.email ?? null,
@@ -191,6 +272,16 @@ export async function registerUser(req: Request, res: Response) {
       isSuccessful: true,
     });
   } catch (e: any) {
+    // HIGHLIGHT: Log failed registration attempt
+    void logError("registration_failed", {
+      email,
+      path: req.path,
+      method: "POST",
+      errorMessage: e.message || "Registration failed",
+      tags: ["auth", "register", "failed"],
+      message: `Registration attempt failed for ${email}`,
+    });
+
     return res
       .status(400)
       .json({ error: e.message || "Registration failed" });
