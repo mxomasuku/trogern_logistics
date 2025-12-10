@@ -211,6 +211,7 @@ export default async function CompanyDetailPage({ params }: CompanyDetailPagePro
     ...u,
     id: u.uid,
     createdAt: toClientTimestamp(u.createdAt),
+    updatedAt: u.updatedAt ? toClientTimestamp(u.updatedAt) : undefined,
     lastLoginAt: u.lastLoginAt ? toClientTimestamp(u.lastLoginAt) : undefined,
     lastActiveAt: u.lastActiveAt ? toClientTimestamp(u.lastActiveAt) : undefined,
   }));
