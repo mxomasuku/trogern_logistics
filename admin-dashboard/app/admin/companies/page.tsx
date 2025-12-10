@@ -57,6 +57,7 @@ async function CompaniesTable({ searchParams }: { searchParams: Awaited<Companie
       ...company,
       createdAt: company.createdAt?.toDate?.() ? company.createdAt.toDate().toISOString() : company.createdAt,
       updatedAt: company.updatedAt?.toDate?.() ? company.updatedAt.toDate().toISOString() : company.updatedAt,
+      deletedAt: company.deletedAt?.toDate?.() ? company.deletedAt.toDate().toISOString() : company.deletedAt,
       subscriptionCurrentPeriodEnd: company.subscriptionCurrentPeriodEnd?.toDate?.()
         ? company.subscriptionCurrentPeriodEnd.toDate().toISOString()
         : company.subscriptionCurrentPeriodEnd,
