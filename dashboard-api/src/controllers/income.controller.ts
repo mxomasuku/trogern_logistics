@@ -5,6 +5,7 @@ import { success, failure } from "../utils/apiResponse";
 import { IncomeLog, LedgerType } from "../types/index";
 import { requireCompanyContext } from "../utils/companyContext";
 import { derivePeriodFieldsFromTimestamp } from "../utils/periodUtils"; // HIGHLIGHT
+import { logInfo } from "../utils/logger";
 
 const incomeRef = db.collection("income");
 const vehiclesRef = db.collection("vehicles");
@@ -44,7 +45,7 @@ function toFsTimestampAtLocalMidnight(
       const dt = DateTime.fromMillis(value, { zone }).startOf("day");
       return admin.firestore.Timestamp.fromDate(dt.toJSDate());
     }
-  } catch {}
+  } catch { }
   return undefined;
 }
 
@@ -161,6 +162,22 @@ export const addIncomeLog = async (req: Request, res: Response) => {
       String(vehicle),
       Number(weekEndingMileage)
     );
+
+    // HIGHLIGHT: Log income added
+    void logInfo("income_logged", {
+      uid: ctx.uid,
+      email: ctx.email,
+      companyId,
+      path: req.path,
+      method: "POST",
+      incomeId: result.id,
+      amount: Number(amount),
+      type: ledgerType,
+      vehicle: String(vehicle),
+      driverName: String(driverName),
+      tags: ["income", "create"],
+      message: `${ctx.email} logged ${ledgerType} of ${amount} for ${driverName} on vehicle ${vehicle}`,
+    });
 
     // HIGHLIGHT: spread first, id last to avoid TS duplicate prop warning
     return res.status(201).json(
@@ -288,6 +305,18 @@ export const updateIncomeLog = async (req: Request, res: Response) => {
         Number(patch.weekEndingMileage)
       );
     }
+
+    // HIGHLIGHT: Log income updated
+    void logInfo("income_updated", {
+      uid: ctx.uid,
+      email: ctx.email,
+      companyId,
+      path: req.path,
+      method: "PUT",
+      incomeId: id,
+      tags: ["income", "update"],
+      message: `${ctx.email} updated income log ${id}`,
+    });
 
     // HIGHLIGHT: spread first, id last
     return res.status(200).json(

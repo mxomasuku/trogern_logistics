@@ -2,7 +2,8 @@ import { Request, Response } from "express";
 const { db, admin } = require("../config/firebase");
 import { success, failure } from "../utils/apiResponse";
 import { setUserCompanyClaims } from "../utils/authClaims";
-import { AppUserRole, CompanyInviteDoc, InviteRole} from "../types/index";
+import { AppUserRole, CompanyInviteDoc, InviteRole } from "../types/index";
+import { logInfo } from "../utils/logger";
 
 // HIGHLIGHT: shared types
 
@@ -124,6 +125,20 @@ export const createCompanyInvite = async (
     const inviteRef = await invitesCol.add(inviteDoc);
 
     const inviteId = inviteRef.id;
+
+    // HIGHLIGHT: Log invite created
+    void logInfo("invite_created", {
+      uid,
+      companyId: ctx.companyId,
+      path: req.path,
+      method: "POST",
+      inviteId,
+      invitedEmail: normalizedEmail,
+      inviteRole: role,
+      tags: ["invite", "create"],
+      message: `${uid} created invite for ${normalizedEmail} with role ${role}`,
+    });
+
     return res.status(201).json(
       success({
         inviteId,
@@ -254,8 +269,8 @@ export const getInvitePreview = async (
         status: isUsed
           ? "used"
           : isExpired
-          ? "expired"
-          : "valid",
+            ? "expired"
+            : "valid",
         expiresAt: invite.expiresAt.toDate().toISOString(),
       })
     );
@@ -335,6 +350,18 @@ export const revokeCompanyInvite = async (
       used: true,
       usedByUid: uid,
       usedAt: admin.firestore.Timestamp.now(),
+    });
+
+    // HIGHLIGHT: Log invite revoked
+    void logInfo("invite_revoked", {
+      uid,
+      companyId: ctx.companyId,
+      path: req.path,
+      method: "DELETE",
+      inviteId,
+      invitedEmail: invite.email,
+      tags: ["invite", "revoke"],
+      message: `${uid} revoked invite ${inviteId} for ${invite.email}`,
     });
 
     return res.status(200).json(success(null));
@@ -445,6 +472,19 @@ export const acceptInvite = async (
       used: true,
       usedByUid: uid,
       usedAt: admin.firestore.Timestamp.now(),
+    });
+
+    // HIGHLIGHT: Log invite accepted
+    void logInfo("invite_accepted", {
+      uid,
+      email: authEmail,
+      companyId: invite.companyId,
+      path: req.path,
+      method: "POST",
+      inviteId,
+      role: invite.role,
+      tags: ["invite", "accept"],
+      message: `${authEmail} accepted invite and joined company with role ${invite.role}`,
     });
 
     return res.status(200).json(
