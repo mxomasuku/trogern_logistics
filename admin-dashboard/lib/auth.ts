@@ -52,6 +52,8 @@ export async function getServerSession(): Promise<AdminUser | null> {
       name: adminData.name,
       role: adminData.role,
       createdAt: adminData.createdAt,
+      updatedAt: adminData.updatedAt,
+      lastLoginAt: adminData.lastLoginAt,
       isActive: adminData.isActive,
     } as AdminUser;
   } catch (error) {
@@ -122,6 +124,8 @@ export async function verifyAdminToken(idToken: string): Promise<{
       name: adminData.name,
       role: adminData.role,
       createdAt: adminData.createdAt,
+      updatedAt: adminData.updatedAt,
+      lastLoginAt: adminData.lastLoginAt,
       isActive: adminData.isActive,
     };
 

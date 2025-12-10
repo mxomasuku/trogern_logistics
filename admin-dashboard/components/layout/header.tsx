@@ -1,25 +1,19 @@
+// components/layout/header.tsx
 "use client";
 
 import { cn } from "@/lib/utils";
 import { Bell, Search, User, LogOut, Settings, ChevronDown } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
+import { useAdminAuth } from "@/lib/admin-auth-context";
 
-interface HeaderProps {
-  adminName?: string;
-  adminEmail?: string;
-  adminRole?: string;
-  notificationCount?: number;
-}
-
-export function Header({
-  adminName = "Admin",
-  adminEmail = "admin@trogern.com",
-  adminRole = "founder",
-  notificationCount = 0,
-}: HeaderProps) {
+export function Header() {
+  const { adminUser, signOut, isLoading } = useAdminAuth();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  // TODO: Replace with actual notification count from context or API
+  const notificationCount = 0;
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -34,16 +28,24 @@ export function Header({
 
   const handleLogout = async () => {
     try {
-      await fetch("/api/auth/logout", { method: "POST" });
-
+      await signOut();
       window.location.href = "/login";
     } catch (error) {
       console.error("Logout error:", error);
     }
   };
 
+  // Format role for display
+  const formatRole = (role: string | undefined) => {
+    if (!role) return "Admin";
+    return role
+      .split("_")
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(" ");
+  };
+
   return (
-    <header className="h-16 bg-white border-b border-neutral-200 flex items-center justify-between px-6">
+    <header className="h-16 bg-white border-b border-neutral-200 flex items-center justify-between px-6 sticky top-0 z-30">
       {/* Search */}
       <div className="relative w-96">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
@@ -77,22 +79,36 @@ export function Header({
           <button
             onClick={() => setShowUserMenu(!showUserMenu)}
             className="flex items-center gap-3 p-1.5 pr-3 hover:bg-neutral-100 rounded-lg transition-colors"
+            disabled={isLoading}
           >
             <div className="w-8 h-8 rounded-full bg-navy-100 flex items-center justify-center">
               <User className="w-4 h-4 text-navy-700" />
             </div>
-            <div className="text-left hidden sm:block">
-              <p className="text-sm font-medium text-neutral-900">{adminName}</p>
-              <p className="text-xs text-neutral-500 capitalize">{adminRole}</p>
-            </div>
+            {isLoading ? (
+              <div className="text-left hidden sm:block">
+                <div className="h-4 w-20 bg-neutral-200 rounded animate-pulse" />
+                <div className="h-3 w-14 bg-neutral-100 rounded animate-pulse mt-1" />
+              </div>
+            ) : (
+              <div className="text-left hidden sm:block">
+                <p className="text-sm font-medium text-neutral-900">
+                  {adminUser?.name || adminUser?.email?.split("@")[0] || "Admin"}
+                </p>
+                <p className="text-xs text-neutral-500 capitalize">
+                  {formatRole(adminUser?.role)}
+                </p>
+              </div>
+            )}
             <ChevronDown className="w-4 h-4 text-neutral-400" />
           </button>
 
           {showUserMenu && (
             <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-lg shadow-lg border border-neutral-200 py-1 z-50 animate-fade-in">
               <div className="px-4 py-3 border-b border-neutral-100">
-                <p className="text-sm font-medium text-neutral-900">{adminName}</p>
-                <p className="text-xs text-neutral-500">{adminEmail}</p>
+                <p className="text-sm font-medium text-neutral-900">
+                  {adminUser?.name || "Admin"}
+                </p>
+                <p className="text-xs text-neutral-500">{adminUser?.email}</p>
               </div>
 
               <div className="py-1">
@@ -111,7 +127,7 @@ export function Header({
                   onClick={handleLogout}
                   className="flex items-center gap-3 w-full px-4 py-2 text-sm text-error-600 hover:bg-error-50 transition-colors"
                 >
-                  <LogOut className="w-4 h-4" onClick={handleLogout} />
+                  <LogOut className="w-4 h-4" />
                   Sign out
                 </button>
               </div>

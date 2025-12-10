@@ -15,15 +15,24 @@ export async function createAuditLog(params: {
   const db = getDb();
   const auditRef = db.collection(Collections.AUDIT_LOGS).doc();
 
-  const auditLog: Omit<AuditLog, "id"> = {
+  // Build the audit log object, excluding undefined values
+  const auditLog: Record<string, unknown> = {
     adminUserId: params.adminUserId,
-    adminEmail: params.adminEmail,
     action: params.action,
     targetType: params.targetType,
-    targetId: params.targetId,
-    metadata: params.metadata,
-    createdAt: serverTimestamp() as any,
+    createdAt: serverTimestamp(),
   };
+
+  // Only include optional fields if they are defined
+  if (params.adminEmail !== undefined) {
+    auditLog.adminEmail = params.adminEmail;
+  }
+  if (params.targetId !== undefined) {
+    auditLog.targetId = params.targetId;
+  }
+  if (params.metadata !== undefined) {
+    auditLog.metadata = params.metadata;
+  }
 
   await auditRef.set(auditLog);
   return auditRef.id;

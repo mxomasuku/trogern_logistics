@@ -12,6 +12,12 @@ export interface CompanyDoc {
   usageDescription: string;
   createdAt: FirebaseFirestore.Timestamp;
   updatedAt: FirebaseFirestore.Timestamp;
+  subscriptionStatus: "active" | "suspended" | "cancelled" | "inactive" | "trial";
+  subscriptionPlan: "free" | "standard" | "premium"| "enterprise";
+  subscriptionBillingProvider: "stripe" | "manual";
+  subscriptionCurrentPeriodEnd: FirebaseFirestore.Timestamp;
+  country: string;
+  status: "active" | "inactive" | "blocked" | "trial";
 }
 
 export type AppUserRole = "owner" | "manager" | "employee";

@@ -82,7 +82,7 @@ export function UsersTable({ mockUsers }: UserTableProps) {
                             </TableCell>
                             <TableCell>
                                 <span className="text-sm text-neutral-600">
-                                    {/* {formatRelativeTime(user.lastActiveAt)} */}
+                                    {formatFirebaseTimestamp(user.lastActiveAt)}
                                 </span>
                             </TableCell>
                             <TableCell>

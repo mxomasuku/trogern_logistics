@@ -3,19 +3,16 @@ import { PageHeader } from "@/components/layout/page-header";
 import { Card, CardTitle, Badge, Button } from "@/components/ui/index";
 import { StatCard, StatsGrid, MetricRow } from "@/components/ui/stats";
 import { SimpleTabs } from "@/components/ui/tabs";
-import {
-  Table,
-  TableHeader,
-  TableBody,
-  TableRow,
-  TableCell,
-} from "@/components/ui/table";
+
 import { formatDate, formatRelativeTime } from "@/lib/utils";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getCompanyDetail } from "@trogern/domain";
 import { Company, FirebaseTimestamp } from "@/types/types";
 import { timestampToDate } from "@/lib/utils";
+import { UsersTab } from "./users-tab";
+import { ActionsTab } from "./actions-tab";
+import { ActivityTab } from "./activity-tab"
 import {
   Building2,
   Users,
@@ -164,132 +161,11 @@ function OverviewTab({ company, owner, subscription, userCount, activeUserCount 
   );
 }
 
-function UsersTab({ users }: { users: any[] }) {
-  return (
-    <Card padding="md">
-      <div className="flex items-center justify-between mb-4">
-        <CardTitle>Company Users</CardTitle>
-        <Button variant="outline" size="sm">Add User</Button>
-      </div>
 
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableCell header>User</TableCell>
-            <TableCell header>Role</TableCell>
-            <TableCell header>Status</TableCell>
-            <TableCell header>Actions</TableCell>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {users.map((user) => (
-            <TableRow key={user.id}>
-              <TableCell>
-                <Link href={`/admin/users/${user.id}`} className="hover:text-electric-500">
-                  <p className="font-medium">{user.name || "No Name"}</p>
-                  <p className="text-xs text-neutral-500">{user.email}</p>
-                </Link>
-              </TableCell>
-              <TableCell>
-                <span className="capitalize text-sm">{user.role}</span>
-              </TableCell>
-              <TableCell>
-                <Badge variant={user.status === "active" ? "success" : "error"}>
-                  {user.status}
-                </Badge>
-              </TableCell>
-              <TableCell>
-                <Button variant="ghost" size="sm">
-                  {user.status === "active" ? "Suspend" : "Reinstate"}
-                </Button>
-              </TableCell>
-            </TableRow>
-          ))}
-          {users.length === 0 && (
-            <TableRow>
-              <TableCell colSpan={4} className="text-center text-neutral-500 py-8">
-                No users found
-              </TableCell>
-            </TableRow>
-          )}
-        </TableBody>
-      </Table>
-    </Card>
-  );
-}
 
-function ActivityTab() {
-  return (
-    <Card padding="md">
-      <CardTitle className="mb-4">Recent Activity</CardTitle>
-      <div className="space-y-3">
-        {mockActivity.map((item) => (
-          <div key={item.id} className="flex items-start gap-3 p-3 bg-neutral-50 rounded-lg">
-            <div className="p-2 bg-white rounded-lg">
-              <Activity className="w-4 h-4 text-neutral-400" />
-            </div>
-            <div className="flex-1">
-              <p className="text-sm text-neutral-900">{item.description}</p>
-              <p className="text-xs text-neutral-500">{formatRelativeTime(item.timestamp)}</p>
-            </div>
-          </div>
-        ))}
-      </div>
-    </Card>
-  );
-}
 
-function ActionsTab({ companyStatus }: { companyStatus: string }) {
-  return (
-    <div className="space-y-6">
-      <Card padding="md">
-        <CardTitle className="mb-4">Company Actions</CardTitle>
-        <div className="space-y-4">
-          {companyStatus === "active" ? (
-            <div className="flex items-center justify-between p-4 border border-warning-200 bg-warning-50 rounded-lg">
-              <div>
-                <p className="font-medium text-warning-800">Suspend Company</p>
-                <p className="text-sm text-warning-600">
-                  Suspending will block all users from accessing the platform.
-                </p>
-              </div>
-              <Button variant="outline" className="border-warning-300 text-warning-700 hover:bg-warning-100">
-                <Ban className="w-4 h-4" />
-                Suspend
-              </Button>
-            </div>
-          ) : (
-            <div className="flex items-center justify-between p-4 border border-success-200 bg-success-50 rounded-lg">
-              <div>
-                <p className="font-medium text-success-800">Reinstate Company</p>
-                <p className="text-sm text-success-600">
-                  Reinstating will restore access for all users.
-                </p>
-              </div>
-              <Button variant="success">
-                <RefreshCw className="w-4 h-4" />
-                Reinstate
-              </Button>
-            </div>
-          )}
 
-          <div className="flex items-center justify-between p-4 border border-error-200 bg-error-50 rounded-lg">
-            <div>
-              <p className="font-medium text-error-800">Delete Company</p>
-              <p className="text-sm text-error-600">
-                This action is irreversible. All data will be permanently deleted.
-              </p>
-            </div>
-            <Button variant="danger">
-              <Trash2 className="w-4 h-4" />
-              Delete
-            </Button>
-          </div>
-        </div>
-      </Card>
-    </div>
-  );
-}
+
 
 export default async function CompanyDetailPage({ params }: CompanyDetailPageProps) {
   const { companyId } = await params;
@@ -342,8 +218,8 @@ export default async function CompanyDetailPage({ params }: CompanyDetailPagePro
   const tabs = [
     { id: "overview", label: "Overview", content: <OverviewTab company={company} owner={owner} subscription={mockSubscription} userCount={userCount} activeUserCount={activeUserCount} /> },
     { id: "users", label: "Users", content: <UsersTab users={clientUsers} /> },
-    { id: "activity", label: "Activity", content: <ActivityTab /> },
-    { id: "actions", label: "Actions", content: <ActionsTab companyStatus={company.status} /> },
+    { id: "activity", label: "Activity", content: <ActivityTab mockActivity={mockActivity} /> },
+    { id: "actions", label: "Actions", content: <ActionsTab companyId={companyId} companyStatus={company.status} /> },
   ];
 
   return (

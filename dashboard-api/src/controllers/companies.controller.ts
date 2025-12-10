@@ -54,15 +54,17 @@ export async function createCompany(req: Request, res: Response) {
     employeeCount,
     fleetType,
     usageDescription,
+    country,
   } = req.body as {
     name?: string;
     fleetSize?: number;
     employeeCount?: number;
     fleetType?: FleetType;
     usageDescription?: string;
+    country?: string;
   };
 
-  if (!name || !fleetSize || !employeeCount || !fleetType || !usageDescription) {
+  if (!name || !fleetSize || !employeeCount || !fleetType || !usageDescription || !country) {
     return res.status(400).json({
       isSuccessful: false,
       error: {
@@ -115,6 +117,12 @@ export async function createCompany(req: Request, res: Response) {
       await docRef.set({
         companyId: docRef.id,
         ownerUid: uid,
+        country: country,
+        subscriptionStatus: "active",
+        subscriptionPlan: "free",
+        subscriptionBillingProvider: "manual",
+        subscriptionCurrentPeriodEnd: now,
+        status: 'active',
         name,
         fleetSize,
         employeeCount,
@@ -222,6 +230,12 @@ export async function getMyCompany(req: Request, res: Response) {
       usageDescription: data.usageDescription,
       createdAt: data.createdAt.toDate().toISOString(),
       updatedAt: data.updatedAt.toDate().toISOString(),
+      subscriptionStatus: data.subscriptionStatus,
+      subscriptionPlan: data.subscriptionPlan,
+      subscriptionBillingProvider: data.subscriptionBillingProvider,
+      subscriptionCurrentPeriodEnd: data.subscriptionCurrentPeriodEnd.toDate().toISOString(),
+      country: data.country,
+      status: data.status,
     };
 
     return res.status(200).json({
@@ -307,6 +321,12 @@ export const updateCompanyCoreDetails = async (req: Request, res: Response) => {
       usageDescription: data.usageDescription,
       createdAt: createdAtIso,
       updatedAt: updatedAtIso,
+      subscriptionStatus: data.subscriptionStatus,
+      subscriptionPlan: data.subscriptionPlan,
+      subscriptionBillingProvider: data.subscriptionBillingProvider,
+      subscriptionCurrentPeriodEnd: data.subscriptionCurrentPeriodEnd.toDate().toISOString(),
+      country: data.country,
+      status: data.status,
     };
 
     return res.status(200).json({
@@ -367,6 +387,12 @@ export async function getMyCompanyDetails(req: Request, res: Response) {
       usageDescription: data.usageDescription,
       createdAt: createdAtIso,
       updatedAt: updatedAtIso,
+      subscriptionStatus: data.subscriptionStatus,
+      subscriptionPlan: data.subscriptionPlan,
+      subscriptionBillingProvider: data.subscriptionBillingProvider,
+      subscriptionCurrentPeriodEnd: data.subscriptionCurrentPeriodEnd.toDate().toISOString(),
+      country: data.country,
+      status: data.status,
     };
 
     return res.status(200).json({

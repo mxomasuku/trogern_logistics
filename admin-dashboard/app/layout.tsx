@@ -3,7 +3,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Trogern Admin Dashboard",
-  description: "Founder dashboard for Trogern Logistics SaaS",
+  description: "Admin dashboard for Trogern Logistics SaaS",
 };
 
 export default function RootLayout({
