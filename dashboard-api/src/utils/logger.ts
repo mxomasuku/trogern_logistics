@@ -34,6 +34,9 @@ export function getRequestContext(req: Request): Partial<LogContext> {
   };
 }
 
+// Check if console logging is enabled (disabled by default to reduce noise)
+const ENABLE_CONSOLE_LOGS = process.env.ENABLE_CONSOLE_LOGS === "true";
+
 // HIGHLIGHT: base writer – console + Firestore
 async function writeLogToStore(entry: LogContext) {
   // Use ISO string for console logging (human readable)
@@ -49,13 +52,15 @@ async function writeLogToStore(entry: LogContext) {
     createdAt: admin.firestore.Timestamp.now(),
   };
 
-  // HIGHLIGHT: console for local debugging
-  if (entry.level === "error") {
-    // eslint-disable-next-line no-console
-    console.error("[APP_LOG]", JSON.stringify(consolePayload));
-  } else {
-    // eslint-disable-next-line no-console
-    console.log("[APP_LOG]", JSON.stringify(consolePayload));
+  // HIGHLIGHT: console for local debugging (only if enabled)
+  if (ENABLE_CONSOLE_LOGS) {
+    if (entry.level === "error") {
+      // eslint-disable-next-line no-console
+      console.error("[APP_LOG]", JSON.stringify(consolePayload));
+    } else {
+      // eslint-disable-next-line no-console
+      console.log("[APP_LOG]", JSON.stringify(consolePayload));
+    }
   }
 
   try {

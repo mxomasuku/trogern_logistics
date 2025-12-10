@@ -179,23 +179,101 @@ export interface Event {
 // SUPPORT TICKET TYPES
 // ============================================
 
-export type TicketStatus = "open" | "in_progress" | "closed";
+export type TicketType = "bug" | "feature" | "question" | "other";
 
-export type TicketPriority = "low" | "medium" | "high";
+export type TicketStatus =
+  | "open"
+  | "in_progress"
+  | "awaiting_response"  // Admin responded, waiting on client
+  | "resolved"           // Fixed but not yet confirmed
+  | "closed"             // Confirmed closed
+  | "duplicate";         // Linked to another ticket
+
+export type TicketPriority = "low" | "medium" | "high" | "critical";
+
+/**
+ * Attachment (screenshots, files)
+ */
+export interface TicketAttachment {
+  id: string;
+  url: string;              // Firebase Storage URL
+  filename: string;
+  mimeType: string;         // image/png, application/pdf, etc.
+  size: number;             // bytes
+  uploadedAt: Timestamp;
+  uploadedBy: string;       // userId
+}
+
+/**
+ * Creator info - denormalized for display without extra queries
+ */
+export interface TicketCreator {
+  id: string;
+  name: string;
+  email: string;
+  avatarUrl?: string | null;
+}
 
 export interface SupportTicket {
   id: string;
+
+  // Content
+  subject: string;
+  message: string;          // Initial message (first message in thread)
+  attachments: TicketAttachment[];  // Initial attachments
+
+  // Classification
+  type: TicketType;
+  priority: TicketPriority;
+  status: TicketStatus;
+
+  // Ownership - legacy fields for backwards compatibility
   userId?: string;
   companyId?: string;
   email: string;
-  subject: string;
-  message: string;
-  status: TicketStatus;
-  priority: TicketPriority;
+
+  // Enhanced ownership
+  createdBy?: TicketCreator; // Who created it (denormalized)
+  assignedTo?: string;       // Admin userId
+  assignedToName?: string;   // Denormalized admin name
+
+  // Timestamps
   createdAt: Timestamp;
   updatedAt: Timestamp;
+  lastActivityAt?: Timestamp;   // For nudge feature - updates on any message
+  resolvedAt?: Timestamp;       // When marked resolved
   lastUpdatedBy: "user" | "admin";
-  assignedTo?: string;
+
+  // Tracking
+  messageCount?: number;     // Quick count without fetching subcollection
+
+  // Linking (optional)
+  duplicateOf?: string;     // ticketId if this is a duplicate
+
+  // Nudge tracking
+  lastNudgedAt?: Timestamp;    // Prevent spam nudging
+  nudgeCount?: number;         // How many times client has nudged
+}
+
+/**
+ * Ticket for display in the list
+ */
+export interface TicketListItem {
+  id: string;
+  subject: string;
+  type: TicketType;
+  priority: TicketPriority;
+  status: TicketStatus;
+  createdAt: Timestamp;
+  lastActivityAt?: Timestamp;
+  messageCount?: number;
+  hasAttachments?: boolean;
+  createdBy?: {
+    name: string;
+    avatarUrl?: string;
+  };
+  assignedToName?: string;
+  isStale?: boolean;        // Computed: no activity in X days
 }
 
 export interface SupportMessage {
@@ -203,10 +281,15 @@ export interface SupportMessage {
   ticketId: string;
   senderType: "user" | "admin";
   senderId?: string;
+  senderName?: string;      // Denormalized for display
   body: string;
+  attachments?: TicketAttachment[];
   createdAt: Timestamp;
   isInternalNote: boolean;
 }
+
+// Alias for frontend compatibility
+export type TicketMessage = SupportMessage;
 
 // ============================================
 // NOTIFICATION TYPES
@@ -332,8 +415,11 @@ export interface SubscriptionFilters {
 export interface TicketFilters {
   status?: TicketStatus;
   priority?: TicketPriority;
+  type?: TicketType;
   companyId?: string;
   userId?: string;
+  assignedTo?: string;
+  isStale?: boolean;
 }
 
 export interface EventFilters {

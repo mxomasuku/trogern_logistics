@@ -1,135 +1,165 @@
 import { PageHeader } from "@/components/layout/page-header";
 import { Card, CardTitle, Badge, Button } from "@/components/ui/index";
 import { MetricRow } from "@/components/ui/stats";
-import { Textarea, Label, FormGroup } from "@/components/ui/form";
-import { formatDate, formatRelativeTime } from "@/lib/utils";
+import { formatRelativeTime } from "@/lib/utils";
 import Link from "next/link";
 import {
   User,
   Building2,
   Mail,
   Clock,
-  Send,
-  FileText,
-  CheckCircle,
-  XCircle,
-  AlertTriangle,
+  Bell,
+  MessageSquare,
+  Bug,
+  Lightbulb,
+  HelpCircle,
 } from "lucide-react";
+import { TicketActions } from "./ticket-actions";
+import { MessageThread } from "./message-thread";
+import { getSupportTicketDetail } from "@trogern/domain";
+import type { SupportTicket, SupportMessage, AppUser, Company } from "@trogern/domain";
+
+// Helper to convert Firestore Timestamps to serializable format
+// This is needed because Next.js can't serialize class instances from Server to Client Components
+function serializeTimestamps<T>(obj: T): T {
+  if (obj === null || obj === undefined) return obj;
+  if (Array.isArray(obj)) {
+    return obj.map(serializeTimestamps) as T;
+  }
+  if (typeof obj === "object") {
+    const anyObj = obj as any;
+    if (anyObj._seconds !== undefined && anyObj._nanoseconds !== undefined) {
+      return new Date(anyObj._seconds * 1000).toISOString() as T;
+    }
+    if (typeof anyObj.toDate === "function") {
+      return anyObj.toDate().toISOString() as T;
+    }
+    const result: any = {};
+    for (const key of Object.keys(anyObj)) {
+      result[key] = serializeTimestamps(anyObj[key]);
+    }
+    return result as T;
+  }
+  return obj;
+}
 
 interface TicketDetailPageProps {
   params: Promise<{ ticketId: string }>;
 }
 
-// Mock data
-const mockTicket = {
-  id: "ticket-1",
-  subject: "Cannot add new vehicles to fleet",
-  message: "Hi, I'm trying to add new vehicles to my fleet but the button doesn't seem to work. I've tried refreshing the page and clearing my cache but it still doesn't work. This is urgent as I need to add 5 new vehicles by tomorrow.",
-  email: "john@sunrise-transport.co.zw",
-  userId: "user-1",
-  userName: "John Moyo",
-  companyId: "comp-1",
-  companyName: "Sunrise Transport Co.",
-  status: "open" as "open" | "in_progress" | "closed",
-  priority: "high" as const,
-  createdAt: new Date(Date.now() - 2 * 3600000),
-  updatedAt: new Date(Date.now() - 3600000),
-  assignedTo: null,
-};
+// Fetch ticket detail directly from domain function
+async function fetchTicketDetail(ticketId: string) {
+  const data = await getSupportTicketDetail(ticketId);
+  // Serialize to ensure all timestamps are plain objects for client components
+  return serializeTimestamps(data);
+}
 
-const mockMessages = [
-  {
-    id: "msg-1",
-    senderType: "user" as const,
-    senderId: "user-1",
-    senderName: "John Moyo",
-    body: "Hi, I'm trying to add new vehicles to my fleet but the button doesn't seem to work. I've tried refreshing the page and clearing my cache but it still doesn't work. This is urgent as I need to add 5 new vehicles by tomorrow.",
-    createdAt: new Date(Date.now() - 2 * 3600000),
-    isInternalNote: false,
-  },
-  {
-    id: "msg-2",
-    senderType: "admin" as const,
-    senderId: "admin-1",
-    senderName: "Support Team",
-    body: "Looking into this issue now. Can you tell me which browser you're using?",
-    createdAt: new Date(Date.now() - 1.5 * 3600000),
-    isInternalNote: false,
-  },
-  {
-    id: "msg-3",
-    senderType: "admin" as const,
-    senderId: "admin-1",
-    senderName: "Support Team",
-    body: "Internal note: Checked the logs, seems like a permissions issue with their subscription tier.",
-    createdAt: new Date(Date.now() - 1 * 3600000),
-    isInternalNote: true,
-  },
-];
+function getTypeIcon(type: string) {
+  switch (type) {
+    case "bug":
+      return <Bug className="w-5 h-5 text-error-500" />;
+    case "feature":
+      return <Lightbulb className="w-5 h-5 text-warning-500" />;
+    case "question":
+      return <HelpCircle className="w-5 h-5 text-info-500" />;
+    default:
+      return <MessageSquare className="w-5 h-5 text-neutral-400" />;
+  }
+}
 
-function MessageBubble({ message }: { message: typeof mockMessages[0] }) {
-  const isAdmin = message.senderType === "admin";
-  const isInternal = message.isInternalNote;
-
-  return (
-    <div className={`flex ${isAdmin ? "justify-end" : "justify-start"}`}>
-      <div
-        className={`max-w-[70%] rounded-lg p-4 ${isInternal
-            ? "bg-warning-50 border border-warning-200"
-            : isAdmin
-              ? "bg-electric-50 border border-electric-200"
-              : "bg-neutral-100"
-          }`}
-      >
-        <div className="flex items-center gap-2 mb-2">
-          <span className={`text-sm font-medium ${isInternal ? "text-warning-700" : isAdmin ? "text-electric-700" : "text-neutral-700"}`}>
-            {message.senderName}
-          </span>
-          {isInternal && (
-            <Badge variant="warning" className="text-xs">Internal Note</Badge>
-          )}
-        </div>
-        <p className="text-sm text-neutral-700 whitespace-pre-wrap">{message.body}</p>
-        <p className="text-xs text-neutral-500 mt-2">{formatRelativeTime(message.createdAt)}</p>
-      </div>
-    </div>
-  );
+function formatTimestamp(timestamp: any): Date {
+  if (!timestamp) return new Date();
+  // Handle ISO string (from serialization)
+  if (typeof timestamp === "string") return new Date(timestamp);
+  // Fallback for Firestore Timestamp objects
+  if (timestamp.toDate) return timestamp.toDate();
+  if (timestamp._seconds) return new Date(timestamp._seconds * 1000);
+  return new Date(timestamp);
 }
 
 export default async function TicketDetailPage({ params }: TicketDetailPageProps) {
   const { ticketId } = await params;
 
+  let ticketData: {
+    ticket: SupportTicket;
+    user: AppUser | null;
+    company: Company | null;
+    messages: SupportMessage[];
+  };
+
+  try {
+    ticketData = await fetchTicketDetail(ticketId);
+  } catch (error) {
+    return (
+      <div className="space-y-6">
+        <PageHeader
+          title="Ticket Not Found"
+          backHref="/admin/support"
+          breadcrumbs={[
+            { label: "Dashboard", href: "/admin" },
+            { label: "Support", href: "/admin/support" },
+            { label: "Not Found" },
+          ]}
+        />
+        <Card padding="md">
+          <div className="text-center py-12">
+            <p className="text-error-600 mb-4">Failed to load ticket details.</p>
+            <Link href="/admin/support">
+              <Button variant="outline">Back to Tickets</Button>
+            </Link>
+          </div>
+        </Card>
+      </div>
+    );
+  }
+
+  const { ticket, user, company, messages } = ticketData;
+
+  // Filter out internal notes for display purposes (admin can see all)
+  const publicMessages = messages.filter(m => !m.isInternalNote);
+  const internalNotes = messages.filter(m => m.isInternalNote);
+
   return (
     <div className="space-y-6">
       <PageHeader
-        title={mockTicket.subject}
+        title={ticket.subject}
         description={`Ticket #${ticketId}`}
-        backHref="/founder/support"
+        backHref="/admin/support"
         breadcrumbs={[
-          { label: "Dashboard", href: "/founder" },
-          { label: "Support", href: "/founder/support" },
+          { label: "Dashboard", href: "/admin" },
+          { label: "Support", href: "/admin/support" },
           { label: `Ticket #${ticketId}` },
         ]}
         actions={
           <div className="flex items-center gap-2">
+            {getTypeIcon(ticket.type)}
             <Badge
               variant={
-                mockTicket.status === "open" ? "warning" :
-                  mockTicket.status === "in_progress" ? "info" : "neutral"
+                ticket.status === "open" ? "warning" :
+                  ticket.status === "in_progress" ? "info" :
+                    ticket.status === "awaiting_response" ? "warning" :
+                      ticket.status === "resolved" ? "success" : "neutral"
               }
               className="text-sm px-3 py-1"
             >
-              {mockTicket.status.replace("_", " ")}
+              {ticket.status.replace(/_/g, " ")}
             </Badge>
             <Badge
               variant={
-                mockTicket.priority === "high" ? "error" :
-                  mockTicket.priority === "medium" ? "warning" : "info"
+                ticket.priority === "critical" ? "error" :
+                  ticket.priority === "high" ? "error" :
+                    ticket.priority === "medium" ? "warning" : "info"
               }
               className="text-sm px-3 py-1"
             >
-              {mockTicket.priority} priority
+              {ticket.priority} priority
             </Badge>
+            {ticket.nudgeCount && ticket.nudgeCount > 0 && (
+              <Badge variant="warning" className="text-sm px-3 py-1">
+                <Bell className="w-3 h-3 mr-1" />
+                {ticket.nudgeCount} nudge{ticket.nudgeCount > 1 ? "s" : ""}
+              </Badge>
+            )}
           </div>
         }
       />
@@ -137,45 +167,23 @@ export default async function TicketDetailPage({ params }: TicketDetailPageProps
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Messages section */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Messages */}
+          {/* Initial ticket message */}
           <Card padding="md">
-            <CardTitle className="mb-4">Conversation</CardTitle>
-            <div className="space-y-4">
-              {mockMessages.map((message) => (
-                <MessageBubble key={message.id} message={message} />
-              ))}
+            <CardTitle className="mb-4">Original Request</CardTitle>
+            <div className="p-4 bg-neutral-50 rounded-lg">
+              <p className="text-sm text-neutral-700 whitespace-pre-wrap">{ticket.message}</p>
+              <p className="text-xs text-neutral-500 mt-2">
+                {formatRelativeTime(formatTimestamp(ticket.createdAt))}
+              </p>
             </div>
           </Card>
 
-          {/* Reply form */}
-          <Card padding="md">
-            <CardTitle className="mb-4">Reply</CardTitle>
-            <div className="space-y-4">
-              <FormGroup>
-                <Label>Message</Label>
-                <Textarea
-                  rows={4}
-                  placeholder="Type your reply..."
-                />
-              </FormGroup>
-              <div className="flex items-center justify-between">
-                <label className="flex items-center gap-2 text-sm text-neutral-600">
-                  <input type="checkbox" className="rounded border-neutral-300" />
-                  <span>Mark as internal note (not visible to user)</span>
-                </label>
-                <div className="flex gap-2">
-                  <Button variant="outline">
-                    <FileText className="w-4 h-4" />
-                    Save Draft
-                  </Button>
-                  <Button variant="primary">
-                    <Send className="w-4 h-4" />
-                    Send Reply
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </Card>
+          {/* Message Thread */}
+          <MessageThread
+            messages={messages}
+            ticketId={ticketId}
+            ticketStatus={ticket.status}
+          />
         </div>
 
         {/* Sidebar */}
@@ -185,40 +193,48 @@ export default async function TicketDetailPage({ params }: TicketDetailPageProps
             <CardTitle className="mb-4">Ticket Details</CardTitle>
             <div className="space-y-1">
               <MetricRow label="Status" value={
-                <Badge variant={mockTicket.status === "open" ? "warning" : "info"}>
-                  {mockTicket.status}
+                <Badge variant={ticket.status === "open" ? "warning" : ticket.status === "in_progress" ? "info" : "success"}>
+                  {ticket.status.replace(/_/g, " ")}
                 </Badge>
               } />
               <MetricRow label="Priority" value={
-                <Badge variant={mockTicket.priority === "high" ? "error" : "warning"}>
-                  {mockTicket.priority}
+                <Badge variant={ticket.priority === "high" || ticket.priority === "critical" ? "error" : "warning"}>
+                  {ticket.priority}
                 </Badge>
+              } />
+              <MetricRow label="Type" value={
+                <div className="flex items-center gap-1">
+                  {getTypeIcon(ticket.type)}
+                  <span className="capitalize">{ticket.type}</span>
+                </div>
               } />
               <MetricRow
                 label="Created"
-                value={formatRelativeTime(mockTicket.createdAt)}
+                value={formatRelativeTime(formatTimestamp(ticket.createdAt))}
                 icon={<Clock className="w-4 h-4" />}
               />
               <MetricRow
                 label="Last Updated"
-                value={formatRelativeTime(mockTicket.updatedAt)}
+                value={formatRelativeTime(formatTimestamp(ticket.updatedAt))}
               />
+              {ticket.messageCount !== undefined && (
+                <MetricRow
+                  label="Messages"
+                  value={ticket.messageCount.toString()}
+                  icon={<MessageSquare className="w-4 h-4" />}
+                />
+              )}
+              {ticket.nudgeCount !== undefined && ticket.nudgeCount > 0 && (
+                <MetricRow
+                  label="Nudges"
+                  value={ticket.nudgeCount.toString()}
+                  icon={<Bell className="w-4 h-4" />}
+                />
+              )}
             </div>
 
-            <div className="mt-4 pt-4 border-t border-neutral-100 space-y-2">
-              <Button variant="outline" size="sm" className="w-full justify-start">
-                <CheckCircle className="w-4 h-4" />
-                Mark as Resolved
-              </Button>
-              <Button variant="outline" size="sm" className="w-full justify-start">
-                <AlertTriangle className="w-4 h-4" />
-                Escalate
-              </Button>
-              <Button variant="outline" size="sm" className="w-full justify-start text-error-600 hover:bg-error-50">
-                <XCircle className="w-4 h-4" />
-                Close Ticket
-              </Button>
-            </div>
+            {/* Quick Actions */}
+            <TicketActions ticketId={ticketId} currentStatus={ticket.status} currentPriority={ticket.priority} />
           </Card>
 
           {/* Customer info */}
@@ -228,56 +244,57 @@ export default async function TicketDetailPage({ params }: TicketDetailPageProps
               <MetricRow
                 label="Name"
                 value={
-                  <Link href={`/founder/users/${mockTicket.userId}`} className="text-electric-500 hover:underline">
-                    {mockTicket.userName}
-                  </Link>
+                  user ? (
+                    <Link href={`/admin/users/${user.uid}`} className="text-electric-500 hover:underline">
+                      {user.name || user.email}
+                    </Link>
+                  ) : ticket.createdBy?.name || "Unknown"
                 }
                 icon={<User className="w-4 h-4" />}
               />
               <MetricRow
                 label="Email"
-                value={mockTicket.email}
+                value={user?.email || ticket.createdBy?.email || ticket.email || "N/A"}
                 icon={<Mail className="w-4 h-4" />}
               />
               <MetricRow
                 label="Company"
                 value={
-                  <Link href={`/founder/companies/${mockTicket.companyId}`} className="text-electric-500 hover:underline">
-                    {mockTicket.companyName}
-                  </Link>
+                  company ? (
+                    <Link href={`/admin/companies/${company.id}`} className="text-electric-500 hover:underline">
+                      {company.name}
+                    </Link>
+                  ) : "N/A"
                 }
                 icon={<Building2 className="w-4 h-4" />}
               />
             </div>
           </Card>
 
-          {/* Quick actions */}
-          <Card padding="md">
-            <CardTitle className="mb-4">Change Status</CardTitle>
-            <div className="space-y-2">
-              <Button
-                variant={mockTicket.status === "open" ? "primary" : "outline"}
-                size="sm"
-                className="w-full"
-              >
-                Open
-              </Button>
-              <Button
-                variant={mockTicket.status === "in_progress" ? "primary" : "outline"}
-                size="sm"
-                className="w-full"
-              >
-                In Progress
-              </Button>
-              <Button
-                variant={mockTicket.status === "closed" ? "primary" : "outline"}
-                size="sm"
-                className="w-full"
-              >
-                Closed
-              </Button>
-            </div>
-          </Card>
+          {/* Internal Notes Summary */}
+          {internalNotes.length > 0 && (
+            <Card padding="md">
+              <CardTitle className="mb-4 flex items-center gap-2">
+                <span className="w-2 h-2 bg-warning-500 rounded-full"></span>
+                Internal Notes ({internalNotes.length})
+              </CardTitle>
+              <div className="space-y-2 max-h-48 overflow-y-auto">
+                {internalNotes.slice(0, 3).map((note) => (
+                  <div key={note.id} className="p-2 bg-warning-50 rounded text-sm">
+                    <p className="text-warning-800 line-clamp-2">{note.body}</p>
+                    <p className="text-xs text-warning-600 mt-1">
+                      {formatRelativeTime(formatTimestamp(note.createdAt))}
+                    </p>
+                  </div>
+                ))}
+                {internalNotes.length > 3 && (
+                  <p className="text-xs text-neutral-500">
+                    +{internalNotes.length - 3} more notes
+                  </p>
+                )}
+              </div>
+            </Card>
+          )}
         </div>
       </div>
     </div>

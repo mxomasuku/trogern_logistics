@@ -15,6 +15,7 @@ import {
   Home,
   DollarSign,
   PersonStanding,
+  Headphones, // HIGHLIGHT: added for support
   X, // HIGHLIGHT (ADDED): close icon for overlay mode
 } from "lucide-react";
 import { useLogoutMutation } from "@/pages/auth/authSlice";
@@ -33,6 +34,7 @@ const NAV = [
   { to: "/app/vehicles", label: "Vehicles", icon: Car },
   { to: "/app/service", label: "Service", icon: Wrench },
   { to: "/app/income", label: "Income", icon: DollarSign },
+  { to: "/app/support", label: "Support", icon: Headphones }, // HIGHLIGHT: added
   { to: "/app/manage-company", label: "Manage", icon: PersonStanding },
 ];
 
@@ -40,7 +42,7 @@ function getDefaultCollapsed(): boolean {
   try {
     const saved = localStorage.getItem("sidebar:collapsed");
     if (saved !== null) return JSON.parse(saved);
-  } catch {}
+  } catch { }
   if (typeof window !== "undefined") {
     return window.matchMedia("(max-width: 1024px)").matches;
   }
@@ -59,14 +61,14 @@ export default function Sidebar({ mode = "desktop", onClose }: SidebarProps) {
     if (isOverlay) return; // HIGHLIGHT (ADDED): do not persist collapsed in overlay
     try {
       localStorage.setItem("sidebar:collapsed", JSON.stringify(collapsed));
-    } catch {}
+    } catch { }
   }, [collapsed, isOverlay]);
 
   const widthClass = isOverlay
     ? "w-64" // HIGHLIGHT (ADDED): fixed width for overlay
     : collapsed
-    ? "w-16"
-    : "w-64";
+      ? "w-16"
+      : "w-64";
 
   const showCollapsedUI = !isOverlay && collapsed; // HIGHLIGHT (ADDED)
 
@@ -75,9 +77,9 @@ export default function Sidebar({ mode = "desktop", onClose }: SidebarProps) {
       className={cn(
         isOverlay
           ? // HIGHLIGHT (ADDED): overlay drawer on top of content (mobile only)
-            "fixed inset-y-0 left-0 z-50 flex h-full flex-col bg-white/95 backdrop-blur-sm shadow-lg border-r border-gray-200/70 lg:hidden"
+          "fixed inset-y-0 left-0 z-50 flex h-full flex-col bg-white/95 backdrop-blur-sm shadow-lg border-r border-gray-200/70 lg:hidden"
           : // original desktop behavior
-            "sticky top-0 z-30 h-screen flex flex-col bg-white/95 backdrop-blur-sm shadow-sm border-r border-gray-200/70",
+          "sticky top-0 z-30 h-screen flex flex-col bg-white/95 backdrop-blur-sm shadow-sm border-r border-gray-200/70",
         "transition-[width] duration-300 ease-in-out",
         widthClass
       )}
