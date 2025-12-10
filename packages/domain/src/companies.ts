@@ -320,8 +320,9 @@ export async function getCompanyRecentActivity(
 
   // Get recent events
   const eventsSnapshot = await db
-    .collection(Collections.EVENTS)
+    .collection(Collections.APP_LOGS)
     .where("companyId", "==", companyId)
+    .where("method", "!=", "GET")
     .orderBy("createdAt", "desc")
     .limit(limit)
     .get();
@@ -358,4 +359,54 @@ export async function getCompanyRecentActivity(
   });
 
   return activities.slice(0, limit);
+}
+
+/**
+ * Activity log entry from appLogs collection
+ */
+export interface ActivityLog {
+  id: string;
+  message: string;
+  timestamp: FirebaseFirestore.Timestamp;
+  companyId: string | null;
+  email: string | null;
+  uid: string | null;
+  level?: string;
+  tags?: string[];
+  path?: string;
+  method?: string;
+}
+
+/**
+ * Get activity logs for a company from appLogs collection
+ */
+export async function getCompanyActivityLogs(
+  companyId: string,
+  limit: number = 20
+): Promise<ActivityLog[]> {
+  const db = getDb();
+
+  const snapshot = await db
+    .collection("appLogs")
+    .where("companyId", "==", companyId)
+    .where("method", "!=", "GET")
+    .orderBy("timestamp", "desc")
+    .limit(limit)
+    .get();
+
+  return snapshot.docs.map((doc) => {
+    const data = doc.data();
+    return {
+      id: doc.id,
+      message: data.message || "",
+      timestamp: data.timestamp,
+      companyId: data.companyId || null,
+      email: data.email || null,
+      uid: data.uid || null,
+      level: data.level,
+      tags: data.tags,
+      path: data.path,
+      method: data.method,
+    } as ActivityLog;
+  });
 }

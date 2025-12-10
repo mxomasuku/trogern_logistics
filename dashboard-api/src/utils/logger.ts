@@ -1,7 +1,7 @@
 // HIGHLIGHT: central logger
 
 import { Request } from "express";
-const { db } = require("../config/firebase"); // HIGHLIGHT
+const { db, admin } = require("../config/firebase"); // HIGHLIGHT
 
 // HIGHLIGHT: shape of a log entry
 export interface LogContext {
@@ -36,23 +36,31 @@ export function getRequestContext(req: Request): Partial<LogContext> {
 
 // HIGHLIGHT: base writer – console + Firestore
 async function writeLogToStore(entry: LogContext) {
-  const payload = {
+  // Use ISO string for console logging (human readable)
+  const consolePayload = {
     ...entry,
     timestamp: new Date().toISOString(),
+  };
+
+  // Use Firebase Timestamp for Firestore (consistent with other documents)
+  const firestorePayload = {
+    ...entry,
+    timestamp: admin.firestore.Timestamp.now(),
+    createdAt: admin.firestore.Timestamp.now(),
   };
 
   // HIGHLIGHT: console for local debugging
   if (entry.level === "error") {
     // eslint-disable-next-line no-console
-    console.error("[APP_LOG]", JSON.stringify(payload));
+    console.error("[APP_LOG]", JSON.stringify(consolePayload));
   } else {
     // eslint-disable-next-line no-console
-    console.log("[APP_LOG]", JSON.stringify(payload));
+    console.log("[APP_LOG]", JSON.stringify(consolePayload));
   }
 
   try {
     // HIGHLIGHT: Firestore central collection
-    await db.collection("appLogs").add(payload);
+    await db.collection("appLogs").add(firestorePayload);
   } catch (firestoreError) {
     // eslint-disable-next-line no-console
     console.error("[APP_LOG_WRITE_FAILED]", firestoreError);
