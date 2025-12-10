@@ -421,3 +421,57 @@ export async function canUserAccess(userId: string): Promise<{
 
   return { canAccess: true };
 }
+
+/**
+ * User activity log entry from appLogs collection
+ */
+export interface UserActivityLog {
+  id: string;
+  message: string;
+  timestamp: FirebaseFirestore.Timestamp;
+  companyId: string | null;
+  email: string | null;
+  uid: string | null;
+  level?: string;
+  tags?: string[];
+  path?: string;
+  method?: string;
+}
+
+/**
+ * Get activity logs for a specific user from appLogs collection
+ * Filters by both companyId and uid to get user-specific actions
+ */
+export async function getUserActivityLogs(
+  companyId: string,
+  uid: string,
+  limit: number = 20
+): Promise<UserActivityLog[]> {
+  const db = getDb();
+
+  const snapshot = await db
+    .collection(Collections.APP_LOGS)
+    .where("companyId", "==", companyId)
+    .where("uid", "==", uid)
+    .where("method", "!=", "GET")
+    .orderBy("method", "asc") // Required for inequality filter
+    .orderBy("timestamp", "desc")
+    .limit(limit)
+    .get();
+
+  return snapshot.docs.map((doc) => {
+    const data = doc.data();
+    return {
+      id: doc.id,
+      message: data.message || "",
+      timestamp: data.timestamp,
+      companyId: data.companyId || null,
+      email: data.email || null,
+      uid: data.uid || null,
+      level: data.level,
+      tags: data.tags,
+      path: data.path,
+      method: data.method,
+    } as UserActivityLog;
+  });
+}

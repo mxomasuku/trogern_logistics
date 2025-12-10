@@ -192,3 +192,76 @@ export interface AdminAuthContextType extends AdminAuthState {
     signInWithGoogle: () => Promise<void>;
     signOut: () => Promise<void>;
 }
+
+// ============================================
+// USER DETAIL PAGE TYPES (Client-safe)
+// ============================================
+export interface ClientUserDetail {
+    uid: string;
+    email: string;
+    name?: string;
+    phone?: string;
+    role: string;
+    status: string;
+    companyId?: string;
+    createdAt: FirebaseTimestamp | null;
+    lastLoginAt?: FirebaseTimestamp | null;
+    lastActiveAt?: FirebaseTimestamp | null;
+    picture?: string | null;
+}
+
+export interface ClientUserCompany {
+    id: string;
+    name: string;
+    status: string;
+}
+
+export interface ClientUserEvent {
+    id: string;
+    eventType: string;
+    metadata?: Record<string, unknown>;
+    createdAt: FirebaseTimestamp | null;
+}
+
+export interface ClientUserTicket {
+    id: string;
+    subject: string;
+    status: string;
+    priority: string;
+    createdAt: FirebaseTimestamp | null;
+}
+
+export interface ClientUserAuditLog {
+    id: string;
+    action: string;
+    adminEmail?: string;
+    createdAt: FirebaseTimestamp | null;
+}
+
+export interface ClientUserActivityLog {
+    id: string;
+    message: string;
+    timestamp: FirebaseTimestamp;
+    companyId: string | null;
+    email: string | null;
+    uid: string | null;
+    level?: string;
+    tags?: string[];
+    method?: string;
+}
+
+// ============================================
+// COMPANY ACTIVITY LOG (Client-safe)
+// ============================================
+export interface ClientActivityLog {
+    id: string;
+    message: string;
+    timestamp: FirebaseTimestamp;
+    companyId: string | null;
+    email: string | null;
+    uid: string | null;
+    level?: string;
+    tags?: string[];
+    path?: string;
+    method?: string;
+}

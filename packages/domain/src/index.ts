@@ -66,7 +66,10 @@ export {
   updateUser,
   deleteUser,
   canUserAccess,
+  getUserActivityLogs,
 } from "./users";
+
+export type { UserActivityLog } from "./users";
 
 // Subscriptions
 export {
