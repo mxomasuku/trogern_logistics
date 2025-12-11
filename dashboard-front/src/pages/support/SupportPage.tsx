@@ -1,5 +1,6 @@
 // src/pages/support/SupportPage.tsx
 import { useState, useEffect, useCallback } from "react";
+import { toast } from "sonner";
 import type {
     TicketType,
     CreateTicketPayload,
@@ -24,8 +25,10 @@ import {
     createTicket,
     addMessage,
     nudgeTicket,
+    registerAttachment,
 } from "../../api/support";
 import { useAuth } from "../../state/AuthContext";
+import { uploadTempAttachment, type UploadResult } from "../../lib/storage";
 
 export default function SupportPage() {
     const { user } = useAuth();
@@ -84,7 +87,7 @@ export default function SupportPage() {
                 setTicketDetail(data);
             } catch (error: any) {
                 console.error("Error loading ticket detail:", error);
-                alert("Failed to load ticket details. Please try again.");
+                toast.error("Failed to load ticket details. Please try again.");
                 setSelectedTicketId(null);
             } finally {
                 setIsLoadingDetail(false);
@@ -99,20 +102,73 @@ export default function SupportPage() {
         setShowNewTicket(true);
     };
 
-    const handleSubmit = async (payload: CreateTicketPayload) => {
+    const handleSubmit = async (payload: CreateTicketPayload, files?: File[]) => {
         setIsSubmitting(true);
         try {
-            await createTicket(payload);
+            let attachmentIds: string[] = [];
+
+            // Upload files if provided
+            if (files && files.length > 0 && user?.uid) {
+                toast.loading("Uploading attachments...", { id: "upload-progress" });
+
+                const uploadResults: UploadResult[] = [];
+                const uploadErrors: string[] = [];
+
+                for (let i = 0; i < files.length; i++) {
+                    try {
+                        const result = await uploadTempAttachment(files[i], user.uid);
+                        uploadResults.push(result);
+                        toast.loading(`Uploaded ${i + 1}/${files.length} files...`, { id: "upload-progress" });
+                    } catch (error: any) {
+                        console.error(`Error uploading ${files[i].name}:`, error);
+                        uploadErrors.push(files[i].name);
+                    }
+                }
+
+                // Dismiss loading toast
+                toast.dismiss("upload-progress");
+
+                // Show success/error for uploads
+                if (uploadResults.length > 0) {
+                    toast.success(`${uploadResults.length} file${uploadResults.length > 1 ? "s" : ""} uploaded successfully!`);
+                }
+                if (uploadErrors.length > 0) {
+                    toast.error(`Failed to upload: ${uploadErrors.join(", ")}`);
+                }
+
+                // Register attachments with backend and get IDs
+                for (const result of uploadResults) {
+                    try {
+                        const registered = await registerAttachment({
+                            filename: result.filename,
+                            mimeType: result.mimeType,
+                            size: result.size,
+                            url: result.url,
+                        });
+                        attachmentIds.push(registered.id);
+                    } catch (error) {
+                        console.error("Error registering attachment:", error);
+                    }
+                }
+            }
+
+            // Create ticket with attachment IDs
+            await createTicket({
+                ...payload,
+                attachmentIds: attachmentIds.length > 0 ? attachmentIds : undefined,
+            });
 
             // Reset form and reload tickets
             setShowNewTicket(false);
             setInitialType("");
             await loadTickets();
 
-            alert("Ticket submitted successfully! Our team will respond shortly.");
+            toast.success("Ticket submitted successfully! Our team will respond shortly.", {
+                duration: 5000,
+            });
         } catch (error: any) {
             console.error("Error submitting ticket:", error);
-            alert(error.message ?? "Failed to submit ticket. Please try again.");
+            toast.error(error.message ?? "Failed to submit ticket. Please try again.");
         } finally {
             setIsSubmitting(false);
         }
@@ -157,7 +213,7 @@ export default function SupportPage() {
             }
         } catch (error: any) {
             console.error("Error sending message:", error);
-            alert(error.message ?? "Failed to send message. Please try again.");
+            toast.error(error.message ?? "Failed to send message. Please try again.");
         } finally {
             setIsSending(false);
         }
@@ -174,10 +230,10 @@ export default function SupportPage() {
                 setTicketDetail(data);
             }
 
-            alert("Nudge sent! Our team has been notified.");
+            toast.success("Nudge sent! Our team has been notified.");
         } catch (error: any) {
             console.error("Error nudging:", error);
-            alert(error.message ?? "Failed to nudge. Please try again.");
+            toast.error(error.message ?? "Failed to nudge. Please try again.");
         } finally {
             setIsNudging(false);
         }

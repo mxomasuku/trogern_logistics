@@ -1,10 +1,53 @@
 rules_version = '2';
 
-// Craft rules based on data in your Firestore database
-// allow write: if firestore.get(
-//    /databases/(default)/documents/users/$(request.auth.uid)).data.isAdmin;
 service firebase.storage {
   match /b/{bucket}/o {
+    // Support ticket attachments
+    // Path: support-attachments/{companyId}/{ticketId}/{filename}
+    match /support-attachments/{companyId}/{ticketId}/{fileName} {
+      // Allow read if user is authenticated
+      allow read: if request.auth != null;
+      
+      // Allow write only if:
+      // 1. User is authenticated
+      // 2. File is an allowed image type or PDF
+      // 3. File size is under 5MB
+      allow write: if request.auth != null
+        && request.resource.size < 5 * 1024 * 1024  // 5MB max
+        && (
+          // Allowed image types
+          request.resource.contentType.matches('image/jpeg')
+          || request.resource.contentType.matches('image/png')
+          || request.resource.contentType.matches('image/gif')
+          || request.resource.contentType.matches('image/webp')
+          // PDF documents
+          || request.resource.contentType.matches('application/pdf')
+        );
+    }
+    
+    // Temporary upload path for attachments before ticket assignment
+    // Path: temp-attachments/{userId}/{fileName}
+    match /temp-attachments/{userId}/{fileName} {
+      // Only the owner can read their temp files
+      allow read: if request.auth != null && request.auth.uid == userId;
+      
+      // Allow write with same restrictions
+      allow write: if request.auth != null
+        && request.auth.uid == userId
+        && request.resource.size < 5 * 1024 * 1024
+        && (
+          request.resource.contentType.matches('image/jpeg')
+          || request.resource.contentType.matches('image/png')
+          || request.resource.contentType.matches('image/gif')
+          || request.resource.contentType.matches('image/webp')
+          || request.resource.contentType.matches('application/pdf')
+        );
+      
+      // Allow delete by owner
+      allow delete: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Block everything else
     match /{allPaths=**} {
       allow read, write: if false;
     }

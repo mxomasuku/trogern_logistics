@@ -5,8 +5,8 @@ import { useRouter } from "next/navigation";
 import { Card, CardTitle, Badge, Button } from "@/components/ui/index";
 import { Textarea, Label, FormGroup } from "@/components/ui/form";
 import { formatRelativeTime } from "@/lib/utils";
-import { Send, FileText, Loader2 } from "lucide-react";
-import type { SupportMessage } from "@trogern/domain";
+import { Send, FileText, Loader2, Paperclip, Image as ImageIcon, ExternalLink } from "lucide-react";
+import type { SupportMessage, TicketAttachment } from "@trogern/domain";
 
 interface MessageThreadProps {
     messages: SupportMessage[];
@@ -24,9 +24,54 @@ function formatTimestamp(timestamp: any): Date {
     return new Date(timestamp);
 }
 
+function formatFileSize(bytes: number): string {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function AttachmentDisplay({ attachments }: { attachments: TicketAttachment[] }) {
+    if (!attachments || attachments.length === 0) return null;
+
+    return (
+        <div className="mt-3 pt-3 border-t border-neutral-200">
+            <p className="text-xs font-medium text-neutral-500 mb-2 flex items-center gap-1">
+                <Paperclip className="w-3 h-3" />
+                Attachments ({attachments.length})
+            </p>
+            <div className="flex flex-wrap gap-2">
+                {attachments.map((att) => (
+                    <a
+                        key={att.id}
+                        href={att.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="group flex items-center gap-2 px-2 py-1.5 rounded-md bg-white border border-neutral-200 hover:border-electric-300 hover:bg-electric-50 transition-colors text-xs"
+                    >
+                        {att.mimeType.startsWith("image/") ? (
+                            <>
+                                <ImageIcon className="w-4 h-4 text-electric-500" />
+                                <span className="text-neutral-700 max-w-[100px] truncate">{att.filename}</span>
+                            </>
+                        ) : (
+                            <>
+                                <FileText className="w-4 h-4 text-error-500" />
+                                <span className="text-neutral-700 max-w-[100px] truncate">{att.filename}</span>
+                            </>
+                        )}
+                        <span className="text-neutral-400">{formatFileSize(att.size)}</span>
+                        <ExternalLink className="w-3 h-3 text-neutral-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </a>
+                ))}
+            </div>
+        </div>
+    );
+}
+
 function MessageBubble({ message }: { message: SupportMessage }) {
     const isAdmin = message.senderType === "admin";
     const isInternal = message.isInternalNote;
+    const hasAttachments = message.attachments && message.attachments.length > 0;
 
     return (
         <div className={`flex ${isAdmin ? "justify-end" : "justify-start"}`}>
@@ -54,8 +99,17 @@ function MessageBubble({ message }: { message: SupportMessage }) {
                             Internal Note
                         </Badge>
                     )}
+                    {hasAttachments && (
+                        <Paperclip className="w-3 h-3 text-neutral-400" />
+                    )}
                 </div>
                 <p className="text-sm text-neutral-700 whitespace-pre-wrap">{message.body}</p>
+
+                {/* Display attachments */}
+                {message.attachments && message.attachments.length > 0 && (
+                    <AttachmentDisplay attachments={message.attachments as TicketAttachment[]} />
+                )}
+
                 <p className="text-xs text-neutral-500 mt-2">
                     {formatRelativeTime(formatTimestamp(message.createdAt))}
                 </p>

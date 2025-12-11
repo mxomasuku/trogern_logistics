@@ -13,6 +13,10 @@ import {
   Bug,
   Lightbulb,
   HelpCircle,
+  Paperclip,
+  Image as ImageIcon,
+  FileText,
+  ExternalLink,
 } from "lucide-react";
 import { TicketActions } from "./ticket-actions";
 import { MessageThread } from "./message-thread";
@@ -172,7 +176,52 @@ export default async function TicketDetailPage({ params }: TicketDetailPageProps
             <CardTitle className="mb-4">Original Request</CardTitle>
             <div className="p-4 bg-neutral-50 rounded-lg">
               <p className="text-sm text-neutral-700 whitespace-pre-wrap">{ticket.message}</p>
-              <p className="text-xs text-neutral-500 mt-2">
+
+              {/* Attachments */}
+              {ticket.attachments && ticket.attachments.length > 0 && (
+                <div className="mt-4 pt-4 border-t border-neutral-200">
+                  <p className="text-sm font-medium text-neutral-600 flex items-center gap-1 mb-3">
+                    <Paperclip className="w-4 h-4" />
+                    Attachments ({ticket.attachments.length})
+                  </p>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {ticket.attachments.map((att: any) => (
+                      <a
+                        key={att.id}
+                        href={att.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="group relative border rounded-lg overflow-hidden hover:border-electric-300 transition-colors"
+                      >
+                        {att.mimeType?.startsWith("image/") ? (
+                          <div className="relative">
+                            <img
+                              src={att.url}
+                              alt={att.filename}
+                              className="w-full h-24 object-cover"
+                            />
+                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center">
+                              <ExternalLink className="w-5 h-5 text-white opacity-0 group-hover:opacity-100 drop-shadow-lg transition-opacity" />
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex flex-col items-center justify-center h-24 gap-1 p-2 bg-neutral-100">
+                            <FileText className="w-8 h-8 text-error-500" />
+                            <span className="text-xs text-neutral-600 truncate max-w-full">
+                              {att.filename}
+                            </span>
+                          </div>
+                        )}
+                        <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-xs px-2 py-1 truncate">
+                          {att.filename}
+                        </div>
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <p className="text-xs text-neutral-500 mt-3">
                 {formatRelativeTime(formatTimestamp(ticket.createdAt))}
               </p>
             </div>
