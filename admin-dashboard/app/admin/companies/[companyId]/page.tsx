@@ -12,7 +12,8 @@ import { Company, FirebaseTimestamp } from "@/types/types";
 import { timestampToDate } from "@/lib/utils";
 import { UsersTab } from "./users-tab";
 import { ActionsTab } from "./actions-tab";
-import { ActivityTab, ClientActivityLog } from "./activity-tab"
+import { ActivityTab } from "./activity-tab"
+import { ClientActivityLog } from "@/types/types";
 import {
   Building2,
   Users,

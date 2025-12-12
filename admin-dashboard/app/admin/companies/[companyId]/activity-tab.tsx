@@ -4,18 +4,10 @@ import { Card, CardTitle } from "@/components/ui";
 import { formatFirebaseTimestamp } from "@/lib/utils";
 import { Activity as ActivityIcon } from "lucide-react";
 import Link from "next/link";
+import { ClientActivityLog } from "@/types/types";
 
 // Client-side activity log interface
-export interface ClientActivityLog {
-    id: string;
-    message: string;
-    timestamp: { _seconds: number; _nanoseconds: number };
-    companyId: string | null;
-    email: string | null;
-    uid: string | null;
-    level?: string;
-    tags?: string[];
-}
+
 
 type ActivityTabProps = {
     activity: ClientActivityLog[];

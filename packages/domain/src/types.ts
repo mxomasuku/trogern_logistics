@@ -295,7 +295,44 @@ export type TicketMessage = SupportMessage;
 // NOTIFICATION TYPES
 // ============================================
 
+/**
+ * Notification categories group related notification types
+ */
+export type NotificationCategory =
+  | "support"
+  | "service"
+  | "licence"
+  | "income"
+  | "system";
+
+/**
+ * Specific notification types within each category
+ */
 export type NotificationType =
+  // Support (category: "support")
+  | "ticket_created"
+  | "ticket_message"
+  | "ticket_status_changed"
+  | "ticket_assigned"
+  | "ticket_nudged"
+  | "ticket_resolved"
+  // Service (category: "service")
+  | "service_due_soon"
+  | "service_overdue"
+  | "service_completed"
+  // Licence (category: "licence")
+  | "licence_expiring_soon"
+  | "licence_expired"
+  | "licence_renewed"
+  // Income (category: "income")
+  | "payment_due_soon"
+  | "payment_overdue"
+  | "payment_received"
+  // System (category: "system")
+  | "system_announcement"
+  | "feature_update"
+  | "maintenance_scheduled"
+  // Legacy types (backwards compatibility)
   | "new_signup"
   | "new_subscription"
   | "subscription_upgraded"
@@ -304,13 +341,145 @@ export type NotificationType =
   | "payment_failed"
   | "new_ticket";
 
+/**
+ * Who receives the notification
+ */
+export type NotificationRecipientType = "user" | "company" | "admin" | "all_admins";
+
+/**
+ * Notification priority affects display styling and email urgency
+ */
+export type NotificationPriority = "low" | "normal" | "high" | "urgent";
+
+/**
+ * Source entity type that triggered the notification
+ */
+export type NotificationSourceType =
+  | "ticket"
+  | "vehicle"
+  | "service_log"
+  | "income_entry"
+  | "system";
+
+/**
+ * Full notification document schema for Firestore
+ */
 export interface Notification {
   id: string;
-  adminUserId: string;
+
+  // ===== RECIPIENT =====
+  recipientType: NotificationRecipientType;
+  recipientId: string | null;           // userId, companyId, adminId, or null for broadcasts
+  recipientEmail: string;               // Denormalized for email sending
+  recipientName: string;                // For email personalization
+
+  // ===== CONTENT =====
+  category: NotificationCategory;
   type: NotificationType;
-  payload: Record<string, unknown>;
-  isRead: boolean;
+  title: string;
+  body: string;
+
+  // ===== SOURCE REFERENCE =====
+  sourceType: NotificationSourceType;
+  sourceId: string | null;
+  companyId?: string;                   // For scoping client queries
+
+  // ===== ACTION =====
+  actionUrl?: string;                   // Deep link path (e.g., "/vehicles/abc123")
+  actionLabel?: string;                 // Button text (e.g., "View Vehicle")
+
+  // ===== PRIORITY =====
+  priority: NotificationPriority;
+
+  // ===== IN-APP STATE =====
+  read: boolean;
+  readAt?: Timestamp;
+  dismissed: boolean;
+  dismissedAt?: Timestamp;
+
+  // ===== EMAIL DELIVERY STATE =====
+  emailSent: boolean;
+  emailSentAt?: Timestamp;
+  emailError?: string;
+  emailMessageId?: string;              // For tracking delivery status
+
+  // ===== PUSH DELIVERY STATE (Future) =====
+  pushSent?: boolean;
+  pushSentAt?: Timestamp;
+  pushError?: string;
+
+  // ===== TIMESTAMPS =====
   createdAt: Timestamp;
+  expiresAt?: Timestamp;                // For auto-cleanup
+
+  // ===== DEDUPLICATION =====
+  idempotencyKey?: string;              // Prevents duplicate notifications
+}
+
+/**
+ * Frontend-safe notification DTO with serialized timestamps
+ */
+export interface NotificationDTO {
+  id: string;
+  recipientType: NotificationRecipientType;
+  recipientId: string | null;
+  recipientEmail: string;
+  recipientName: string;
+  category: NotificationCategory;
+  type: NotificationType;
+  title: string;
+  body: string;
+  sourceType: NotificationSourceType;
+  sourceId: string | null;
+  companyId?: string;
+  actionUrl?: string;
+  actionLabel?: string;
+  priority: NotificationPriority;
+  read: boolean;
+  readAt?: { _seconds: number; _nanoseconds: number };
+  dismissed: boolean;
+  dismissedAt?: { _seconds: number; _nanoseconds: number };
+  emailSent: boolean;
+  emailSentAt?: { _seconds: number; _nanoseconds: number };
+  emailError?: string;
+  createdAt: { _seconds: number; _nanoseconds: number };
+  expiresAt?: { _seconds: number; _nanoseconds: number };
+  idempotencyKey?: string;
+}
+
+/**
+ * Parameters for creating a new notification
+ */
+export interface CreateNotificationParams {
+  // Recipient
+  recipientType: NotificationRecipientType;
+  recipientId: string | null;
+  recipientEmail: string;
+  recipientName: string;
+
+  // Content
+  category: NotificationCategory;
+  type: NotificationType;
+  title: string;
+  body: string;
+
+  // Source
+  sourceType: NotificationSourceType;
+  sourceId: string | null;
+  companyId?: string;
+
+  // Action
+  actionUrl?: string;
+  actionLabel?: string;
+
+  // Priority
+  priority: NotificationPriority;
+
+  // Deduplication (optional)
+  idempotencyKey?: string;
+
+  // Optional: set expiry for auto-cleanup (in days)
+  expiresInDays?: number;
 }
 
 // ============================================

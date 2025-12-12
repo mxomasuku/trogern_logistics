@@ -2,7 +2,7 @@
 import * as admin from "firebase-admin/app";
 
 
-  admin.initializeApp();
+admin.initializeApp();
 
 
 // HIGHLIGHT: Firestore triggers (service records, vehicles, income logs, service items)
@@ -23,16 +23,28 @@ import {
   cronGenerateReportsDaily,    // HIGHLIGHT
 } from "./cron_jobs";
 
+// HIGHLIGHT: Notification system triggers
+import { onNotificationCreated } from "./triggers/onNotificationCreated";
+import { onTicketCreated } from "./triggers/tickets/onTicketCreated";
+import { onTicketUpdated } from "./triggers/tickets/onTicketUpdated";
+import { onMessageCreated } from "./triggers/tickets/onMessageCreated";
+
 // HIGHLIGHT: export all cloud functions
 export {
-  // Firestore triggers
+  // Firestore triggers (existing)
   createOrUpdateVehicleServiceRecord,
   onVehicleCreated,
   onIncomeLogCreated,
   onIncomeCreated,
 
-  // Scheduled jobs
+  // Scheduled jobs (existing)
   cronServiceDueWeekly,
   cronMissingIncomeLogs,
   cronGenerateReportsDaily,
+
+  // Notification system triggers (new)
+  onNotificationCreated,
+  onTicketCreated,
+  onTicketUpdated,
+  onMessageCreated,
 };

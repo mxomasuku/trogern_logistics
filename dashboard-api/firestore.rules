@@ -97,6 +97,45 @@ service cloud.firestore {
     }
 
     // ============================================
+    // NOTIFICATIONS
+    // ============================================
+    
+    match /notifications/{notificationId} {
+      // Users can read their own notifications
+      // - recipientType is "user" AND recipientId matches their uid
+      // - recipientType is "company" AND notification.companyId matches user's companyId
+      allow read: if isAuthenticated() && 
+                     (
+                       // User-specific notification
+                       (resource.data.recipientType == 'user' && 
+                        resource.data.recipientId == request.auth.uid) ||
+                       // Company-wide notification
+                       (resource.data.recipientType == 'company' && 
+                        resource.data.companyId == getUserData().companyId) ||
+                       // Check if user is admin (for admin/all_admins notifications)
+                       (resource.data.recipientType in ['admin', 'all_admins'] &&
+                        exists(/databases/$(database)/documents/adminUsers/$(request.auth.uid)))
+                     );
+      
+      // Users can update their own notifications (only read/dismissed status)
+      allow update: if isAuthenticated() &&
+                       (
+                         (resource.data.recipientType == 'user' && 
+                          resource.data.recipientId == request.auth.uid) ||
+                         (resource.data.recipientType == 'company' && 
+                          resource.data.companyId == getUserData().companyId) ||
+                         (resource.data.recipientType in ['admin', 'all_admins'] &&
+                          exists(/databases/$(database)/documents/adminUsers/$(request.auth.uid)))
+                       ) &&
+                       // Only allow updating these specific fields
+                       request.resource.data.diff(resource.data).affectedKeys()
+                         .hasOnly(['read', 'readAt', 'dismissed', 'dismissedAt']);
+      
+      // Only Cloud Functions can create/delete notifications
+      allow create, delete: if false;
+    }
+
+    // ============================================
     // EXISTING RULES (other collections)
     // ============================================
     
