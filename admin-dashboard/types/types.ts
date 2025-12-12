@@ -133,6 +133,7 @@ export interface SupportMessage {
     ticketId: string;
     senderType: "user" | "admin";
     senderId?: string;
+    senderName?: string;
     body: string;
     createdAt: FirebaseTimestamp;
     isInternalNote: boolean;

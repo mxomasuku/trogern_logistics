@@ -204,6 +204,7 @@ export async function postTicketMessage(
   const newMessage: Omit<SupportMessage, "id" | "ticketId"> = {
     senderType: "admin",
     senderId: adminUser.id,
+    senderName: adminUser.name || adminUser.email,
     body: message,
     createdAt: serverTimestamp() as any,
     isInternalNote: false,
@@ -247,6 +248,7 @@ export async function postInternalNote(
   const newMessage: Omit<SupportMessage, "id" | "ticketId"> = {
     senderType: "admin",
     senderId: adminUser.id,
+    senderName: adminUser.name || adminUser.email,
     body: note,
     createdAt: serverTimestamp() as any,
     isInternalNote: true,

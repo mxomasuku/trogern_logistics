@@ -192,20 +192,23 @@ export const getTicketById = async (req: Request, res: Response) => {
             .orderBy("createdAt", "asc")
             .get();
 
-        const messages: TicketMessage[] = messagesSnapshot.docs.map((msgDoc: QueryDocumentSnapshot) => {
-            const msgData = msgDoc.data();
-            return {
-                id: msgDoc.id,
-                ticketId: id,
-                senderType: msgData.senderType === "admin" ? "admin" : "user",
-                senderId: msgData.senderId || msgData.authorId,
-                senderName: msgData.senderName || msgData.authorName || "Unknown",
-                body: msgData.body || msgData.content,
-                attachments: msgData.attachments || [],
-                createdAt: msgData.createdAt?.toDate?.()?.toISOString() || msgData.createdAt,
-                isInternalNote: msgData.isInternalNote ?? false,
-            } as TicketMessage;
-        });
+        const messages: TicketMessage[] = messagesSnapshot.docs
+            .map((msgDoc: QueryDocumentSnapshot) => {
+                const msgData = msgDoc.data();
+                return {
+                    id: msgDoc.id,
+                    ticketId: id,
+                    senderType: msgData.senderType === "admin" ? "admin" : "user",
+                    senderId: msgData.senderId || msgData.authorId,
+                    senderName: msgData.senderName || msgData.authorName || "Unknown",
+                    body: msgData.body || msgData.content,
+                    attachments: msgData.attachments || [],
+                    createdAt: msgData.createdAt?.toDate?.()?.toISOString() || msgData.createdAt,
+                    isInternalNote: msgData.isInternalNote ?? false,
+                } as TicketMessage;
+            })
+            // Filter out internal notes - they should only be visible to admins
+            .filter((msg: TicketMessage) => !msg.isInternalNote);
 
         // Convert ticket to response format
         const ticket: SupportTicket = {

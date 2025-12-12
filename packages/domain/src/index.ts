@@ -118,10 +118,13 @@ export {
 
 // Notifications
 export {
+  createUniversalNotification,
   createNotification,
   getNotificationsPage,
+  getCompanyNotificationsPage,
   markNotificationAsRead,
   markAllNotificationsAsRead,
+  dismissNotification,
   getUnreadNotificationCount,
   deleteOldNotifications,
   notifyNewSignup,
@@ -132,3 +135,4 @@ export {
   notifyPaymentFailed,
   notifyNewTicket,
 } from "./notifications";
+

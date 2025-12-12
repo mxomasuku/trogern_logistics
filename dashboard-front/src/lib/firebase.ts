@@ -1,6 +1,7 @@
 // HIGHLIGHT: firebase.ts
 import { initializeApp } from "firebase/app";
 import { getAuth, connectAuthEmulator } from "firebase/auth";
+import { getFirestore, connectFirestoreEmulator } from "firebase/firestore";
 import { getStorage, connectStorageEmulator } from "firebase/storage";
 import type { FirebaseStorage } from "firebase/storage";
 
@@ -34,6 +35,23 @@ if (
     import.meta.env.VITE_FIREBASE_AUTH_EMULATOR_URL,
     { disableWarnings: true }
   );
+}
+
+// Firestore initialization
+const firebaseDb = getFirestore(firebaseApp);
+
+// Connect to Firestore emulator in development
+if (import.meta.env.DEV) {
+  const firestoreHost = import.meta.env.VITE_FIREBASE_FIRESTORE_EMULATOR_HOST;
+  if (firestoreHost) {
+    const [host, port] = firestoreHost.split(":");
+    try {
+      connectFirestoreEmulator(firebaseDb, host, parseInt(port, 10));
+      console.log("[Firebase] Connected to Firestore emulator at", host, port);
+    } catch (emulatorError) {
+      console.warn("[Firebase] Failed to connect to Firestore emulator:", emulatorError);
+    }
+  }
 }
 
 // Storage initialization - only initialize when needed and if bucket is configured
@@ -75,4 +93,4 @@ function getFirebaseStorage(): FirebaseStorage {
 }
 
 // Export the getter function for storage, not the direct instance
-export { firebaseApp, firebaseAuth, getFirebaseStorage };
+export { firebaseApp, firebaseAuth, firebaseDb, getFirebaseStorage };
