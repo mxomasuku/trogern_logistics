@@ -74,7 +74,7 @@ function truncateMessage(message: string, maxLength: number = 100): string {
  * - Updates ticket lastActivityAt and messageCount
  */
 export const onMessageCreated = onDocumentCreated(
-    "tickets/{ticketId}/messages/{messageId}",
+    "supportTickets/{ticketId}/messages/{messageId}",  // FIXED: Changed from "tickets" to "supportTickets"
     async (event) => {
         const snapshot = event.data;
         if (!snapshot) {
@@ -101,7 +101,7 @@ export const onMessageCreated = onDocumentCreated(
         const now = Timestamp.now();
 
         // Fetch parent ticket
-        const ticketDoc = await db.collection("tickets").doc(ticketId).get();
+        const ticketDoc = await db.collection("supportTickets").doc(ticketId).get();  // FIXED: Changed from "tickets" to "supportTickets"
         if (!ticketDoc.exists) {
             console.error(`[onMessageCreated] Ticket ${ticketId} not found`);
             return;
@@ -140,7 +140,7 @@ export const onMessageCreated = onDocumentCreated(
                         sourceType: "ticket",
                         sourceId: ticketId,
                         companyId: ticket.companyId,
-                        actionUrl: `/support/tickets/${ticketId}`,
+                        actionUrl: `/admin/support/${ticketId}`,  // FIXED: Updated to correct admin route
                         actionLabel: "Reply",
                         priority: "normal",
                         read: false,
@@ -172,7 +172,7 @@ export const onMessageCreated = onDocumentCreated(
                         sourceType: "ticket",
                         sourceId: ticketId,
                         companyId: ticket.companyId,
-                        actionUrl: `/support/tickets/${ticketId}`,
+                        actionUrl: `/admin/support/${ticketId}`,  // FIXED: Updated to correct admin route
                         actionLabel: "Reply",
                         priority: "normal",
                         read: false,
@@ -209,7 +209,7 @@ export const onMessageCreated = onDocumentCreated(
                     sourceType: "ticket",
                     sourceId: ticketId,
                     companyId: ticket.companyId,
-                    actionUrl: `/support/tickets/${ticketId}`,
+                    actionUrl: `/app/support?ticketId=${ticketId}`,
                     actionLabel: "View Response",
                     priority: "normal",
                     read: false,

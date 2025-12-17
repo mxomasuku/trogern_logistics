@@ -42,6 +42,11 @@ import BookADemoPage from "@/pages/BookADemo/BookADemoPage";
 import InviteEmployeesPanel from "@/pages/manage/InviteEmployeePanel";
 import PeriodStatsPage from "@/pages/analytics/PeriodStatsPage";
 import SupportPage from "@/pages/support/SupportPage";
+import TripsPage from "@/pages/trips/TripsPage";
+import ScheduleTripPage from "@/pages/trips/pages/ScheduleTripPage";
+import TripDetailPage from "@/pages/trips/pages/TripDetailPage";
+import EditTripPage from "@/pages/trips/pages/EditTripPage";
+import NotificationsPage from "@/pages/notifications/NotificationsPage";
 
 export default function AppRoutes() {
   return (
@@ -128,6 +133,11 @@ export default function AppRoutes() {
         <Route path="income" element={<IncomePage />} />
         <Route path="income/add" element={<AddIncomePage />} />
         <Route path="support" element={<SupportPage />} />
+        <Route path="trips" element={<TripsPage />} />
+        <Route path="trips/schedule" element={<ScheduleTripPage />} />
+        <Route path="trips/:tripId" element={<TripDetailPage />} />
+        <Route path="trips/edit/:tripId" element={<EditTripPage />} />
+        <Route path="notifications" element={<NotificationsPage />} />
       </Route>
     </Routes>
   );

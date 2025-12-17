@@ -1,4 +1,5 @@
-import { Menu, Bell } from "lucide-react"; // HIGHLIGHT (EDITED)
+import { Menu } from "lucide-react";
+import { NotificationBell } from "@/components/NotificationBell";
 
 // HIGHLIGHT (EDITED): props for mobile sidebar toggle + user identity
 interface TopBarProps {
@@ -13,7 +14,7 @@ export default function TopBar({
   userRole,
 }: TopBarProps) {
 
-    console.log("user object:", userRole);
+  console.log("user object:", userRole);
 
   return (
     <header
@@ -43,14 +44,8 @@ export default function TopBar({
 
           {/* Right side: notifications + user info */}
           <div className="flex items-center gap-3 shrink-0">
-            {/* HIGHLIGHT: notifications icon (future dropdown entrypoint) */}
-            <button
-              type="button"
-              className="inline-flex h-8 w-8 items-center justify-center rounded-md text-slate-600 hover:bg-slate-100"
-              aria-label="Notifications"
-            >
-              <Bell className="h-4 w-4" />
-            </button>
+            {/* HIGHLIGHT: real-time notification bell with dropdown */}
+            <NotificationBell />
 
             {/* HIGHLIGHT: user identity block + online indicator */}
             <div className="flex items-center gap-2">
@@ -67,7 +62,7 @@ export default function TopBar({
                 </div>
               </div>
 
-           
+
             </div>
           </div>
         </div>

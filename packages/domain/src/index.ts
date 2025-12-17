@@ -1,5 +1,6 @@
 // Types
 export * from "./types";
+export * from "./trips";
 
 // Firebase Admin utilities
 export {

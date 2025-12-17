@@ -70,7 +70,7 @@ function mapPriority(ticketPriority: string): "low" | "normal" | "high" | "urgen
  * Creates notifications for all admins about the new ticket.
  */
 export const onTicketCreated = onDocumentCreated(
-    "tickets/{ticketId}",
+    "supportTickets/{ticketId}",  // FIXED: Changed from "tickets" to "supportTickets"
     async (event) => {
         const snapshot = event.data;
         if (!snapshot) {
@@ -120,7 +120,7 @@ export const onTicketCreated = onDocumentCreated(
                 sourceType: "ticket",
                 sourceId: ticketId,
                 companyId: ticket.companyId,
-                actionUrl: `/support/tickets/${ticketId}`,
+                actionUrl: `/admin/support/${ticketId}`,  // FIXED: Updated to correct admin route
                 actionLabel: "View Ticket",
                 priority: mapPriority(ticket.priority),
                 read: false,
@@ -140,3 +140,4 @@ export const onTicketCreated = onDocumentCreated(
         console.log(`[onTicketCreated] Created ${notificationCount} admin notifications for ticket ${ticketId}`);
     }
 );
+

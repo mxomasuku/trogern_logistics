@@ -70,10 +70,10 @@ export function NotificationBell({ className }: NotificationBellProps) {
             <button
                 type="button"
                 onClick={() => setIsOpen(!isOpen)}
-                className="relative p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="relative p-2 text-neutral-500 hover:text-neutral-700 transition-colors focus:outline-none"
                 aria-label={`Notifications${unreadCount > 0 ? ` (${unreadCount} unread)` : ""}`}
             >
-                <Bell className="h-5 w-5 text-gray-600 dark:text-gray-400" />
+                <Bell className="h-5 w-5" />
                 {unreadCount > 0 && (
                     <span className="absolute -top-0.5 -right-0.5 h-5 w-5 rounded-full bg-red-500 text-white text-xs font-medium flex items-center justify-center">
                         {unreadCount > 99 ? "99+" : unreadCount}
@@ -83,10 +83,10 @@ export function NotificationBell({ className }: NotificationBellProps) {
 
             {/* Dropdown */}
             {isOpen && (
-                <div className="absolute right-0 mt-2 w-96 bg-white dark:bg-gray-900 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 z-50 overflow-hidden">
+                <div className="absolute right-0 mt-2 w-96 bg-white rounded-2xl shadow-xl border border-gray-200 z-50 overflow-hidden">
                     {/* Header */}
-                    <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-700">
-                        <h3 className="font-semibold text-sm text-gray-900 dark:text-white">Notifications</h3>
+                    <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
+                        <h3 className="font-semibold text-sm text-gray-900">Notifications</h3>
                         {unreadCount > 0 && (
                             <button
                                 type="button"
@@ -111,11 +111,11 @@ export function NotificationBell({ className }: NotificationBellProps) {
                                 <p className="text-sm text-gray-500">No notifications</p>
                             </div>
                         ) : (
-                            <div className="divide-y divide-gray-100 dark:divide-gray-800">
+                            <div className="divide-y divide-gray-100">
                                 {notifications.map((notification) => (
                                     <div
                                         key={notification.id}
-                                        className={`px-4 py-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors group ${!notification.read ? "bg-blue-50/50 dark:bg-blue-950/20" : ""
+                                        className={`px-4 py-3 cursor-pointer hover:bg-gray-50 transition-colors group ${!notification.read ? "bg-blue-50/50" : ""
                                             }`}
                                         onClick={() => handleNotificationClick(notification)}
                                     >
@@ -130,8 +130,8 @@ export function NotificationBell({ className }: NotificationBellProps) {
                                                 <div className="flex items-start justify-between gap-2">
                                                     <p
                                                         className={`text-sm truncate ${!notification.read
-                                                                ? "font-semibold text-gray-900 dark:text-white"
-                                                                : "font-medium text-gray-700 dark:text-gray-300"
+                                                            ? "font-semibold text-gray-900"
+                                                            : "font-medium text-gray-700"
                                                             }`}
                                                     >
                                                         {notification.title}
@@ -146,7 +146,7 @@ export function NotificationBell({ className }: NotificationBellProps) {
                                                     </button>
                                                 </div>
 
-                                                <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2 mt-0.5">
+                                                <p className="text-xs text-gray-500 line-clamp-2 mt-0.5">
                                                     {notification.body}
                                                 </p>
 
@@ -181,10 +181,10 @@ export function NotificationBell({ className }: NotificationBellProps) {
 
                     {/* Footer */}
                     {notifications.length > 0 && (
-                        <div className="border-t border-gray-200 dark:border-gray-700 p-2">
+                        <div className="border-t border-gray-200 p-2">
                             <button
                                 type="button"
-                                className="w-full text-xs text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white py-2 transition-colors"
+                                className="w-full text-xs text-gray-600 hover:text-gray-900 py-2 transition-colors"
                                 onClick={() => {
                                     setIsOpen(false);
                                     router.push("/admin/notifications");

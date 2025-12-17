@@ -21,6 +21,7 @@
     "prod": "cross-env NODE_ENV=production node dist/server.js"
   },
   "dependencies": {
+    "@trogern/domain": "file:../packages/domain",
     "axios": "^1.11.0",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",

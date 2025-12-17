@@ -134,6 +134,8 @@ export function MessageThread({ messages, ticketId, ticketStatus }: MessageThrea
         setError(null);
 
         try {
+
+           
             const res = await fetch(`/api/admin/support/${ticketId}`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
