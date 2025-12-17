@@ -17,7 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2, Search, Pencil } from "lucide-react";
+import { Loader2, Search, Pencil, Trash2 } from "lucide-react";
 import type { IncomeLog } from "@/types/types";
 import { toJsDate, fmtDate } from "@/lib/utils";
 
@@ -29,6 +29,9 @@ type Props = {
   onEdit?: (row: IncomeLog) => void;
   // HIGHLIGHT: gate pencil visibility + click
   canEdit?: boolean;
+  // Delete functionality
+  onDelete?: (row: IncomeLog) => void;
+  canDelete?: boolean;
 };
 
 // match DriversPage soft blue input feel (borderless, crisp focus)
@@ -46,6 +49,8 @@ export function IncomeList({
   currency = "USD",
   onEdit,
   canEdit = true,
+  onDelete,
+  canDelete = true,
 }: Props) {
   const [search, setSearch] = useState("");
   const [filterType, setFilterType] =
@@ -98,6 +103,13 @@ export function IncomeList({
     if (!row.id) return;
     if (!onEdit) return;
     onEdit(row);
+  };
+
+  const handleDeleteClick = (row: IncomeLog) => {
+    if (!canDelete) return;
+    if (!row.id) return;
+    if (!onDelete) return;
+    onDelete(row);
   };
 
   return (
@@ -249,19 +261,33 @@ export function IncomeList({
                           className="text-right"
                           onClick={(event) => event.stopPropagation()}
                         >
-                          {/* HIGHLIGHT: pencil is the ONLY edit affordance + only shows for managers/owners */}
-                          {canEdit && (
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => handleEditClick(row)}
-                              aria-label="Edit income log"
-                              title="Edit"
-                              className="h-7 w-7 sm:h-8 sm:w-8 text-sky-700 hover:bg-blue-50 cursor-pointer" // HIGHLIGHT
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                          )}
+                          <div className="flex items-center justify-end gap-1">
+                            {/* HIGHLIGHT: pencil is the ONLY edit affordance + only shows for managers/owners */}
+                            {canEdit && (
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={() => handleEditClick(row)}
+                                aria-label="Edit income log"
+                                title="Edit"
+                                className="h-7 w-7 sm:h-8 sm:w-8 text-sky-700 hover:bg-blue-50 cursor-pointer" // HIGHLIGHT
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                            )}
+                            {canDelete && (
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={() => handleDeleteClick(row)}
+                                aria-label="Delete income log"
+                                title="Delete"
+                                className="h-7 w-7 sm:h-8 sm:w-8 text-red-600 hover:text-red-700 hover:bg-red-50 cursor-pointer"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
                         </TableCell>
                       </TableRow>
                     );

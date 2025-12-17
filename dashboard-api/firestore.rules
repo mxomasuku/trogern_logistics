@@ -22,6 +22,17 @@ service cloud.firestore {
       return isAuthenticated() && getUserData().companyId == companyId;
     }
     
+    // Check if user is an admin (via custom claims OR adminUsers collection)
+    function isAdmin() {
+      return isAuthenticated() && (
+        // Check custom claims for admin role
+        (request.auth.token.adminRole != null && 
+         request.auth.token.adminRole in ['founder', 'admin', 'support', 'analyst']) ||
+        // Fallback: check adminUsers collection
+        exists(/databases/$(database)/documents/adminUsers/$(request.auth.uid))
+      );
+    }
+    
     // Check if user is ticket creator
     function isTicketCreator(ticketData) {
       return isAuthenticated() && 
@@ -103,18 +114,24 @@ service cloud.firestore {
     match /notifications/{notificationId} {
       // Users can read their own notifications
       // - recipientType is "user" AND recipientId matches their uid
-      // - recipientType is "company" AND notification.companyId matches user's companyId
+      // - recipientType is "company" AND recipientId matches user's companyId
+      // - recipientType is "admin" AND user is an admin AND recipientId matches
+      // - recipientType is "all_admins" AND user is an admin
       allow read: if isAuthenticated() && 
                      (
                        // User-specific notification
                        (resource.data.recipientType == 'user' && 
                         resource.data.recipientId == request.auth.uid) ||
-                       // Company-wide notification
+                       // Company-wide notification (recipientId contains companyId)
                        (resource.data.recipientType == 'company' && 
-                        resource.data.companyId == getUserData().companyId) ||
-                       // Check if user is admin (for admin/all_admins notifications)
-                       (resource.data.recipientType in ['admin', 'all_admins'] &&
-                        exists(/databases/$(database)/documents/adminUsers/$(request.auth.uid)))
+                        (resource.data.recipientId == getUserData().companyId ||
+                         resource.data.companyId == getUserData().companyId)) ||
+                       // Admin-specific notification
+                       (resource.data.recipientType == 'admin' && 
+                        resource.data.recipientId == request.auth.uid &&
+                        isAdmin()) ||
+                       // All-admins notification  
+                       (resource.data.recipientType == 'all_admins' && isAdmin())
                      );
       
       // Users can update their own notifications (only read/dismissed status)
@@ -123,9 +140,12 @@ service cloud.firestore {
                          (resource.data.recipientType == 'user' && 
                           resource.data.recipientId == request.auth.uid) ||
                          (resource.data.recipientType == 'company' && 
-                          resource.data.companyId == getUserData().companyId) ||
-                         (resource.data.recipientType in ['admin', 'all_admins'] &&
-                          exists(/databases/$(database)/documents/adminUsers/$(request.auth.uid)))
+                          (resource.data.recipientId == getUserData().companyId ||
+                           resource.data.companyId == getUserData().companyId)) ||
+                         (resource.data.recipientType == 'admin' && 
+                          resource.data.recipientId == request.auth.uid &&
+                          isAdmin()) ||
+                         (resource.data.recipientType == 'all_admins' && isAdmin())
                        ) &&
                        // Only allow updating these specific fields
                        request.resource.data.diff(resource.data).affectedKeys()

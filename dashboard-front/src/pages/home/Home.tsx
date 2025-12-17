@@ -15,11 +15,11 @@ import {
   CarFront,
   DollarSign,
   Wrench,
-
   Activity,
   // BarChart3,
 } from "lucide-react";
 // import { StatCard } from "./components/StatCard";
+import { HomeProfitCalculator } from "./components/HomeProfitCalculator";
 
 // period stats imports
 import { usePeriodStats } from "@/hooks/usePeriodStats";
@@ -240,29 +240,32 @@ export default function Home() {
       </section>
 
       {/* Actions Grid */}
-      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      <section className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-3 xl:grid-cols-4">
         {ACTIONS.map(({ title, description, icon: Icon, to }) => (
           <Card
             key={title}
             onClick={() => navigate(to)}
             className="group cursor-pointer bg-white hover:bg-blue-50 active:bg-blue-100
-                       transition-all duration-200 rounded-xl p-2 shadow-none hover:shadow-md border-0"
+                       transition-all duration-200 rounded-xl p-1.5 sm:p-2 shadow-none hover:shadow-md border-0"
           >
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3 border-0">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 p-2 sm:p-3 border-0">
               <div className="space-y-0.5">
-                <CardTitle className="text-sm font-semibold text-blue-800 group-hover:text-blue-900">
+                <CardTitle className="text-xs sm:text-sm font-semibold text-blue-800 group-hover:text-blue-900">
                   {title}
                 </CardTitle>
-                <CardDescription className="text-xs text-gray-500">
+                <CardDescription className="text-[10px] sm:text-xs text-gray-500">
                   {description}
                 </CardDescription>
               </div>
-              <div className="rounded-lg bg-white p-2 text-blue-500 group-hover:text-blue-700 transition-colors border-0">
-                <Icon className="h-4 w-4" />
+              <div className="rounded-lg bg-white p-1.5 sm:p-2 text-blue-500 group-hover:text-blue-700 transition-colors border-0">
+                <Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
               </div>
             </CardHeader>
           </Card>
         ))}
+
+        {/* Profit Calculator Card */}
+        <HomeProfitCalculator />
       </section>
 
       {/* Fleet performance KPIs + cash-in-by-vehicle chart */}
@@ -325,8 +328,8 @@ export default function Home() {
                 {weekly.deltaPct === null
                   ? "Waiting for previous week data"
                   : `${weekly.deltaPct >= 0 ? "+" : ""}${weekly.deltaPct.toFixed(
-                      1,
-                    )}% vs previous week`}
+                    1,
+                  )}% vs previous week`}
               </p>
             </div>
           </Card>
@@ -356,8 +359,8 @@ export default function Home() {
                 {monthly.deltaPct === null
                   ? "Waiting for previous month data"
                   : `${monthly.deltaPct >= 0 ? "+" : ""}${monthly.deltaPct.toFixed(
-                      1,
-                    )}% vs previous month`}
+                    1,
+                  )}% vs previous month`}
               </p>
             </div>
           </Card>

@@ -14,7 +14,7 @@ import {
 } from "./firestore_trigger_handlers";
 
 // HIGHLIGHT: income aggregation trigger (existing)
-import { onIncomeCreated } from "./incomeAggregration";
+import { onIncomeCreated, onIncomeDeleted } from "./incomeAggregration";
 
 // HIGHLIGHT: scheduled jobs (service due, missing income logs, reports)
 import {
@@ -36,6 +36,7 @@ export {
   onVehicleCreated,
   onIncomeLogCreated,
   onIncomeCreated,
+  onIncomeDeleted,
 
   // Scheduled jobs (existing)
   cronServiceDueWeekly,

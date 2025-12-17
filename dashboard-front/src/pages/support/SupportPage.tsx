@@ -1,5 +1,6 @@
 // src/pages/support/SupportPage.tsx
 import { useState, useEffect, useCallback } from "react";
+import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import type {
     TicketType,
@@ -32,6 +33,8 @@ import { uploadTempAttachment, type UploadResult } from "../../lib/storage";
 
 export default function SupportPage() {
     const { user } = useAuth();
+    const [searchParams] = useSearchParams();
+    const ticketIdParam = searchParams.get("ticketId");
 
     // Ticket list state
     const [tickets, setTickets] = useState<TicketListItem[]>([]);
@@ -44,7 +47,7 @@ export default function SupportPage() {
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     // Ticket detail state
-    const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
+    const [selectedTicketId, setSelectedTicketId] = useState<string | null>(ticketIdParam);
     const [ticketDetail, setTicketDetail] = useState<{ ticket: SupportTicket; messages: TicketMessage[] } | null>(null);
     const [isLoadingDetail, setIsLoadingDetail] = useState(false);
     const [isSending, setIsSending] = useState(false);

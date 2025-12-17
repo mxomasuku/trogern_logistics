@@ -2,18 +2,16 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { Bell, Search, User, LogOut, Settings, ChevronDown } from "lucide-react";
+import { Search, User, LogOut, Settings, ChevronDown } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { useAdminAuth } from "@/lib/admin-auth-context";
+import { NotificationBell } from "@/components/NotificationBell";
 
 export function Header() {
   const { adminUser, signOut, isLoading } = useAdminAuth();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
-
-  // TODO: Replace with actual notification count from context or API
-  const notificationCount = 0;
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -62,17 +60,7 @@ export function Header() {
       {/* Right side */}
       <div className="flex items-center gap-4">
         {/* Notifications */}
-        <Link
-          href="/admin/notifications"
-          className="relative p-2 text-neutral-500 hover:text-neutral-700 hover:bg-neutral-100 rounded-lg transition-colors"
-        >
-          <Bell className="w-5 h-5" />
-          {notificationCount > 0 && (
-            <span className="absolute -top-0.5 -right-0.5 w-5 h-5 bg-error-500 text-white text-xs font-medium rounded-full flex items-center justify-center">
-              {notificationCount > 9 ? "9+" : notificationCount}
-            </span>
-          )}
-        </Link>
+        <NotificationBell />
 
         {/* User menu */}
         <div className="relative" ref={menuRef}>

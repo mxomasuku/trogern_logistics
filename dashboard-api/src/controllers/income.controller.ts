@@ -603,3 +603,86 @@ export const getIncomeLogsByVehicleId = async (
       );
   }
 };
+
+// ────────────────────────────────────────────────────────────────
+// DELETE Income Log
+// NOTE: The periodStats reversal is handled by the onIncomeDeleted
+// Cloud Function in functions/src/incomeAggregration.ts
+// ────────────────────────────────────────────────────────────────
+
+export const deleteIncomeLog = async (req: Request<{ id: string }>, res: Response) => {
+  const ctx = await requireCompanyContext(req, res);
+  if (!ctx) return;
+  const { companyId } = ctx;
+
+  try {
+    const { id } = req.params;
+    if (!id) {
+      return res
+        .status(400)
+        .json(
+          failure(
+            "VALIDATION_ERROR",
+            "id is required"
+          )
+        );
+    }
+
+    // 1. Get the income log data before deleting (for logging and validation)
+    const doc = await incomeRef.doc(id).get();
+    if (!doc.exists) {
+      return res
+        .status(404)
+        .json(
+          failure("NOT_FOUND", "Income log not found", { id })
+        );
+    }
+
+    const data = doc.data() as IncomeLog & { companyId?: string };
+
+    if (!data.companyId || data.companyId !== companyId) {
+      return res
+        .status(404)
+        .json(
+          failure(
+            "NOT_FOUND",
+            "Income log not found in this company",
+            { id }
+          )
+        );
+    }
+
+    // 2. Delete the income log document
+    // NOTE: The onIncomeDeleted Cloud Function will automatically trigger
+    // and reverse the periodStats aggregation
+    await doc.ref.delete();
+
+    // 3. Log the deletion
+    void logInfo("income_deleted", {
+      uid: ctx.uid,
+      email: ctx.email,
+      companyId,
+      path: req.path,
+      method: "DELETE",
+      incomeId: id,
+      amount: data.amount,
+      vehicle: data.vehicle,
+      driverName: data.driverName,
+      tags: ["income", "delete"],
+      message: `${ctx.email} deleted income log ${id} (amount: ${data.amount}, vehicle: ${data.vehicle})`,
+    });
+
+    return res.status(200).json(success({ id, deleted: true }));
+  } catch (error: any) {
+    console.error("Error deleting income log:", error);
+    return res
+      .status(500)
+      .json(
+        failure(
+          "SERVER_ERROR",
+          "Failed to delete income log",
+          error?.message
+        )
+      );
+  }
+};

@@ -85,7 +85,7 @@ async function createNotification(db: FirebaseFirestore.Firestore, notification:
  * - Assignment changes → notify assigned admin
  */
 export const onTicketUpdated = onDocumentUpdated(
-    "tickets/{ticketId}",
+    "supportTickets/{ticketId}",  // FIXED: Changed from "tickets" to "supportTickets"
     async (event) => {
         const beforeSnapshot = event.data?.before;
         const afterSnapshot = event.data?.after;
@@ -124,7 +124,7 @@ export const onTicketUpdated = onDocumentUpdated(
                     sourceType: "ticket",
                     sourceId: ticketId,
                     companyId: after.companyId,
-                    actionUrl: `/support/tickets/${ticketId}`,
+                    actionUrl: `/app/support?ticketId=${ticketId}`,
                     actionLabel: "View Ticket",
                     priority: "normal",
                     read: false,
@@ -151,7 +151,7 @@ export const onTicketUpdated = onDocumentUpdated(
                     sourceType: "ticket",
                     sourceId: ticketId,
                     companyId: after.companyId,
-                    actionUrl: `/support/tickets/${ticketId}`,
+                    actionUrl: `/app/support?ticketId=${ticketId}`,
                     actionLabel: "View Ticket",
                     priority: "normal",
                     read: false,
@@ -187,7 +187,7 @@ export const onTicketUpdated = onDocumentUpdated(
                         sourceType: "ticket",
                         sourceId: ticketId,
                         companyId: after.companyId,
-                        actionUrl: `/support/tickets/${ticketId}`,
+                        actionUrl: `/admin/support/${ticketId}`,  // FIXED: Updated to correct admin route
                         actionLabel: "Respond Now",
                         priority: "high",
                         read: false,
@@ -218,7 +218,7 @@ export const onTicketUpdated = onDocumentUpdated(
                         sourceType: "ticket",
                         sourceId: ticketId,
                         companyId: after.companyId,
-                        actionUrl: `/support/tickets/${ticketId}`,
+                        actionUrl: `/admin/support/${ticketId}`,  // FIXED: Updated to correct admin route
                         actionLabel: "Respond Now",
                         priority: "high",
                         read: false,
@@ -254,7 +254,7 @@ export const onTicketUpdated = onDocumentUpdated(
                     sourceType: "ticket",
                     sourceId: ticketId,
                     companyId: after.companyId,
-                    actionUrl: `/support/tickets/${ticketId}`,
+                    actionUrl: `/admin/support/${ticketId}`,  // FIXED: Updated to correct admin route
                     actionLabel: "View Ticket",
                     priority: "normal",
                     read: false,

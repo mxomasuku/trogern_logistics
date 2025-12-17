@@ -200,7 +200,7 @@ export async function postTicketMessage(
   }
 
   // Create message
-  const messageRef = ticketRef.collection("messages").doc();
+  const messageRef = ticketRef.collection(Collections.MESSAGES).doc();
   const newMessage: Omit<SupportMessage, "id" | "ticketId"> = {
     senderType: "admin",
     senderId: adminUser.id,

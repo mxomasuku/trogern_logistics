@@ -1,4 +1,4 @@
-import {onDocumentCreated} from "firebase-functions/v2/firestore";
+import { onDocumentCreated, onDocumentDeleted } from "firebase-functions/v2/firestore";
 import * as logger from "firebase-functions/logger";
 
 // HIGHLIGHT: now safely import Firestore APIs
@@ -10,7 +10,7 @@ import {
   type DocumentData,
 } from "firebase-admin/firestore";
 
-import {getPeriodKeysFromTimestamp, type PeriodType} from "./utils/periodUtils";
+import { getPeriodKeysFromTimestamp, type PeriodType } from "./utils/periodUtils";
 
 // HIGHLIGHT: shared deltas type
 type Deltas = {
@@ -46,7 +46,7 @@ export const onIncomeCreated = onDocumentCreated(
   async (event) => {
     // HIGHLIGHT: Initialize DB inside the function or globally if Admin initialized
     const db = getFirestore();
-    
+
     if (!event.data) {
       logger.warn("onIncomeCreated: no event.data", event.params);
       return;
@@ -112,7 +112,7 @@ async function updatePeriodStat(
   periodKey: string,
   deltas: Deltas
 ): Promise<void> {
-  const {incomeDelta, fuelDelta, serviceDelta, employeeDelta} = deltas;
+  const { incomeDelta, fuelDelta, serviceDelta, employeeDelta } = deltas;
 
   const ref = db
     .collection("companies")
@@ -185,6 +185,76 @@ async function updatePeriodStat(
       targetSnapshot: targetSnapshot ?? null,
     };
 
-    transaction.set(ref, updatedDoc, {merge: true});
+    transaction.set(ref, updatedDoc, { merge: true });
   });
 }
+
+// ────────────────────────────────────────────────────────────────
+// onIncomeDeleted - Reverses aggregation when income is deleted
+// ────────────────────────────────────────────────────────────────
+
+export const onIncomeDeleted = onDocumentDeleted(
+  {
+    document: "income/{incomeId}",
+  },
+  async (event) => {
+    const db = getFirestore();
+
+    if (!event.data) {
+      logger.warn("onIncomeDeleted: no event.data", event.params);
+      return;
+    }
+
+    const incomeId = event.params.incomeId;
+    // HIGHLIGHT: For deleted documents, we get the data that WAS in the document
+    const data = event.data.data() as DocumentData;
+
+    const companyId = data.companyId as string | undefined;
+    const cashDate = data.cashDate as Timestamp | undefined;
+    const amount = Number(data.amount ?? 0);
+
+    // OPTIONAL future fields - include these for completeness
+    const fuelCost = Number(data.fuelCost ?? 0);
+    const serviceCost = Number(data.serviceCost ?? 0);
+    const employeeCost = Number(data.employeeCost ?? 0);
+
+    if (!companyId || !cashDate || !Number.isFinite(amount)) {
+      logger.warn("onIncomeDeleted: skipping reversal – invalid payload", {
+        incomeId,
+        companyId,
+        hasCashDate: !!cashDate,
+        amount,
+      });
+      return;
+    }
+
+    const periodKeys = getPeriodKeysFromTimestamp(cashDate);
+
+    // HIGHLIGHT: Use NEGATIVE deltas to subtract from periodStats
+    const deltas: Deltas = {
+      incomeDelta: -amount,
+      fuelDelta: -fuelCost,
+      serviceDelta: -serviceCost,
+      employeeDelta: -employeeCost,
+    };
+
+    logger.info("onIncomeDeleted: reversing periodStats for deleted income", {
+      incomeId,
+      companyId,
+      amount,
+      periodKeys,
+    });
+
+    await Promise.all([
+      updatePeriodStat(db, companyId, "week", periodKeys.weekKey, deltas),
+      updatePeriodStat(db, companyId, "month", periodKeys.monthKey, deltas),
+      updatePeriodStat(db, companyId, "quarter", periodKeys.quarterKey, deltas),
+      updatePeriodStat(db, companyId, "year", periodKeys.yearKey, deltas),
+    ]);
+
+    logger.info("onIncomeDeleted: reversal complete", {
+      incomeId,
+      companyId,
+    });
+  }
+);

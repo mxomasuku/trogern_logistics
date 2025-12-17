@@ -77,10 +77,10 @@ export function NotificationBell({ className }: NotificationBellProps) {
                 </Button>
             </PopoverTrigger>
 
-            <PopoverContent className="w-96 p-0" align="end">
+            <PopoverContent className="w-96 p-0 bg-white rounded-2xl shadow-xl border-0" align="end">
                 {/* Header */}
-                <div className="flex items-center justify-between px-4 py-3 border-b">
-                    <h3 className="font-semibold text-sm">Notifications</h3>
+                <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 rounded-t-2xl bg-slate-50">
+                    <h3 className="font-semibold text-sm text-slate-900">Notifications</h3>
                     {unreadCount > 0 && (
                         <Button
                             variant="ghost"
@@ -179,14 +179,14 @@ export function NotificationBell({ className }: NotificationBellProps) {
 
                 {/* Footer */}
                 {notifications.length > 0 && (
-                    <div className="border-t p-2">
+                    <div className="border-t border-slate-200 p-2 rounded-b-2xl bg-slate-50">
                         <Button
                             variant="ghost"
                             size="sm"
                             className="w-full text-xs"
                             onClick={() => {
                                 setIsOpen(false);
-                                navigate("/notifications");
+                                navigate("/app/notifications");
                             }}
                         >
                             View all notifications

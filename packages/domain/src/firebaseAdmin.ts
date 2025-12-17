@@ -139,6 +139,7 @@ export const Collections = {
   AUDIT_LOGS: "auditLogs",
   COMPANY_INVITES: "companyInvites",
   APP_LOGS: "appLogs",
+  MESSAGES: "messages",
 } as const;
 
 /**

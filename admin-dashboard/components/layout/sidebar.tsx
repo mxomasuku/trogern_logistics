@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { usePathname } from "next/navigation";
 import { useAdminAuth } from "@/lib/admin-auth-context";
+import { useNotifications } from "@/hooks/useNotifications";
 import {
   LayoutDashboard,
   Building2,
@@ -97,9 +98,10 @@ interface SidebarProps {
 export function Sidebar({ collapsed = false, onCollapsedChange }: SidebarProps) {
   const pathname = usePathname();
   const { adminUser, isLoading } = useAdminAuth();
+  const { unreadCount } = useNotifications({ limitCount: 50 });
 
-  // TODO: Replace with actual notification count from a notifications context
-  const notificationCount = 0;
+  // Use real notification count from the hook
+  const notificationCount = unreadCount;
 
   const isActive = (href: string) => {
     if (href === "/admin") {

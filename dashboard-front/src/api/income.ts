@@ -37,7 +37,7 @@ export async function getIncomeLogsByVehicleId(vehicleId: string): Promise<Incom
 
 
 export async function getIncomeLogById(incomeId: string): Promise<IncomeLog> {
-    const { data } = await http.get<ApiResponse<IncomeLog>>(`/income/get/${incomeId}`);
+  const { data } = await http.get<ApiResponse<IncomeLog>>(`/income/get/${incomeId}`);
   if (!data?.isSuccessful) throw new Error(data?.error?.message ?? "Failed to fetch income log");
   return data.data!;
 
@@ -57,13 +57,20 @@ export async function updateIncomeLog(
 }
 
 export async function getIncomeLogsForVehicle(vehicleId: string): Promise<IncomeLog[]> {
-const {data} = await http.get<ApiResponse<IncomeLog[]>>(
-  `/income/get-vehicle-income-logs/${vehicleId}`
-)
+  const { data } = await http.get<ApiResponse<IncomeLog[]>>(
+    `/income/get-vehicle-income-logs/${vehicleId}`
+  )
 
-if(!data?.isSuccessful) {
-throw new Error(data?.error?.message ?? "Failed to get income logs")
+  if (!data?.isSuccessful) {
+    throw new Error(data?.error?.message ?? "Failed to get income logs")
+  }
+  return data.data!
 }
-return data.data!
+
+export async function deleteIncomeLog(incomeId: string): Promise<void> {
+  const { data } = await http.delete<ApiResponse<void>>(`/income/delete/${incomeId}`);
+  if (!data?.isSuccessful) {
+    throw new Error(data?.error?.message ?? "Failed to delete income log");
+  }
 }
 
