@@ -8,26 +8,26 @@ admin.initializeApp();
 // HIGHLIGHT: Firestore triggers (service records, vehicles, income logs, service items)
 import {
   createOrUpdateVehicleServiceRecord,
-  onVehicleCreated,        // HIGHLIGHT
-  onIncomeLogCreated,      // HIGHLIGHT
+  onVehicleCreated, // HIGHLIGHT
+  onIncomeLogCreated, // HIGHLIGHT
 
 } from "./firestore_trigger_handlers";
 
 // HIGHLIGHT: income aggregation trigger (existing)
-import { onIncomeCreated, onIncomeDeleted } from "./incomeAggregration";
+import {onIncomeCreated, onIncomeDeleted} from "./incomeAggregration";
 
 // HIGHLIGHT: scheduled jobs (service due, missing income logs, reports)
 import {
-  cronServiceDueWeekly,        // HIGHLIGHT
-  cronMissingIncomeLogs,       // HIGHLIGHT
-  cronGenerateReportsDaily,    // HIGHLIGHT
+  cronServiceDueWeekly, // HIGHLIGHT
+  cronMissingIncomeLogs, // HIGHLIGHT
+  cronGenerateReportsDaily, // HIGHLIGHT
 } from "./cron_jobs";
 
 // HIGHLIGHT: Notification system triggers
-import { onNotificationCreated } from "./triggers/onNotificationCreated";
-import { onTicketCreated } from "./triggers/tickets/onTicketCreated";
-import { onTicketUpdated } from "./triggers/tickets/onTicketUpdated";
-import { onMessageCreated } from "./triggers/tickets/onMessageCreated";
+import {onNotificationCreated} from "./triggers/onNotificationCreated";
+import {onTicketCreated} from "./triggers/tickets/onTicketCreated";
+import {onTicketUpdated} from "./triggers/tickets/onTicketUpdated";
+import {onMessageCreated} from "./triggers/tickets/onMessageCreated";
 
 // HIGHLIGHT: export all cloud functions
 export {

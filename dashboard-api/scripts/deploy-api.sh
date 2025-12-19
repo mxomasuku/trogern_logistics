@@ -13,7 +13,7 @@ set -euo pipefail
 
 # Optional Cloud Run tuning
 : "${MEMORY:=512Mi}"
-: "${TIMEOUT:=20}"           # seconds
+: "${TIMEOUT:=60}"           # seconds (increased for startup)
 : "${CONCURRENCY:=80}"       # requests per instance
 : "${MIN_INSTANCES:=0}"      # scale-to-zero by default
 
@@ -27,12 +27,17 @@ echo "  CONCURRENCY:       ${CONCURRENCY}"
 echo "  MIN_INSTANCES:     ${MIN_INSTANCES}"
 echo
 
+# Run pre-deployment preparation (bundle domain package)
+echo "🔧 Running pre-deployment preparation..."
+bash ./scripts/prepare-deploy.sh
+
 gcloud config set project "$PROJECT_ID" >/dev/null
 
 # Enable required APIs (no-op if already enabled)
 gcloud services enable run.googleapis.com cloudbuild.googleapis.com >/dev/null
 
-# Deploy from source (Cloud Buildpacks will run your package.json "gcp-build" then "start")
+# Build and deploy using Dockerfile
+echo "🐳 Building and deploying with Dockerfile..."
 gcloud run deploy "$SERVICE_NAME" \
   --source . \
   --region "$REGION" \
@@ -42,7 +47,9 @@ gcloud run deploy "$SERVICE_NAME" \
   --timeout "$TIMEOUT" \
   --concurrency "$CONCURRENCY" \
   --min-instances "$MIN_INSTANCES" \
-  --set-env-vars "NODE_ENV=production,FRONTEND_ORIGIN=${FRONTEND_ORIGIN}"
+  --set-env-vars "NODE_ENV=production,FRONTEND_ORIGIN=${FRONTEND_ORIGIN},FIREBASE_PROJECT_ID=${PROJECT_ID},GCLOUD_PROJECT=${PROJECT_ID},FIREBASE_API_KEY=${FIREBASE_API_KEY:-}" \
+  --clear-base-image \
+  --cpu-boost
 
 # Output the URL so the web can consume it
 API_URL="$(gcloud run services describe "$SERVICE_NAME" --region "$REGION" --format='value(status.url)')"

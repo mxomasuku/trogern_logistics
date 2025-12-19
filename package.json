@@ -8,7 +8,8 @@
   ],
   "scripts": {
     "dev": "npm run dev --workspace=admin-dashboard",
-    "build": "npm run build --workspace=admin-dashboard",
+    "build": "npm run build --workspace=packages/domain && npm run build --workspace=admin-dashboard",
+    "build:domain": "npm run build --workspace=packages/domain",
     "lint": "npm run lint --workspace=admin-dashboard"
   },
   "devDependencies": {

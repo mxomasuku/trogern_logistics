@@ -90,8 +90,6 @@ export function TicketDetailView({
     onNudge,
     isSending = false,
     isNudging = false,
-    currentUserId,
-    currentUserName,
 }: TicketDetailViewProps) {
     const [newMessage, setNewMessage] = useState("");
 

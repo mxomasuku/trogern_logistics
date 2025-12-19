@@ -1,4 +1,4 @@
-import { onDocumentCreated, onDocumentDeleted } from "firebase-functions/v2/firestore";
+import {onDocumentCreated, onDocumentDeleted} from "firebase-functions/v2/firestore";
 import * as logger from "firebase-functions/logger";
 
 // HIGHLIGHT: now safely import Firestore APIs
@@ -10,7 +10,7 @@ import {
   type DocumentData,
 } from "firebase-admin/firestore";
 
-import { getPeriodKeysFromTimestamp, type PeriodType } from "./utils/periodUtils";
+import {getPeriodKeysFromTimestamp, type PeriodType} from "./utils/periodUtils";
 
 // HIGHLIGHT: shared deltas type
 type Deltas = {
@@ -112,7 +112,7 @@ async function updatePeriodStat(
   periodKey: string,
   deltas: Deltas
 ): Promise<void> {
-  const { incomeDelta, fuelDelta, serviceDelta, employeeDelta } = deltas;
+  const {incomeDelta, fuelDelta, serviceDelta, employeeDelta} = deltas;
 
   const ref = db
     .collection("companies")
@@ -185,7 +185,7 @@ async function updatePeriodStat(
       targetSnapshot: targetSnapshot ?? null,
     };
 
-    transaction.set(ref, updatedDoc, { merge: true });
+    transaction.set(ref, updatedDoc, {merge: true});
   });
 }
 

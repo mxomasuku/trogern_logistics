@@ -1,4 +1,4 @@
-import { getFirestore, Timestamp } from "firebase-admin/firestore";
+import {getFirestore, Timestamp} from "firebase-admin/firestore";
 
 // HIGHLIGHT: notification shape used by the helper
 export type NotificationSeverity = "info" | "warn" | "critical";
@@ -125,9 +125,9 @@ export async function upsertNotification(
   const existing = existingSnap.docs[0].data() as NotificationDoc;
 
   const mergedPayload =
-    payload != null
-      ? { ...(existing.payload ?? {}), ...payload }
-      : existing.payload ?? {};
+    payload != null ?
+      {...(existing.payload ?? {}), ...payload} :
+      existing.payload ?? {};
 
   await existingDocRef.update({
     status: "open", // HIGHLIGHT: always re-open on upsert
@@ -165,16 +165,16 @@ function buildDefaultTitle(
     itemName ?? (entityType && entityId ? `${entityType} ${entityId}` : "");
 
   switch (type) {
-    // HIGHLIGHT: handle both SOON and OVERDUE explicitly
-    case "SERVICE_ITEM_DUE_SOON":
-      return label ? `Service due soon: ${label}` : "Service item due soon";
-    case "SERVICE_ITEM_OVERDUE":
-      return label ? `Service OVERDUE: ${label}` : "Service item OVERDUE";
-    case "NO_INCOME_LOGS_8_DAYS":
-      return label
-        ? `No income logs for ${label} in 8 days`
-        : "No income logs in 8 days";
-    default:
-      return label ? `${type} for ${label}` : type;
+  // HIGHLIGHT: handle both SOON and OVERDUE explicitly
+  case "SERVICE_ITEM_DUE_SOON":
+    return label ? `Service due soon: ${label}` : "Service item due soon";
+  case "SERVICE_ITEM_OVERDUE":
+    return label ? `Service OVERDUE: ${label}` : "Service item OVERDUE";
+  case "NO_INCOME_LOGS_8_DAYS":
+    return label ?
+      `No income logs for ${label} in 8 days` :
+      "No income logs in 8 days";
+  default:
+    return label ? `${type} for ${label}` : type;
   }
 }

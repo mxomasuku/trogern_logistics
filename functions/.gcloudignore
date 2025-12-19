@@ -1,0 +1,30 @@
+# Files to exclude from deployment
+node_modules/
+.git/
+.gitignore
+*.log
+firebase-debug*.log
+firestore-debug.log
+ui-debug.log
+.DS_Store
+*.local
+
+# Emulator exports
+firebase-export-*
+
+# TypeScript source (we deploy compiled JS)
+src/
+tsconfig*.json
+.eslintrc.js
+
+# Development files
+*.map
+
+# Test files
+__tests__/
+*.test.ts
+*.spec.ts
+
+# Documentation
+*.md
+!README.md

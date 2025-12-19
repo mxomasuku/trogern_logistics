@@ -1,6 +1,6 @@
-import { onDocumentCreated } from "firebase-functions/v2/firestore";
+import {onDocumentCreated} from "firebase-functions/v2/firestore";
 import * as logger from "firebase-functions/logger";
-import { getFirestore, Timestamp } from "firebase-admin/firestore";
+import {getFirestore, Timestamp} from "firebase-admin/firestore";
 
 import type {
   ServiceItemKind,
@@ -40,9 +40,9 @@ function computeDueValues(
     null;
 
   const dueMileage =
-    lifespanMileage != null
-      ? serviceRecordMileage + lifespanMileage
-      : null;
+    lifespanMileage != null ?
+      serviceRecordMileage + lifespanMileage :
+      null;
 
   let dueDate: Timestamp | null = null;
   if (lifespanDays != null) {
@@ -51,7 +51,7 @@ function computeDueValues(
     dueDate = Timestamp.fromDate(baseDate);
   }
 
-  return { dueMileage, dueDate };
+  return {dueMileage, dueDate};
 }
 
 // HIGHLIGHT: use Firestore type instead of FirebaseFirestore.Firestore
@@ -91,7 +91,7 @@ export const createOrUpdateVehicleServiceRecord = onDocumentCreated(
     document: "service-and-license-records/{serviceRecordId}",
   },
   async (event) => {
-    const db = getFirestore();              // HIGHLIGHT: admin Firestore
+    const db = getFirestore(); // HIGHLIGHT: admin Firestore
 
     try {
       if (!event.data) {
@@ -110,15 +110,15 @@ export const createOrUpdateVehicleServiceRecord = onDocumentCreated(
       }
 
       // HIGHLIGHT: pull companyId from the service record
-      const { vehicleId, date, serviceMileage, companyId } = serviceRecord;
+      const {vehicleId, date, serviceMileage, companyId} = serviceRecord;
 
       if (!vehicleId) {
-        logger.warn("Service record missing vehicleId", { serviceRecordId });
+        logger.warn("Service record missing vehicleId", {serviceRecordId});
         return;
       }
 
       if (!companyId) {
-        logger.warn("Service record missing companyId", { serviceRecordId });
+        logger.warn("Service record missing companyId", {serviceRecordId});
         return;
       }
 
@@ -136,7 +136,7 @@ export const createOrUpdateVehicleServiceRecord = onDocumentCreated(
           unit: data.unit,
           quantity: data.quantity,
           cost: data.cost,
-          date: (data.date ?? date) as Timestamp,  // HIGHLIGHT: cast to Timestamp
+          date: (data.date ?? date) as Timestamp, // HIGHLIGHT: cast to Timestamp
           vehicleMileage: data.vehicleMileage ?? serviceMileage,
           expectedLifespanMileage:
             data.expectedLifespanMileage ?? undefined,
@@ -176,9 +176,9 @@ export const createOrUpdateVehicleServiceRecord = onDocumentCreated(
       await db.runTransaction(async (transaction) => {
         const snapshot = await transaction.get(trackerRef);
 
-        const existingDoc = snapshot.exists
-          ? (snapshot.data() as VehicleServiceTrackerDoc)
-          : null;
+        const existingDoc = snapshot.exists ?
+          (snapshot.data() as VehicleServiceTrackerDoc) :
+          null;
 
         const currentLastServiceDate =
           existingDoc?.lastServiceDate ?? null;
@@ -188,15 +188,15 @@ export const createOrUpdateVehicleServiceRecord = onDocumentCreated(
 
         const newLastServiceDate =
           !currentLastServiceDate ||
-            date.toMillis() > currentLastServiceDate.toMillis()
-            ? date
-            : currentLastServiceDate;
+            date.toMillis() > currentLastServiceDate.toMillis() ?
+            date :
+            currentLastServiceDate;
 
         const newLastServiceMileage =
           currentLastServiceMileage == null ||
-            serviceMileage > currentLastServiceMileage
-            ? serviceMileage
-            : currentLastServiceMileage;
+            serviceMileage > currentLastServiceMileage ?
+            serviceMileage :
+            currentLastServiceMileage;
 
         const updatedItems: Record<string, VehicleServiceTrackerItemState> =
         {
@@ -211,7 +211,7 @@ export const createOrUpdateVehicleServiceRecord = onDocumentCreated(
           const itemKey = buildItemKey(item.kind, item.name);
           const catalog = catalogByKey.get(itemKey) ?? null;
 
-          const { dueMileage, dueDate } = computeDueValues(
+          const {dueMileage, dueDate} = computeDueValues(
             date,
             serviceMileage,
             item,
@@ -274,7 +274,7 @@ export const createOrUpdateVehicleServiceRecord = onDocumentCreated(
           currentMileage: existingDoc?.currentMileage ?? null,
         };
 
-        transaction.set(trackerRef, newDoc, { merge: true });
+        transaction.set(trackerRef, newDoc, {merge: true});
       });
       // HIGHLIGHT: END FLATTENED DOC UPDATE
 
@@ -295,7 +295,7 @@ export const createOrUpdateVehicleServiceRecord = onDocumentCreated(
 );
 
 export const onVehicleCreated = onDocumentCreated(
-  { document: "vehicles/{vehicleId}" },
+  {document: "vehicles/{vehicleId}"},
   async (event) => {
     const db = getFirestore();
     if (!event.data) return;
@@ -307,9 +307,9 @@ export const onVehicleCreated = onDocumentCreated(
       registration?: string;
     };
 
-    const { companyId, currentMileage = null } = vehicleData;
+    const {companyId, currentMileage = null} = vehicleData;
     if (!companyId) {
-      logger.warn("Vehicle created without companyId", { vehicleId });
+      logger.warn("Vehicle created without companyId", {vehicleId});
       return;
     }
 
@@ -319,9 +319,9 @@ export const onVehicleCreated = onDocumentCreated(
     await db.runTransaction(async (tx) => {
       // HIGHLIGHT: READ FIRST – get company before any writes
       const companySnap = await tx.get(companyRef);
-      const currentCount = companySnap.exists
-        ? ((companySnap.data()?.fleetSize as number) ?? 0)
-        : 0;
+      const currentCount = companySnap.exists ?
+        ((companySnap.data()?.fleetSize as number) ?? 0) :
+        0;
 
       // HIGHLIGHT: then perform all writes
       // initialise tracker doc
@@ -339,18 +339,18 @@ export const onVehicleCreated = onDocumentCreated(
           updatedAt: Timestamp.now(),
           items: {},
         },
-        { merge: false }
+        {merge: false}
       );
 
       // update company summary
-      logger.info("Vehicle created successfully", { vehicleId, companyId });
+      logger.info("Vehicle created successfully", {vehicleId, companyId});
       tx.set(
         companyRef,
         {
           fleetSize: currentCount + 1,
           updatedAt: Timestamp.now(),
         },
-        { merge: true }
+        {merge: true}
       );
     });
   }
@@ -358,7 +358,7 @@ export const onVehicleCreated = onDocumentCreated(
 
 // HIGHLIGHT: update lastIncomeLogAt per vehicle
 export const onIncomeLogCreated = onDocumentCreated(
-  { document: "income/{incomeLogId}" },
+  {document: "income/{incomeLogId}"},
   async (event) => {
     const db = getFirestore();
     if (!event.data) return;
@@ -371,7 +371,7 @@ export const onIncomeLogCreated = onDocumentCreated(
       closingMileage?: number;
     };
 
-    const { companyId, vehicleId, date, closingMileage } = data;
+    const {companyId, vehicleId, date, closingMileage} = data;
 
     if (!companyId || !vehicleId || !date) {
       logger.warn("Income log missing required fields", {
@@ -417,7 +417,7 @@ export const onIncomeLogCreated = onDocumentCreated(
         (updatePayload as any).currentMileage = closingMileage;
       }
 
-      tx.set(trackerRef, updatePayload, { merge: true });
+      tx.set(trackerRef, updatePayload, {merge: true});
     });
   }
 );
