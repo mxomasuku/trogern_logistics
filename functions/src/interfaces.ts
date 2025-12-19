@@ -75,13 +75,13 @@ export interface VehicleServiceTrackerItemState {
   kind: ServiceItemKind;
   name: string;
   value: string;
-  lastChangedAt: FirebaseFirestore.Timestamp;                 // HIGHLIGHT: Timestamp type
+  lastChangedAt: FirebaseFirestore.Timestamp; // HIGHLIGHT: Timestamp type
   lastChangedMileage: number;
-  dueForChangeOnDate: FirebaseFirestore.Timestamp | null;     // HIGHLIGHT: Timestamp type
+  dueForChangeOnDate: FirebaseFirestore.Timestamp | null; // HIGHLIGHT: Timestamp type
   dueForChangeOnMileage: number | null;
   lastServiceRecordDocId: string;
-  createdAt: FirebaseFirestore.Timestamp;                     // HIGHLIGHT: Timestamp type
-  updatedAt: FirebaseFirestore.Timestamp;                     // HIGHLIGHT: Timestamp type
+  createdAt: FirebaseFirestore.Timestamp; // HIGHLIGHT: Timestamp type
+  updatedAt: FirebaseFirestore.Timestamp; // HIGHLIGHT: Timestamp type
 }
 
 // HIGHLIGHT: central state doc for all cron logic
@@ -90,18 +90,18 @@ export interface VehicleServiceTrackerDoc {
   companyId: string;
 
   // service aggregation
-  lastServiceDate: FirebaseFirestore.Timestamp | null;        // HIGHLIGHT: Timestamp type
+  lastServiceDate: FirebaseFirestore.Timestamp | null; // HIGHLIGHT: Timestamp type
   lastServiceMileage: number | null;
-  nextServiceDueDate: FirebaseFirestore.Timestamp | null;     // HIGHLIGHT: Timestamp type
+  nextServiceDueDate: FirebaseFirestore.Timestamp | null; // HIGHLIGHT: Timestamp type
   nextServiceDueMileage: number | null;
 
   // income aggregation
-  lastIncomeLogAt: FirebaseFirestore.Timestamp | null;        // HIGHLIGHT: Timestamp type
+  lastIncomeLogAt: FirebaseFirestore.Timestamp | null; // HIGHLIGHT: Timestamp type
 
   // optional
   currentMileage?: number | null;
 
-  updatedAt: FirebaseFirestore.Timestamp;                     // HIGHLIGHT: Timestamp type
+  updatedAt: FirebaseFirestore.Timestamp; // HIGHLIGHT: Timestamp type
 
   items: Record<string, VehicleServiceTrackerItemState>;
 }

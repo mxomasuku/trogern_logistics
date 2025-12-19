@@ -1,0 +1,167 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ============================================
+    // HELPER FUNCTIONS
+    // ============================================
+    
+    // Check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Get user data
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+    
+    // Check if user belongs to company
+    function belongsToCompany(companyId) {
+      return isAuthenticated() && getUserData().companyId == companyId;
+    }
+    
+    // Check if user is an admin (via custom claims OR adminUsers collection)
+    function isAdmin() {
+      return isAuthenticated() && (
+        // Check custom claims for admin role
+        (request.auth.token.adminRole != null && 
+         request.auth.token.adminRole in ['founder', 'admin', 'support', 'analyst']) ||
+        // Fallback: check adminUsers collection
+        exists(/databases/$(database)/documents/adminUsers/$(request.auth.uid))
+      );
+    }
+    
+    // Check if user is ticket creator
+    function isTicketCreator(ticketData) {
+      return isAuthenticated() && 
+             (ticketData.userId == request.auth.uid || 
+              ticketData.createdBy.id == request.auth.uid);
+    }
+
+    // ============================================
+    // SUPPORT TICKETS
+    // ============================================
+    
+    match /supportTickets/{ticketId} {
+      // Users can read tickets they created OR tickets from their company
+      allow read: if isAuthenticated() && 
+                     (resource.data.userId == request.auth.uid ||
+                      resource.data.createdBy.id == request.auth.uid ||
+                      belongsToCompany(resource.data.companyId));
+      
+      // Users can create tickets for their company
+      allow create: if isAuthenticated() && 
+                       request.resource.data.companyId == getUserData().companyId &&
+                       request.resource.data.createdBy.id == request.auth.uid;
+      
+      // Users can update their own tickets (for adding messages, nudging)
+      // Only allow updating specific fields
+      allow update: if isAuthenticated() && 
+                       isTicketCreator(resource.data) &&
+                       // Only allow updating these safe fields
+                       request.resource.data.diff(resource.data).affectedKeys()
+                         .hasOnly(['updatedAt', 'lastActivityAt', 'lastNudgedAt', 'nudgeCount', 'messageCount']);
+      
+      // Users cannot delete tickets
+      allow delete: if false;
+
+      // ============================================
+      // TICKET MESSAGES (subcollection)
+      // ============================================
+      
+      match /messages/{messageId} {
+        // Users can read messages from tickets they have access to
+        allow read: if isAuthenticated() && 
+                       (get(/databases/$(database)/documents/supportTickets/$(ticketId)).data.userId == request.auth.uid ||
+                        get(/databases/$(database)/documents/supportTickets/$(ticketId)).data.createdBy.id == request.auth.uid ||
+                        belongsToCompany(get(/databases/$(database)/documents/supportTickets/$(ticketId)).data.companyId)) &&
+                       // Don't show internal admin notes to users
+                       (resource.data.isInternalNote != true || resource.data.isInternalNote == null);
+        
+        // Users can create messages on their own tickets
+        allow create: if isAuthenticated() && 
+                         request.resource.data.authorType == 'client' &&
+                         request.resource.data.authorId == request.auth.uid;
+        
+        // Users cannot update or delete messages
+        allow update, delete: if false;
+      }
+    }
+
+    // ============================================
+    // TICKET ATTACHMENTS (storage metadata in Firestore)
+    // ============================================
+    
+    match /ticketAttachments/{attachmentId} {
+      // Users can read attachments they uploaded or from their tickets
+      allow read: if isAuthenticated() && 
+                     resource.data.uploadedBy == request.auth.uid;
+      
+      // Users can create attachments for their own uploads
+      allow create: if isAuthenticated() && 
+                       request.resource.data.uploadedBy == request.auth.uid;
+      
+      // No updates or deletes for users
+      allow update, delete: if false;
+    }
+
+    // ============================================
+    // NOTIFICATIONS
+    // ============================================
+    
+    match /notifications/{notificationId} {
+      // Users can read their own notifications
+      // - recipientType is "user" AND recipientId matches their uid
+      // - recipientType is "company" AND recipientId matches user's companyId
+      // - recipientType is "admin" AND user is an admin AND recipientId matches
+      // - recipientType is "all_admins" AND user is an admin
+      allow read: if isAuthenticated() && 
+                     (
+                       // User-specific notification
+                       (resource.data.recipientType == 'user' && 
+                        resource.data.recipientId == request.auth.uid) ||
+                       // Company-wide notification (recipientId contains companyId)
+                       (resource.data.recipientType == 'company' && 
+                        (resource.data.recipientId == getUserData().companyId ||
+                         resource.data.companyId == getUserData().companyId)) ||
+                       // Admin-specific notification
+                       (resource.data.recipientType == 'admin' && 
+                        resource.data.recipientId == request.auth.uid &&
+                        isAdmin()) ||
+                       // All-admins notification  
+                       (resource.data.recipientType == 'all_admins' && isAdmin())
+                     );
+      
+      // Users can update their own notifications (only read/dismissed status)
+      allow update: if isAuthenticated() &&
+                       (
+                         (resource.data.recipientType == 'user' && 
+                          resource.data.recipientId == request.auth.uid) ||
+                         (resource.data.recipientType == 'company' && 
+                          (resource.data.recipientId == getUserData().companyId ||
+                           resource.data.companyId == getUserData().companyId)) ||
+                         (resource.data.recipientType == 'admin' && 
+                          resource.data.recipientId == request.auth.uid &&
+                          isAdmin()) ||
+                         (resource.data.recipientType == 'all_admins' && isAdmin())
+                       ) &&
+                       // Only allow updating these specific fields
+                       request.resource.data.diff(resource.data).affectedKeys()
+                         .hasOnly(['read', 'readAt', 'dismissed', 'dismissedAt']);
+      
+      // Only Cloud Functions can create/delete notifications
+      allow create, delete: if false;
+    }
+
+    // ============================================
+    // EXISTING RULES (other collections)
+    // ============================================
+    
+    // Default rule for other collections - require auth
+    match /{document=**} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+  }
+}

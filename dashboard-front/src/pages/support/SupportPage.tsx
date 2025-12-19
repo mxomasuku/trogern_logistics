@@ -108,7 +108,7 @@ export default function SupportPage() {
     const handleSubmit = async (payload: CreateTicketPayload, files?: File[]) => {
         setIsSubmitting(true);
         try {
-            let attachmentIds: string[] = [];
+            const attachmentIds: string[] = [];
 
             // Upload files if provided
             if (files && files.length > 0 && user?.uid) {

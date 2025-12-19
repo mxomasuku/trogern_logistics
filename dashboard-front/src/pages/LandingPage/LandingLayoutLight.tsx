@@ -14,9 +14,9 @@ export function LandingLayoutLight() {
   };
 
   return (
-    <GenericLandingLayout 
+    <GenericLandingLayout
       theme={theme}
-      headline={<>Are your vehicles <span className="text-blue-700">making money</span> or just think they are?</>}
+      headline={<>Are your vehicles <span className="text-blue-700">making money</span> or you just think they are?</>}
       subheadline="Daily cash-ins, expenses, and profit alerts built for SMEs in volatile markets."
     />
   );

@@ -21,7 +21,6 @@ router.put('/update/:id', updateDriver);
 router.delete('/delete/:id', deleteDriver);
 router.get("/get-active-drivers", getAllActiveDrivers);
 router.get("/get-inactive-drivers", getAllInactiveDrivers);
-
 router.get("/get/kpis/:driverId/:vehicleId", getDriverKpis);
 
 

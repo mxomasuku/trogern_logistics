@@ -1,12 +1,8 @@
 {
     "$schema": "https://openapi.vercel.sh/vercel.json",
-    "buildCommand": "cd .. && npm run build --workspace=packages/domain && cd admin-dashboard && npm run build",
-    "installCommand": "cd .. && npm install",
+    "version": 2,
     "framework": "nextjs",
-    "outputDirectory": ".next",
-    "regions": [
-        "iad1"
-    ],
+    "installCommand": "npm install --force",
     "headers": [
         {
             "source": "/api/(.*)",
@@ -29,8 +25,5 @@
                 }
             ]
         }
-    ],
-    "env": {
-        "NEXT_TELEMETRY_DISABLED": "1"
-    }
+    ]
 }

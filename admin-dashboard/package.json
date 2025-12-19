@@ -7,28 +7,29 @@
     "build": "next build",
     "start": "next start -p 3001",
     "lint": "next lint",
-    "create-admin-user": "ts-node scripts/create-admin-user.ts"
+    "create-admin-user": "ts-node scripts/create-admin-user.ts",
+    "predeploy": "chmod +x scripts/prepare-deploy.sh && ./scripts/prepare-deploy.sh",
+    "deploy": "npm run predeploy && vercel --prod",
+    "deploy:preview": "npm run predeploy && vercel"
   },
   "dependencies": {
     "@headlessui/react": "^2.2.9",
-    "@trogern/domain": "*",
+    "@trogern/domain": "file:./lib/domain",
+    "@types/node": "^20",
+    "@types/react": "^18.3.27",
+    "@types/react-dom": "^18",
+    "autoprefixer": "^10",
     "clsx": "^2.1.0",
     "date-fns": "^3.0.0",
     "firebase": "^10.7.0",
     "firebase-admin": "^12.0.0",
-    "lucide-react": "^0.263.1",
+    "lucide-react": "^0.468.0",
     "next": "^16.0.8",
+    "postcss": "^8",
     "react": "^19.2.1",
     "react-dom": "^19.2.1",
-    "recharts": "^2.10.0"
-  },
-  "devDependencies": {
-    "@types/node": "^20",
-    "@types/react": "^18",
-    "@types/react-dom": "^18",
-    "autoprefixer": "^10",
-    "postcss": "^8",
+    "recharts": "^2.10.0",
     "tailwindcss": "^3.4.0",
-    "typescript": "^5"
+    "typescript": "^5.9.3"
   }
 }

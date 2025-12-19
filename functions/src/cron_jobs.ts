@@ -1,6 +1,6 @@
-import { onSchedule } from "firebase-functions/v2/scheduler";
-import { getFirestore, Timestamp } from "firebase-admin/firestore";
-import { upsertNotification } from "./utils/notifications";
+import {onSchedule} from "firebase-functions/v2/scheduler";
+import {getFirestore, Timestamp} from "firebase-admin/firestore";
+import {upsertNotification} from "./utils/notifications";
 import type {
   VehicleServiceTrackerDoc,
   VehicleServiceTrackerItemState,
@@ -9,7 +9,7 @@ import type {
 
 // HIGHLIGHT: weekly service-due cron with SOON vs OVERDUE per item
 export const cronServiceDueWeekly = onSchedule(
-  { schedule: "every 168 hours" }, // 7 days
+  {schedule: "every 168 hours"}, // 7 days
   async () => {
     const db = getFirestore();
     const now = new Date();
@@ -69,9 +69,9 @@ export const cronServiceDueWeekly = onSchedule(
         }
 
         // HIGHLIGHT: pick type + severity based on class
-        const type = isOverdue
-          ? "SERVICE_ITEM_OVERDUE"
-          : "SERVICE_ITEM_DUE_SOON";
+        const type = isOverdue ?
+          "SERVICE_ITEM_OVERDUE" :
+          "SERVICE_ITEM_DUE_SOON";
 
         const severity = isOverdue ? "critical" : "warn";
 
@@ -111,7 +111,7 @@ export const cronServiceDueWeekly = onSchedule(
 
 // HIGHLIGHT: daily missing-income cron
 export const cronMissingIncomeLogs = onSchedule(
-  { schedule: "every 24 hours" },
+  {schedule: "every 24 hours"},
   async () => {
     const db = getFirestore();
     const now = new Date();
@@ -144,7 +144,7 @@ export const cronMissingIncomeLogs = onSchedule(
 
 // HIGHLIGHT: daily report cron (decides which periods to run)
 export const cronGenerateReportsDaily = onSchedule(
-  { schedule: "every 24 hours" },
+  {schedule: "every 24 hours"},
   async () => {
     const today = new Date();
 
@@ -174,5 +174,5 @@ async function generateReportsForPeriod(period: ReportPeriod): Promise<void> {
   const db = getFirestore();
   // TODO: implement actual report aggregation using CompanyReportSnapshot
   // For now, this is a no-op to keep the scheduler functions valid.
-  await Promise.resolve(db); 
+  await Promise.resolve(db);
 }

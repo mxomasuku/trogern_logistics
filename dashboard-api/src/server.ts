@@ -26,11 +26,14 @@ import { attachUserProfile } from './middleware/attachUserProfile';
 import { requestMetrics } from "./middleware/requestMetrics";
 import { errorHandler } from "./middleware/errorHandler";
 
-// ---- Env (load ONCE) ----
-dotenv.config({
-  path: process.env.NODE_ENV === 'development' ? '.env.development' : '.env',
-  override: true,
-});
+// ---- Env (load ONCE, only in development) ----
+// In production, env vars are set by Cloud Run deployment, not .env files
+if (process.env.NODE_ENV !== 'production') {
+  dotenv.config({
+    path: '.env.development',
+    override: true,
+  });
+}
 
 const app = express();
 const PORT = process.env.PORT || 5050;
@@ -78,6 +81,13 @@ if (process.env.NODE_ENV === 'development') {
   app.use(morgan('dev'));
 }
 
+// ---- Healthchecks (must be BEFORE any auth middleware) ----
+app.get('/healthz', (_req: Request, res: Response) => res.status(200).send('ok'));
+app.get('/readyz', (_req: Request, res: Response) => {
+  if (!isReady) return res.status(503).send('not-ready');
+  return res.status(200).send('ready');
+});
+
 // ---- Public routes ----
 app.use('/api/v1/auth', authRoutes);
 
@@ -105,12 +115,7 @@ app.get(
   }
 );
 
-// ---- Healthchecks (must be BEFORE 404) ----
-app.get('/healthz', (_req: Request, res: Response) => res.status(200).send('ok'));
-app.get('/readyz', (_req: Request, res: Response) => {
-  if (!isReady) return res.status(503).send('not-ready');
-  return res.status(200).send('ready');
-});
+
 
 
 

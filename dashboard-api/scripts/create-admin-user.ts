@@ -29,7 +29,7 @@ import { getAuthAdmin, getDb, Collections, serverTimestamp } from "@trogern/doma
 async function createAdminUser() {
   console.log("4. Getting Auth and DB instances...");
 
-  const auth = getAuthAdmin();
+  const auth = getAuthAdmin() as any;
   console.log("5. Got Auth instance");
 
   const db = getDb();
