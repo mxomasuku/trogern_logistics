@@ -117,6 +117,8 @@ pubsub-debug.log
 # Emulator data exports (optional - you might want to keep these)
 emulator-data/
 firestore-export/
+firebase-export-*/
+.emulator-data/
 
 # ============================================
 # MISC
