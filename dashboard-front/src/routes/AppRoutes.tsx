@@ -12,6 +12,7 @@ import { RequireOwner } from "@/pages/auth/RequireOwner";
 import LandingPage from "@/pages/LandingPage/LandingPage";
 import LoginPage from "@/pages/auth/LoginPage";
 import SignUpPage from "@/pages/auth/Signup";
+import ForgotPasswordPage from "@/pages/auth/ForgotPasswordPage";
 import CompanySetupPage from "@/pages/CompanySetupPage";
 
 import Home from "@/pages/home/Home";
@@ -58,6 +59,7 @@ export default function AppRoutes() {
       <Route path="/product-overview" element={<ProductOverviewPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/signup" element={<SignUpPage />} />
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/book-a-demo" element={<BookADemoPage />} />
       {/* <Route path="/debug-crash" element={<DebugCrashPage />} /> */}
 
