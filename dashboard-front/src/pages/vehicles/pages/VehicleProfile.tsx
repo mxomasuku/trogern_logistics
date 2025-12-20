@@ -153,7 +153,7 @@ export default function VehicleProfile() {
       [
         r.type,
         r.notes,
-   
+
         r.serviceMileage,
         r.cost,
         r.itemsChanged?.map(item => item.name).join(","),
@@ -236,6 +236,7 @@ export default function VehicleProfile() {
         plate={vehicle.plateNumber}
         makeModel={makeModel}
         status={vehicle.status}
+        vehicleId={vehicleId}
         onBack={() => navigate(-1)}
       />
 

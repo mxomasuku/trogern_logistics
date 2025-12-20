@@ -2,6 +2,9 @@
   "buckets": [
     {
       "id": "trogern-logistics.firebasestorage.app"
+    },
+    {
+      "id": "trogern-logistics.appspot.com"
     }
   ]
 }
