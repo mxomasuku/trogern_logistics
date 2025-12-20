@@ -1,7 +1,7 @@
 // src/pages/vehicles/pages/VehicleRoiStats.tsx
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { ArrowLeft, Loader2, TrendingUp, DollarSign, Target, Calendar, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, Loader2, TrendingUp, DollarSign, Target, Calendar, AlertTriangle, CheckCircle2, Gauge } from "lucide-react";
 import { toast } from "sonner";
 
 // APIs
@@ -53,6 +53,12 @@ interface RoiData {
     daysSincePurchase: number;
     isRoiAchieved: boolean;
     monthsToRoi: number | null;
+    // Mileage projection data
+    currentMileage: number;
+    deliveryMileage: number;
+    totalKmDriven: number;
+    dailyMileageRate: number;
+    projectedMileageAtRoi: number | null;
 }
 
 function calculateRoi(
@@ -87,6 +93,26 @@ function calculateRoi(
         projectedRoiDate.setDate(projectedRoiDate.getDate() + daysToFullRoi);
     }
 
+    // Mileage calculations
+    const currentMileage = vehicle.currentMileage ?? 0;
+    const deliveryMileage = vehicle.deliveryMileage ?? 0;
+    const totalKmDriven = Math.max(0, currentMileage - deliveryMileage);
+
+    // Calculate daily mileage rate
+    const dailyMileageRate = daysSincePurchase > 0
+        ? totalKmDriven / daysSincePurchase
+        : 0;
+
+    // Project mileage at ROI
+    let projectedMileageAtRoi: number | null = null;
+    if (daysToFullRoi !== null && dailyMileageRate > 0) {
+        // Mileage at ROI = current mileage + (days to ROI × daily mileage rate)
+        projectedMileageAtRoi = Math.round(currentMileage + (daysToFullRoi * dailyMileageRate));
+    } else if (isRoiAchieved) {
+        // ROI already achieved, show current mileage as the "break-even" mileage
+        projectedMileageAtRoi = currentMileage;
+    }
+
     return {
         purchasePrice,
         totalNetIncome,
@@ -98,6 +124,12 @@ function calculateRoi(
         daysSincePurchase,
         isRoiAchieved,
         monthsToRoi,
+        // Mileage data
+        currentMileage,
+        deliveryMileage,
+        totalKmDriven,
+        dailyMileageRate,
+        projectedMileageAtRoi,
     };
 }
 
@@ -384,6 +416,110 @@ function ProjectionChart({ roiData }: { roiData: RoiData }) {
     );
 }
 
+function MileageProjectionCard({ roiData }: { roiData: RoiData }) {
+    const formatKm = (km: number) => `${km.toLocaleString()} km`;
+
+    // Calculate progress percentage toward projected mileage
+    const mileageProgress = roiData.projectedMileageAtRoi && roiData.projectedMileageAtRoi > roiData.deliveryMileage
+        ? ((roiData.currentMileage - roiData.deliveryMileage) / (roiData.projectedMileageAtRoi - roiData.deliveryMileage)) * 100
+        : 0;
+
+    return (
+        <Card className="bg-white border-0 shadow-none ring-1 ring-black/5 rounded-2xl">
+            <CardHeader className="pb-2">
+                <CardTitle className="text-blue-800 flex items-center gap-2">
+                    <Gauge className="h-5 w-5" />
+                    Mileage Projection
+                </CardTitle>
+                <CardDescription className="text-sm text-blue-900/60 mt-1">
+                    Estimated odometer reading at ROI break-even
+                </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+                {/* Current vs Projected Stats */}
+                <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                        <p className="text-xs text-muted-foreground">Current Mileage</p>
+                        <p className="text-xl font-bold text-foreground">
+                            {formatKm(roiData.currentMileage)}
+                        </p>
+                    </div>
+                    <div className="space-y-1">
+                        <p className="text-xs text-muted-foreground">Projected at ROI</p>
+                        <p className="text-xl font-bold text-indigo-600">
+                            {roiData.projectedMileageAtRoi
+                                ? formatKm(roiData.projectedMileageAtRoi)
+                                : "—"
+                            }
+                        </p>
+                    </div>
+                </div>
+
+                {/* Visual progress bar from delivery to projected ROI mileage */}
+                {roiData.projectedMileageAtRoi && (
+                    <div className="space-y-3">
+                        <div className="flex items-center justify-between text-sm">
+                            <span className="text-muted-foreground">Mileage Progress</span>
+                            <span className="font-semibold text-foreground">
+                                {Math.min(100, mileageProgress).toFixed(1)}%
+                            </span>
+                        </div>
+                        <div className="relative">
+                            <Progress
+                                value={Math.min(mileageProgress, 100)}
+                                className="h-3 bg-slate-100"
+                            />
+                            <div
+                                className="absolute top-0 left-0 h-3 rounded-full transition-all bg-indigo-500"
+                                style={{ width: `${Math.min(mileageProgress, 100)}%` }}
+                            />
+                        </div>
+                        <div className="flex justify-between text-xs text-muted-foreground">
+                            <span>{formatKm(roiData.deliveryMileage)}</span>
+                            <span>{formatKm(roiData.projectedMileageAtRoi)}</span>
+                        </div>
+                    </div>
+                )}
+
+                {/* Additional mileage stats */}
+                <div className="pt-2 border-t border-slate-100 space-y-2">
+                    <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Total KM Driven</span>
+                        <span className="font-medium">{formatKm(roiData.totalKmDriven)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Daily Average</span>
+                        <span className="font-medium">
+                            {roiData.dailyMileageRate > 0
+                                ? `${roiData.dailyMileageRate.toFixed(1)} km/day`
+                                : "—"
+                            }
+                        </span>
+                    </div>
+                    {roiData.projectedMileageAtRoi && !roiData.isRoiAchieved && (
+                        <div className="flex justify-between text-sm">
+                            <span className="text-muted-foreground">KM Until ROI</span>
+                            <span className="font-medium text-indigo-600">
+                                {formatKm(roiData.projectedMileageAtRoi - roiData.currentMileage)}
+                            </span>
+                        </div>
+                    )}
+                </div>
+
+                {/* Status indicator */}
+                {roiData.isRoiAchieved && (
+                    <div className="flex justify-center">
+                        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-100 text-emerald-800">
+                            <CheckCircle2 className="h-4 w-4" />
+                            <span className="text-sm font-medium">ROI achieved at {formatKm(roiData.currentMileage)}</span>
+                        </div>
+                    </div>
+                )}
+            </CardContent>
+        </Card>
+    );
+}
+
 // -----------------------------------------------------------------------------
 // Main
 
@@ -574,6 +710,9 @@ export default function VehicleRoiStats() {
                 <RoiProgressCard roiData={roiData} />
                 <ProjectionChart roiData={roiData} />
             </div>
+
+            {/* Mileage Projection */}
+            <MileageProjectionCard roiData={roiData} />
 
             {/* Daily Rate Info */}
             <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-0 shadow-none ring-1 ring-blue-100 rounded-2xl">
