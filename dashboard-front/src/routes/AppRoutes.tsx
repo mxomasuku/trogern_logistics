@@ -22,6 +22,7 @@ import DriverProfile from "@/pages/drivers/pages/driver_profile/DriverProfile";
 import VehiclesPage from "@/pages/vehicles/VehiclesPage";
 import AddVehicle from "@/pages/vehicles/pages/AddVehicle";
 import VehicleProfile from "@/pages/vehicles/pages/VehicleProfile";
+import VehicleRoiStats from "@/pages/vehicles/pages/VehicleRoiStats";
 
 import ServicePage from "@/pages/service/ServicePage";
 import AddServicePage from "@/pages/service/page/AddService";
@@ -123,6 +124,7 @@ export default function AppRoutes() {
         <Route path="vehicles" element={<VehiclesPage />} />
         <Route path="vehicles/add" element={<AddVehicle />} />
         <Route path="vehicles/profile" element={<VehicleProfile />} />
+        <Route path="vehicles/roi" element={<VehicleRoiStats />} />
         <Route path="service" element={<ServicePage />} />
         <Route path="service/add" element={<AddServicePage />} />
         <Route path="service/records" element={<ServiceRecordsPage />} />
