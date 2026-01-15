@@ -42,9 +42,9 @@ export interface Vehicle {
   assignedDriverId?: string | null;
   assignedDriverName?: string | null;
   status: VehicleStatus;
-  datePurchased: { _seconds: number; _nanoseconds: number },       
+  datePurchased: { _seconds: number; _nanoseconds: number },
   route: RouteType;
-  lastServiceDate?: { _seconds: number; _nanoseconds: number },  
+  lastServiceDate?: { _seconds: number; _nanoseconds: number },
   deliveryMileage: number;
   currentMileage: number;
   createdAt?: string;
@@ -62,9 +62,9 @@ export interface IncomeLog {
   driverId: string;
   driverName: string;
   note?: string;
-  createdAt: { _seconds: number; _nanoseconds: number }, 
-  updatedAt?: { _seconds: number; _nanoseconds: number }, 
-  cashDate: { _seconds: number; _nanoseconds: number }, 
+  createdAt: { _seconds: number; _nanoseconds: number },
+  updatedAt?: { _seconds: number; _nanoseconds: number },
+  cashDate: { _seconds: number; _nanoseconds: number },
 }
 
 
@@ -104,21 +104,21 @@ export interface ServiceItem {
   cost: number;
 
   // core service context
-  date: { _seconds: number; _nanoseconds: number }, 
+  date: { _seconds: number; _nanoseconds: number },
   vehicleMileage: number;
 
   // derived only when lifespan present; absent for labour/etc.
   expectedLifespanMileage?: number;
   expectedLifespanDays?: number;
   serviceDueMileage?: number;
-  serviceDueDate?: { _seconds: number; _nanoseconds: number }, 
+  serviceDueDate?: { _seconds: number; _nanoseconds: number },
 }
 
 // Catalog (primes you create once)
 export interface ServiceItemPrime {
-  kind: ServiceItemKind;                       
+  kind: ServiceItemKind;
   name: string;
-  value: string;                         
+  value: string;
   expectedLifespanMileage: number | null;
   expectedLifespanDays: number | null;
 }
@@ -135,15 +135,15 @@ export interface ServiceItemDTO {
 
 export interface ServiceRecord {
   vehicleId: string;
-  type: string;                      
-  date: { _seconds: number; _nanoseconds: number },  
+  type: string;
+  date: { _seconds: number; _nanoseconds: number },
   mechanic: string;
   cost: number;
   serviceMileage: number;                  // odometer at service time                     // e.g. "good", "requires attention"
   itemsChanged: ServiceItem[];             // not embedded (kept for backward compat), we store in subcollection
   notes: string | null;
-  createdAt?: { _seconds: number; _nanoseconds: number }, 
-  updatedAt?: { _seconds: number; _nanoseconds: number }, 
+  createdAt?: { _seconds: number; _nanoseconds: number },
+  updatedAt?: { _seconds: number; _nanoseconds: number },
 }
 
 // DTO from client (dates as strings)
@@ -244,12 +244,12 @@ export interface CompanyDoc {
   employeeCount: number;
   fleetType: FleetType;
   usageDescription: string;
-  createdAt: { _seconds: number; _nanoseconds: number }, 
-  updatedAt: { _seconds: number; _nanoseconds: number }, 
+  createdAt: { _seconds: number; _nanoseconds: number },
+  updatedAt: { _seconds: number; _nanoseconds: number },
   subscriptionStatus: "active" | "suspended" | "cancelled" | "inactive" | "trial";
-  subscriptionPlan: "free" | "standard" | "premium"| "enterprise";
+  subscriptionPlan: "free" | "standard" | "premium" | "enterprise";
   subscriptionBillingProvider: "stripe" | "manual";
-  subscriptionCurrentPeriodEnd: { _seconds: number; _nanoseconds: number }, 
+  subscriptionCurrentPeriodEnd: { _seconds: number; _nanoseconds: number },
   country: string;
   status: "active" | "inactive" | "blocked" | "trial";
 }

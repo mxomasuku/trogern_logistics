@@ -1,26 +1,27 @@
 
+import { Link } from "react-router-dom";
 import { PublicNavbar } from "../LandingPage/PublicNavbar"
 
 export default function ProductOverviewPage() {
 
-const publicLightNavTheme = {
-  textPrimaryClassName: "text-slate-900",
-  cardBorderClassName: "border-slate-200",
-  accentColor: "#4B67FF",
-  buttonPrimaryColor: "#4B67FF",
-};
+  const publicLightNavTheme = {
+    textPrimaryClassName: "text-slate-900",
+    cardBorderClassName: "border-slate-200",
+    accentColor: "#4B67FF",
+    buttonPrimaryColor: "#4B67FF",
+  };
 
 
   return (
     // HIGHLIGHT: richer background, same light palette
     <div className="min-h-screen bg-gradient-to-br from-white via-slate-50 to-blue-50 text-slate-800">
 
-        <PublicNavbar
+      <PublicNavbar
         textPrimaryClassName={publicLightNavTheme.textPrimaryClassName}
         cardBorderClassName={publicLightNavTheme.cardBorderClassName}
         accentColor={publicLightNavTheme.accentColor}
         buttonPrimaryColor={publicLightNavTheme.buttonPrimaryColor}
-      />  
+      />
       <main className="max-w-6xl mx-auto px-6 lg:px-10 py-16 space-y-20">
 
         {/* SECTION 1 — HERO */}
@@ -55,12 +56,17 @@ const publicLightNavTheme = {
             </p>
 
             <div className="mt-6 flex flex-wrap justify-center gap-4">
+              {/* HIDDEN: Request an implementation call button
               <button className="px-6 py-3 rounded-full bg-white text-blue-700 font-semibold shadow hover:bg-blue-50 transition">
                 Request an implementation call
               </button>
-              <button className="px-6 py-3 rounded-full border border-blue-100 text-white/90 bg-white/10 hover:bg-white/15 transition">
+              */}
+              <Link
+                to="/sample-dashboard"
+                className="px-6 py-3 rounded-full border border-blue-100 text-white/90 bg-white/10 hover:bg-white/15 transition"
+              >
                 View sample dashboard
-              </button>
+              </Link>
             </div>
           </div>
         </section>
