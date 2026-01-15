@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, TrendingUp } from "lucide-react";
+import { ArrowLeft, TrendingUp, Wrench } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 export function VehicleHeader({
@@ -30,14 +30,24 @@ export function VehicleHeader({
       </div>
       <div className="flex items-center gap-3">
         {vehicleId && (
-          <Button
-            variant="outline"
-            onClick={() => navigate(`/app/vehicles/roi?id=${vehicleId}`)}
-            className="text-blue-700 border-blue-200 hover:bg-blue-50"
-          >
-            <TrendingUp className="mr-2 h-4 w-4" />
-            View ROI Stats
-          </Button>
+          <>
+            <Button
+              variant="outline"
+              onClick={() => navigate(`/app/vehicles/service-status?id=${vehicleId}`)}
+              className="text-emerald-700 border-emerald-200 hover:bg-emerald-50"
+            >
+              <Wrench className="mr-2 h-4 w-4" />
+              Service Status
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => navigate(`/app/vehicles/roi?id=${vehicleId}`)}
+              className="text-blue-700 border-blue-200 hover:bg-blue-50"
+            >
+              <TrendingUp className="mr-2 h-4 w-4" />
+              View ROI Stats
+            </Button>
+          </>
         )}
         {status && (
           <div className="text-sm text-muted-foreground">

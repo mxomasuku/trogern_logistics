@@ -16,7 +16,7 @@ export function PublicNavbar({
   return (
     <header className={`relative z-20 border-b ${cardBorderClassName}`}>
       <div className="max-w-6xl mx-auto px-6 lg:px-10 py-4 flex items-center justify-between">
-        
+
         {/* HIGHLIGHT: brand now links home */}
         <Link
           to="/"
@@ -44,12 +44,14 @@ export function PublicNavbar({
             Product overview
           </Link>
 
+          {/* HIDDEN: Book a demo link
           <Link
             to="/book-a-demo"
             className={`${textPrimaryClassName} hover:opacity-70 transition`}
           >
             Book a demo
           </Link>
+          */}
         </nav>
 
         {/* right-side auth actions */}

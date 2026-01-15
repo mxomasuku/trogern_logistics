@@ -42,13 +42,53 @@ export default function LoginPage() {
         return;
       }
 
-      const apiRes = await login({ email: trimmedEmail, password }).unwrap();
-      if (!apiRes?.isSuccessful) throw new Error(apiRes?.message ?? "Login failed");
+      // Step 1: Authenticate with backend API
+      let apiRes;
+      try {
+        apiRes = await login({ email: trimmedEmail, password }).unwrap();
+        if (!apiRes?.isSuccessful) throw new Error(apiRes?.message ?? "Login failed");
+      } catch (backendError: any) {
+        // Backend authentication failed
+        const backendMsg =
+          backendError?.data?.error ||
+          backendError?.message ||
+          "Login failed. Please check your credentials.";
+
+        // Check if this is a "wrong password" or "user not found" error that might indicate Google-only account
+        if (backendMsg.includes("INVALID_PASSWORD") || backendMsg.includes("INVALID_LOGIN_CREDENTIALS")) {
+          setFormError("Invalid email or password. If you signed up with Google, please use the 'Sign in with Google' button instead.");
+        } else if (backendMsg.includes("EMAIL_NOT_FOUND") || backendMsg.includes("USER_NOT_FOUND")) {
+          setFormError("No account found with this email. Please sign up first.");
+        } else {
+          setFormError(backendMsg);
+        }
+        return;
+      }
 
       // HIGHLIGHT: backend auth passed – now we're in "redirect / setup" phase
       setIsRedirecting(true);
 
-      await signInWithEmailAndPassword(firebaseAuth, trimmedEmail, password);
+      // Step 2: Sign in with Firebase SDK to set currentUser for AuthContext
+      try {
+        await signInWithEmailAndPassword(firebaseAuth, trimmedEmail, password);
+      } catch (firebaseError: any) {
+        // Firebase SDK authentication failed (this shouldn't happen if backend succeeded)
+        console.error("[Login] Firebase SDK auth failed after backend success:", firebaseError);
+
+        // Handle specific Firebase error codes
+        if (firebaseError.code === "auth/wrong-password" || firebaseError.code === "auth/invalid-credential") {
+          setFormError("Invalid password. If you signed up with Google, please use the 'Sign in with Google' button.");
+        } else if (firebaseError.code === "auth/user-not-found") {
+          setFormError("No account found with this email.");
+        } else if (firebaseError.code === "auth/too-many-requests") {
+          setFormError("Too many failed attempts. Please try again later or reset your password.");
+        } else {
+          setFormError(firebaseError.message || "Authentication failed. Please try again.");
+        }
+        setIsRedirecting(false);
+        return;
+      }
+
       await refreshClaimsFromFirebase();
 
       let hasCompany = false;

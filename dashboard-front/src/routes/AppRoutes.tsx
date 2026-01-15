@@ -24,6 +24,7 @@ import VehiclesPage from "@/pages/vehicles/VehiclesPage";
 import AddVehicle from "@/pages/vehicles/pages/AddVehicle";
 import VehicleProfile from "@/pages/vehicles/pages/VehicleProfile";
 import VehicleRoiStats from "@/pages/vehicles/pages/VehicleRoiStats";
+import VehicleServiceStatus from "@/pages/vehicles/pages/VehicleServiceStatus";
 
 import ServicePage from "@/pages/service/ServicePage";
 import AddServicePage from "@/pages/service/page/AddService";
@@ -49,6 +50,7 @@ import ScheduleTripPage from "@/pages/trips/pages/ScheduleTripPage";
 import TripDetailPage from "@/pages/trips/pages/TripDetailPage";
 import EditTripPage from "@/pages/trips/pages/EditTripPage";
 import NotificationsPage from "@/pages/notifications/NotificationsPage";
+import SampleDashboardPage from "@/pages/SampleDashboard/SampleDashboardPage";
 
 export default function AppRoutes() {
   return (
@@ -61,6 +63,7 @@ export default function AppRoutes() {
       <Route path="/signup" element={<SignUpPage />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/book-a-demo" element={<BookADemoPage />} />
+      <Route path="/sample-dashboard" element={<SampleDashboardPage />} />
       {/* <Route path="/debug-crash" element={<DebugCrashPage />} /> */}
 
       {/* HIGHLIGHT: ONBOARDING ENTRY (logged in, no company yet) */}
@@ -127,6 +130,7 @@ export default function AppRoutes() {
         <Route path="vehicles/add" element={<AddVehicle />} />
         <Route path="vehicles/profile" element={<VehicleProfile />} />
         <Route path="vehicles/roi" element={<VehicleRoiStats />} />
+        <Route path="vehicles/service-status" element={<VehicleServiceStatus />} />
         <Route path="service" element={<ServicePage />} />
         <Route path="service/add" element={<AddServicePage />} />
         <Route path="service/records" element={<ServiceRecordsPage />} />
