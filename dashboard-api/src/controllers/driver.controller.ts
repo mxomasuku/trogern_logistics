@@ -244,7 +244,7 @@ export const updateDriver = async (req: Request, res: Response) => {
   if (!ctx) return;
   const { companyId } = ctx;
 
-  const { id } = req.params;
+  const id = req.params.id as string;
   const patch = { ...req.body, updatedAt: new Date().toISOString() };
 
   try {
