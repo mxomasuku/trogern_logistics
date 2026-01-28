@@ -72,7 +72,7 @@ function cashDateMillis(ts: any): number {
   try {
     if (ts?.toDate) return ts.toDate().getTime();
     if (typeof ts?.seconds === "number") return ts.seconds * 1000;
-  } catch {}
+  } catch { }
   return 0;
 }
 
@@ -247,7 +247,8 @@ export async function getDriverKpis(req: Request, res: Response) {
     if (!ctx) return;
     const { companyId } = ctx;
 
-    const { driverId, vehicleId } = req.params;
+    const driverId = req.params.driverId as string;
+    const vehicleId = req.params.vehicleId as string;
 
     if (!driverId || !vehicleId) {
       return res.status(400).json(

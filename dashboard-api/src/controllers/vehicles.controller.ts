@@ -286,7 +286,7 @@ export const getVehicle = async (req: Request, res: Response) => {
   const { companyId } = ctx;
 
   try {
-    const vehicleId = req.params.id;
+    const vehicleId = req.params.id as string;
     const doc = await vehiclesCollection.doc(vehicleId).get();
 
     if (!doc.exists) {
@@ -547,7 +547,7 @@ export const deleteVehicle = async (req: Request, res: Response) => {
   const { companyId } = ctx;
 
   try {
-    const vehicleId = req.params.id;
+    const vehicleId = req.params.id as string;
     const vehicleRef = vehiclesCollection.doc(vehicleId);
     const existingSnap = await vehicleRef.get();
 

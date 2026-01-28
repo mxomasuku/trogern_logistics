@@ -10,6 +10,7 @@ import {
   getAllServiceItems,
   deleteServiceItem,
 } from '../controllers/service-history.controller';
+import { getVehicleServiceTracker } from '../controllers/vehicle-service-tracker.controller';
 
 const router = Router();
 
@@ -22,6 +23,7 @@ router.delete('/delete/:id', deleteServiceRecord);
 router.post('/add-service-item', addServiceItem);
 router.get('/service-items-get', getAllServiceItems);
 router.delete('/delete-service-item/:id', deleteServiceItem);
+router.get('/tracker/:vehicleId', getVehicleServiceTracker);
 router.get('/:vehicleId', getServiceRecordsForVehicle);
 
 

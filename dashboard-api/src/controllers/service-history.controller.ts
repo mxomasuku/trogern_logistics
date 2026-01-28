@@ -739,7 +739,7 @@ export const getServiceRecordById = async (req: Request, res: Response) => {
     if (!ctx) return;
     const { companyId } = ctx;
 
-    const { id } = req.params;
+    const id = req.params.id as string;
     if (!id)
       return res
         .status(400)
@@ -1146,7 +1146,7 @@ export const deleteServiceItem = async (
     if (!ctx) return;
     const { companyId } = ctx;
 
-    const { id } = req.params;
+    const id = req.params.id as string;
     if (!id)
       return res
         .status(400)
