@@ -22,6 +22,7 @@ export default function CompanySetupPage() {
   const [employeeCount, setEmployeeCount] = useState("");
   const [fleetType, setFleetType] = useState<FleetType | "">("");
   const [usageDescription, setUsageDescription] = useState("");
+  const [country, setCountry] = useState("");
   const [formError, setFormError] = useState<string>("");
 
   const handleSubmit = async () => {
@@ -54,13 +55,18 @@ export default function CompanySetupPage() {
       return;
     }
 
+    if (!country.trim()) {
+      setFormError("Please enter your country.");
+      return;
+    }
+
     const res = await createCompany({
       name: companyName.trim(),
       fleetSize: fleet,
       employeeCount: employees,
       fleetType,
       usageDescription: usageDescription.trim(),
-      country: "us", // TODO: make this dynamic if needed, but required by backend
+      country: country.trim(),
     });
 
     if ("data" in res && (res.data as any)?.isSuccessful) {
@@ -164,6 +170,17 @@ export default function CompanySetupPage() {
             <option value="trucks">Trucks</option>
             <option value="mixed">Mixed</option>
           </select>
+
+          {/* Country */}
+          <label className="block text-sm mb-1 text-gray-700">
+            Country
+          </label>
+          <Input
+            placeholder="e.g. South Africa"
+            value={country}
+            onChange={(e) => setCountry(e.target.value)}
+            className="mb-3 rounded-xl bg-gray-50"
+          />
 
           {/* Usage Description */}
           <label className="block text-sm mb-1 text-gray-700">
