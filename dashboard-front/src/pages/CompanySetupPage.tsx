@@ -60,6 +60,7 @@ export default function CompanySetupPage() {
       employeeCount: employees,
       fleetType,
       usageDescription: usageDescription.trim(),
+      country: "us", // TODO: make this dynamic if needed, but required by backend
     });
 
     if ("data" in res && (res.data as any)?.isSuccessful) {
@@ -71,15 +72,17 @@ export default function CompanySetupPage() {
     } else {
       const apiErr = (res as any).error || {};
       const msg =
+        apiErr?.data?.error?.message ||
         apiErr?.data?.error ||
         apiErr?.error ||
         apiErr?.message ||
         "Unable to save company setup.";
-      setFormError(msg);
+      setFormError(typeof msg === 'string' ? msg : JSON.stringify(msg));
     }
   };
 
   const serverError =
+    (error as any)?.data?.error?.message ||
     (error as any)?.data?.error ||
     (error as any)?.message ||
     (error as any)?.error ||

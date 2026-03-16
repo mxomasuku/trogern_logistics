@@ -15,6 +15,7 @@ export interface CompanyPayload {
   employeeCount: number;
   fleetType: FleetType;
   usageDescription: string;
+  country: string;
 }
 
 export interface Company {
@@ -25,6 +26,7 @@ export interface Company {
   fleetType: FleetType;
   usageDescription: string;
   ownerUid: string;
+  country: string;
   createdAt: string;
   updatedAt: string;
 }
