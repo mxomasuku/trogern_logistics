@@ -24,9 +24,11 @@ export default function CompanySetupPage() {
   const [usageDescription, setUsageDescription] = useState("");
   const [country, setCountry] = useState("");
   const [formError, setFormError] = useState<string>("");
+  const [isRedirecting, setIsRedirecting] = useState(false);
 
   const handleSubmit = async () => {
     setFormError("");
+    setIsRedirecting(false);
 
     if (!companyName.trim()) {
       setFormError("Please enter your company name.");
@@ -70,12 +72,14 @@ export default function CompanySetupPage() {
     });
 
     if ("data" in res && (res.data as any)?.isSuccessful) {
+      setIsRedirecting(true);
       // HIGHLIGHT: after backend sets claims, pull fresh token into AuthContext
       await refreshClaimsFromFirebase(); // HIGHLIGHT
 
       // HIGHLIGHT: now AuthContext should have companyId + role="owner"
       navigate("/app/home", { replace: true }); // HIGHLIGHT
     } else {
+      setIsRedirecting(false);
       const apiErr = (res as any).error || {};
       const msg =
         apiErr?.data?.error?.message ||
@@ -97,12 +101,23 @@ export default function CompanySetupPage() {
   const showError = formError || serverError;
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center text-gray-900">
-      <div className="absolute top-4 right-4 flex items-center gap-2">
+    <div className="relative flex min-h-screen items-center justify-center text-gray-900 overflow-hidden">
+      <div className="absolute top-4 right-4 flex items-center gap-2 z-30">
         <ThemeToggle />
       </div>
 
-      <div className="relative w-full max-w-xl p-6 md:p-8">
+      {isRedirecting && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-900/30 backdrop-blur-sm">
+          <div className="flex items-center gap-3 rounded-xl bg-white px-4 py-3 shadow-lg">
+            <Loader2 className="h-5 w-5 animate-spin text-blue-600" />
+            <p className="text-sm font-medium text-slate-800">
+              Setting up your dashboard…
+            </p>
+          </div>
+        </div>
+      )}
+
+      <div className="relative z-30 w-full max-w-xl p-6 md:p-8">
         <div className="mb-6 text-center">
           <h1 className="text-3xl font-extrabold tracking-tight text-blue-700">
             Set up your <span className="text-sky-500">company</span>
@@ -197,13 +212,13 @@ export default function CompanySetupPage() {
           {/* Submit */}
           <Button
             onClick={handleSubmit}
-            disabled={isLoading}
+            disabled={isLoading || isRedirecting}
             className="mt-6 w-full py-3 rounded-xl font-semibold text-white shadow-lg
                        bg-gradient-to-r from-blue-500 via-sky-500 to-indigo-500
                        hover:from-blue-600 hover:via-sky-600 hover:to-indigo-600"
           >
-            {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {isLoading ? "Saving…" : "Save and continue"}
+            {(isLoading || isRedirecting) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {isLoading || isRedirecting ? "Saving…" : "Save and continue"}
           </Button>
         </div>
       </div>
