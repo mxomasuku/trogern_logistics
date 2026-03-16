@@ -285,8 +285,30 @@ export async function getVehicleServiceTracker(
         let goodCount = 0;
         let unknownCount = 0;
 
-        // Transform items map to array with computed status
+        // Deduplicate items by normalized value/name before processing
+        // Maps a normalized identifier -> [itemKey, itemState]
+        const uniqueItemsMap = new Map<string, [string, VehicleServiceTrackerItemState]>();
+
         for (const [itemKey, itemState] of Object.entries(trackerDoc.items || {})) {
+            const identifier = (itemState.value || itemState.name || "").trim().toLowerCase();
+            if (!identifier) continue;
+
+            const existing = uniqueItemsMap.get(identifier);
+            if (!existing) {
+                uniqueItemsMap.set(identifier, [itemKey, itemState]);
+            } else {
+                // Keep the one with the most recent lastChangedAt timestamp
+                const existingTs = existing[1].lastChangedAt?.toMillis() || 0;
+                const newTs = itemState.lastChangedAt?.toMillis() || 0;
+
+                if (newTs > existingTs) {
+                    uniqueItemsMap.set(identifier, [itemKey, itemState]);
+                }
+            }
+        }
+
+        // Transform items map to array with computed status
+        for (const [itemKey, itemState] of uniqueItemsMap.values()) {
             const { status, daysRemaining, mileageRemaining, daysOverdue, mileageOverdue } =
                 computeItemStatus(itemState, currentMileage, now);
 

@@ -69,24 +69,12 @@ export default function LoginPage() {
       setIsRedirecting(true);
 
       // Step 2: Sign in with Firebase SDK to set currentUser for AuthContext
+      // Best-effort — the backend already set the session cookie,
+      // so even if this fails the Protected guard (/auth/me) still works.
       try {
         await signInWithEmailAndPassword(firebaseAuth, trimmedEmail, password);
       } catch (firebaseError: any) {
-        // Firebase SDK authentication failed (this shouldn't happen if backend succeeded)
-        console.error("[Login] Firebase SDK auth failed after backend success:", firebaseError);
-
-        // Handle specific Firebase error codes
-        if (firebaseError.code === "auth/wrong-password" || firebaseError.code === "auth/invalid-credential") {
-          setFormError("Invalid password. If you signed up with Google, please use the 'Sign in with Google' button.");
-        } else if (firebaseError.code === "auth/user-not-found") {
-          setFormError("No account found with this email.");
-        } else if (firebaseError.code === "auth/too-many-requests") {
-          setFormError("Too many failed attempts. Please try again later or reset your password.");
-        } else {
-          setFormError(firebaseError.message || "Authentication failed. Please try again.");
-        }
-        setIsRedirecting(false);
-        return;
+        console.warn("[Login] Client-side Firebase sign-in failed (non-blocking):", firebaseError);
       }
 
       await refreshClaimsFromFirebase();
@@ -94,9 +82,14 @@ export default function LoginPage() {
       let hasCompany = false;
       const currentUser = firebaseAuth.currentUser;
       if (currentUser) {
-        const tokenResult = await getIdTokenResult(currentUser, true);
-        const claims = tokenResult.claims as any;
-        hasCompany = !!claims.companyId;
+        try {
+          const tokenResult = await getIdTokenResult(currentUser, true);
+          const claims = tokenResult.claims as any;
+          hasCompany = !!claims.companyId;
+        } catch {
+          // claims check failed — default to onboarding
+          hasCompany = false;
+        }
       }
 
       const redirectParam = searchParams.get("next");

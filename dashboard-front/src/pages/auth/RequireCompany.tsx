@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { useEffect, useState } from "react";          // HIGHLIGHT
 import { useAuth } from "@/state/AuthContext";        // HIGHLIGHT
+import { Loader2 } from "lucide-react";
 
 type GuardProps = {
   children: ReactNode;
@@ -24,8 +25,11 @@ export function RequireCompany({ children }: GuardProps) {
   // still resolving Firebase auth
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center text-gray-700">
-        Loading your company…
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-white via-slate-50 to-blue-50">
+        <div className="flex items-center gap-3">
+          <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
+          <span className="text-sm font-medium text-slate-600">Loading your company…</span>
+        </div>
       </div>
     );
   }

@@ -69,8 +69,16 @@ export default function SignUpPage() {
         // HIGHLIGHT: enter redirect / setup phase
         setIsRedirecting(true);
 
-        await signInWithEmailAndPassword(firebaseAuth, trimmedEmail, password);
-        await refreshClaimsFromFirebase();
+        // Best-effort client-side Firebase sign-in for AuthContext.
+        // The backend already set the session cookie, so even if this
+        // fails the Protected guard (/auth/me) will still work.
+        try {
+          await signInWithEmailAndPassword(firebaseAuth, trimmedEmail, password);
+          await refreshClaimsFromFirebase();
+        } catch (firebaseError) {
+          console.warn("[Signup] Client-side Firebase sign-in failed (non-blocking):", firebaseError);
+        }
+
         navigate("/onboarding", { replace: true });
       } else {
         setIsRedirecting(false); // HIGHLIGHT
