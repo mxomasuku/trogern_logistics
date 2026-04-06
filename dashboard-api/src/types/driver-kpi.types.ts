@@ -47,3 +47,40 @@ export interface DriverKpiResult {
   // Metadata summary
   meta: DriverKpiMeta;
 }
+
+/* ─────────────── MILEAGE TRENDS ─────────────── */
+
+export interface MileageTrendPoint {
+  /** ISO date string of the cash date */
+  date: string;
+  /** Week label e.g. "W12 2026" */
+  weekLabel: string;
+  /** Month label e.g. "Mar 2026" */
+  monthLabel: string;
+  /** Odometer reading at end of week */
+  weekEndingMileage: number;
+  /** Distance covered that week (diff from previous reading) */
+  distanceKm: number;
+  /** Net income for that entry */
+  netIncome: number;
+}
+
+export interface MileageTrendStats {
+  totalWeeks: number;
+  totalDistanceKm: number;
+  avgWeeklyKm: number;
+  highestWeekKm: number;
+  highestWeekDate: string;
+  lowestWeekKm: number;
+  lowestWeekDate: string;
+  /** Monthly averages: { "Mar 2026": 1200, ... } */
+  monthlyAverages: Record<string, number>;
+}
+
+export interface MileageTrendsResponse {
+  driverId: string;
+  vehicleId: string;
+  mileageOnStart: number;
+  trends: MileageTrendPoint[];
+  stats: MileageTrendStats;
+}

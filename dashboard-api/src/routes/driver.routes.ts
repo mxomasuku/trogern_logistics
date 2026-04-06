@@ -9,7 +9,7 @@ import {
   getAllActiveDrivers,
   getAllInactiveDrivers
 } from '../controllers/driver.controller';
-import { getDriverKpis } from '../controllers/driver_kpis.controller';
+import { getDriverKpis, getDriverMileageTrends } from '../controllers/driver_kpis.controller';
 
 const router = Router();
 
@@ -22,6 +22,7 @@ router.delete('/delete/:id', deleteDriver);
 router.get("/get-active-drivers", getAllActiveDrivers);
 router.get("/get-inactive-drivers", getAllInactiveDrivers);
 router.get("/get/kpis/:driverId/:vehicleId", getDriverKpis);
+router.get("/get/mileage-trends/:driverId/:vehicleId", getDriverMileageTrends);
 
 
 export default router;

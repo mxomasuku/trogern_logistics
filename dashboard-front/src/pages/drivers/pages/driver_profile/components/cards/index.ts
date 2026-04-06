@@ -4,3 +4,4 @@ export * from "./Last30DaysCard";
 export * from "./AveragesCard";
 export * from "./PerKmCard";
 export * from "./RawVehicleDataCard";
+export * from "./MileageTrendsCard";

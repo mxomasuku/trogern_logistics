@@ -4,7 +4,7 @@ import { DateTime } from "luxon";
 const { db, admin } = require("../config/firebase"); // HIGHLIGHT: add admin
 import { success, failure } from "../utils/apiResponse";
 import { signedAmount, tsToDateTime } from "../utils/kpi-utils";
-import type { DriverKpiResult, IncomeLog } from "../types/index";
+import type { DriverKpiResult, IncomeLog, MileageTrendPoint, MileageTrendStats, MileageTrendsResponse } from "../types/index";
 
 /* ──────────────────────────── COLLECTION REFS ──────────────────────────── */
 const driversCol = db.collection("drivers");
@@ -407,6 +407,166 @@ export async function getDriverKpis(req: Request, res: Response) {
           "Failed to compute KPIs",
           e?.message ?? String(e)
         )
+      );
+  }
+}
+
+/* ──────────────────────────── MILEAGE TRENDS ──────────────────────────── */
+
+export async function getDriverMileageTrends(req: Request, res: Response) {
+  try {
+    const ctx = await getCompanyContext(req, res);
+    if (!ctx) return;
+    const { companyId } = ctx;
+
+    const driverId = req.params.driverId as string;
+    const vehicleId = req.params.vehicleId as string;
+
+    if (!driverId || !vehicleId) {
+      return res.status(400).json(
+        failure("VALIDATION_ERROR", "driverId and vehicleId are required")
+      );
+    }
+
+    const VEHICLE_ID = vehicleId.trim().toUpperCase();
+    const zone = "Africa/Harare";
+
+    // Driver
+    const driverSnap = await driversCol.doc(driverId).get();
+    if (!driverSnap.exists) {
+      return res.status(404).json(failure("NOT_FOUND", "Driver not found"));
+    }
+    const driver = driverSnap.data() as {
+      mileageOnStart?: number;
+      mileageOnStartByVehicle?: any;
+      companyId?: string;
+    } | undefined;
+
+    if (!driver || driver.companyId !== companyId) {
+      return res.status(403).json(failure("FORBIDDEN", "Access denied"));
+    }
+
+    const mileageOnStart =
+      Number(driver?.mileageOnStartByVehicle?.[VEHICLE_ID]) ||
+      Number(driver?.mileageOnStart ?? 0);
+
+    // Logs (chronological order - oldest first for trend building)
+    const logs = await fetchLogsForDriverVehicle(driverId, VEHICLE_ID, companyId);
+
+    if (!logs || logs.length === 0) {
+      return res.status(404).json(
+        failure("NO_LOGS", "No income logs found for this driver/vehicle combination.")
+      );
+    }
+
+    // Sort oldest → newest for trend computation
+    const ordered = [...logs]
+      .filter(
+        (l) =>
+          Number.isFinite(Number(l.weekEndingMileage)) &&
+          Number(l.weekEndingMileage) > 0
+      )
+      .sort((a, b) => cashDateMillis(a.cashDate) - cashDateMillis(b.cashDate));
+
+    if (ordered.length === 0) {
+      return res.status(404).json(
+        failure("NO_MILEAGE_DATA", "No mileage readings found in logs.")
+      );
+    }
+
+    // Build trend points
+    const trends: MileageTrendPoint[] = [];
+    let highestWeekKm = 0;
+    let highestWeekDate = "";
+    let lowestWeekKm = Infinity;
+    let lowestWeekDate = "";
+    let totalDistanceKm = 0;
+
+    // Monthly totals for averaging
+    const monthlyTotals: Record<string, { sum: number; count: number }> = {};
+
+    for (let i = 0; i < ordered.length; i++) {
+      const log = ordered[i];
+      const currMileage = Number(log.weekEndingMileage);
+      const prevMileage =
+        i > 0 ? Number(ordered[i - 1].weekEndingMileage) : mileageOnStart;
+
+      const distanceKm = Math.max(0, currMileage - prevMileage);
+      const dt = tsToDateTime(log.cashDate, zone);
+      const dateStr = dt ? dt.toISODate()! : "";
+      const weekLabel = dt ? `W${dt.weekNumber} ${dt.year}` : "";
+      const monthLabel = dt ? dt.toFormat("MMM yyyy") : "";
+      const netIncome = signedAmount(log);
+
+      trends.push({
+        date: dateStr,
+        weekLabel,
+        monthLabel,
+        weekEndingMileage: currMileage,
+        distanceKm,
+        netIncome,
+      });
+
+      totalDistanceKm += distanceKm;
+
+      if (distanceKm > highestWeekKm) {
+        highestWeekKm = distanceKm;
+        highestWeekDate = dateStr;
+      }
+      if (distanceKm < lowestWeekKm) {
+        lowestWeekKm = distanceKm;
+        lowestWeekDate = dateStr;
+      }
+
+      // Accumulate monthly
+      if (monthLabel) {
+        if (!monthlyTotals[monthLabel]) {
+          monthlyTotals[monthLabel] = { sum: 0, count: 0 };
+        }
+        monthlyTotals[monthLabel].sum += distanceKm;
+        monthlyTotals[monthLabel].count += 1;
+      }
+    }
+
+    // Monthly averages
+    const monthlyAverages: Record<string, number> = {};
+    for (const [month, { sum, count }] of Object.entries(monthlyTotals)) {
+      monthlyAverages[month] = Math.round(sum / count);
+    }
+
+    const totalWeeks = trends.length;
+    const avgWeeklyKm = totalWeeks > 0 ? Math.round(totalDistanceKm / totalWeeks) : 0;
+
+    if (lowestWeekKm === Infinity) {
+      lowestWeekKm = 0;
+    }
+
+    const stats: MileageTrendStats = {
+      totalWeeks,
+      totalDistanceKm: Math.round(totalDistanceKm),
+      avgWeeklyKm,
+      highestWeekKm: Math.round(highestWeekKm),
+      highestWeekDate,
+      lowestWeekKm: Math.round(lowestWeekKm),
+      lowestWeekDate,
+      monthlyAverages,
+    };
+
+    const result: MileageTrendsResponse = {
+      driverId,
+      vehicleId: VEHICLE_ID,
+      mileageOnStart,
+      trends,
+      stats,
+    };
+
+    return res.status(200).json(success(result));
+  } catch (e: any) {
+    console.error("Error computing mileage trends:", e);
+    return res
+      .status(500)
+      .json(
+        failure("SERVER_ERROR", "Failed to compute mileage trends", e?.message ?? String(e))
       );
   }
 }

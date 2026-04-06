@@ -10,14 +10,14 @@ import { toast } from "sonner";
 import { getDrivers } from "@/api/drivers";
 import { getIncomeLogsByDriverId } from "@/api/income";
 import { getVehicles, getVehicle } from "@/api/vehicles";
-import { getDriverKpis } from "@/api/kpis";
+import { getDriverKpis, getDriverMileageTrends } from "@/api/kpis";
 
 // UI
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 // Types
-import type { Driver, IncomeLog, Vehicle } from "@/types/types";
+import type { Driver, IncomeLog, Vehicle, MileageTrendsResponse } from "@/types/types";
 import type { DriverKpiResult } from "@/types/types";
 
 // Local shared components (drivers/pages/components)
@@ -31,6 +31,7 @@ import {
   AveragesCard,
   PerKmCard,
   RawVehicleDataCard,
+  MileageTrendsCard,
 } from "./components/cards";
 
 // Reused existing driver components (keep your originals/paths)
@@ -78,6 +79,10 @@ export default function DriverProfile() {
   const [kpis, setKpis] = useState<DriverKpiResult | null>(null);
   const [loadingKpis, setLoadingKpis] = useState(true);
   const [kpiError, setKpiError] = useState<string | null>(null);
+
+  const [mileageTrends, setMileageTrends] = useState<MileageTrendsResponse | null>(null);
+  const [loadingTrends, setLoadingTrends] = useState(false);
+  const [trendsError, setTrendsError] = useState<string | null>(null);
 
   const [vehicle, setVehicle] = useState<Vehicle | null>(null);
   const [loadingVehicle, setLoadingVehicle] = useState(false);
@@ -199,6 +204,21 @@ export default function DriverProfile() {
       } finally {
         !dead && setLoadingKpis(false);
       }
+
+      // Mileage trends
+      if (vId) {
+        try {
+          setLoadingTrends(true);
+          setTrendsError(null);
+          const trendsRes = await getDriverMileageTrends(driver.id, vId);
+          if (!dead) setMileageTrends(trendsRes);
+        } catch (e: any) {
+          !dead && setTrendsError(e?.message ?? "Failed to load trends");
+          !dead && setMileageTrends(null);
+        } finally {
+          !dead && setLoadingTrends(false);
+        }
+      }
     })();
 
     return () => { dead = true; };
@@ -227,11 +247,26 @@ export default function DriverProfile() {
     } finally {
       setLoadingKpis(false);
     }
+
+    // Also load mileage trends for the selected vehicle
+    try {
+      setLoadingTrends(true);
+      setTrendsError(null);
+      const trendsRes = await getDriverMileageTrends(driver.id, vehicleId);
+      setMileageTrends(trendsRes);
+    } catch (e: any) {
+      setTrendsError(e?.message ?? "Failed to load trends");
+      setMileageTrends(null);
+    } finally {
+      setLoadingTrends(false);
+    }
   }
 
   function onChangeVehicle() {
     setKpis(null);
     setKpiError(null);
+    setMileageTrends(null);
+    setTrendsError(null);
     setShowPicker(true);
   }
 
@@ -369,6 +404,13 @@ export default function DriverProfile() {
               <AveragesCard kpis={kpis} loading={false} />
               <PerKmCard kpis={kpis} loading={false} />
             </DriverKpiLayout>
+
+            {/* Mileage Trends */}
+            <MileageTrendsCard
+              data={mileageTrends}
+              loading={loadingTrends}
+              error={trendsError}
+            />
           </>
         ) : null
       ) : null}

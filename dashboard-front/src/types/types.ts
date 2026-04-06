@@ -241,6 +241,36 @@ export interface VehicleKpiResponse {
 }
 
 
+/* ─────────────── MILEAGE TRENDS ─────────────── */
+
+export interface MileageTrendPoint {
+  date: string;
+  weekLabel: string;
+  monthLabel: string;
+  weekEndingMileage: number;
+  distanceKm: number;
+  netIncome: number;
+}
+
+export interface MileageTrendStats {
+  totalWeeks: number;
+  totalDistanceKm: number;
+  avgWeeklyKm: number;
+  highestWeekKm: number;
+  highestWeekDate: string;
+  lowestWeekKm: number;
+  lowestWeekDate: string;
+  monthlyAverages: Record<string, number>;
+}
+
+export interface MileageTrendsResponse {
+  driverId: string;
+  vehicleId: string;
+  mileageOnStart: number;
+  trends: MileageTrendPoint[];
+  stats: MileageTrendStats;
+}
+
 export type FleetType = "small taxis" | "kombis" | "buses" | "trucks" | "mixed";
 
 export interface CompanyDoc {
