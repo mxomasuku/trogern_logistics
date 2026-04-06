@@ -67,6 +67,13 @@ export interface IncomeLog {
   cashDate: { _seconds: number; _nanoseconds: number },
 }
 
+export interface ArrestLog extends IncomeLog {
+  reason?: string;
+  location?: string;
+  ticketNumber?: string;
+  source?: { kind: "arrest" };
+}
+
 
 export type VehicleStatus = "active" | "inactive" | "maintenance" | "retired";
 export type RouteType = "local" | "highway" | "mixed";

@@ -19,6 +19,7 @@ import periodStatsRoutes from "./routes/periodStats.routes";
 import supportRoutes from "./routes/support.routes";
 import tripsRoutes from "./routes/trips.routes";
 import reportsRoutes from "./routes/reports.routes";
+import arrestRoutes from "./routes/arrest.routes";
 
 // Auth utils/middleware
 import { verifySession } from './utils/firebase-auth';
@@ -106,6 +107,7 @@ app.use('/api/v1/period-stats', verifySessionCookie, periodStatsRoutes);
 app.use('/api/v1/support', verifySessionCookie, supportRoutes);
 app.use('/api/v1/trips', verifySessionCookie, tripsRoutes);
 app.use('/api/v1/reports', verifySessionCookie, reportsRoutes);
+app.use('/api/v1/arrests', verifySessionCookie, arrestRoutes);
 
 
 

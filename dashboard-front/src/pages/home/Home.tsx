@@ -16,6 +16,7 @@ import {
   DollarSign,
   Wrench,
   Activity,
+  ShieldAlert,
   // BarChart3,
 } from "lucide-react";
 // import { StatCard } from "./components/StatCard";
@@ -71,6 +72,12 @@ const ACTIONS: Action[] = [
     description: "Oil, filters, tires, etc.",
     icon: Wrench,
     to: "/app/service/add",
+  },
+  {
+    title: "Log Arrest",
+    description: "Record a police arrest",
+    icon: ShieldAlert,
+    to: "/app/arrests/log",
   },
 ];
 

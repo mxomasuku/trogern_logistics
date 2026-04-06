@@ -51,6 +51,8 @@ import TripDetailPage from "@/pages/trips/pages/TripDetailPage";
 import EditTripPage from "@/pages/trips/pages/EditTripPage";
 import NotificationsPage from "@/pages/notifications/NotificationsPage";
 import SampleDashboardPage from "@/pages/SampleDashboard/SampleDashboardPage";
+import ArrestsPage from "@/pages/arrests/ArrestsPage";
+import LogArrestPage from "@/pages/arrests/pages/LogArrestPage";
 
 export default function AppRoutes() {
   return (
@@ -146,6 +148,8 @@ export default function AppRoutes() {
         <Route path="trips/:tripId" element={<TripDetailPage />} />
         <Route path="trips/edit/:tripId" element={<EditTripPage />} />
         <Route path="notifications" element={<NotificationsPage />} />
+        <Route path="arrests" element={<ArrestsPage />} />
+        <Route path="arrests/log" element={<LogArrestPage />} />
       </Route>
     </Routes>
   );

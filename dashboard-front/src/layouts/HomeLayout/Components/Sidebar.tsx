@@ -19,6 +19,7 @@ import {
   MapPin, // HIGHLIGHT: added for trips
   Bell, // HIGHLIGHT: added for notifications
   X, // HIGHLIGHT (ADDED): close icon for overlay mode
+  ShieldAlert, // HIGHLIGHT: added for arrests
 } from "lucide-react";
 import { useLogoutMutation } from "@/pages/auth/authSlice";
 // HIGHLIGHT (ADDED): import auth to gate Manage tab
@@ -36,6 +37,7 @@ const NAV = [
   { to: "/app/vehicles", label: "Vehicles", icon: Car },
   { to: "/app/service", label: "Service", icon: Wrench },
   { to: "/app/income", label: "Income", icon: DollarSign },
+  { to: "/app/arrests", label: "Arrests", icon: ShieldAlert }, // HIGHLIGHT: added
   { to: "/app/trips", label: "Trips", icon: MapPin }, // HIGHLIGHT: added
   { to: "/app/support", label: "Support", icon: Headphones }, // HIGHLIGHT: added
   { to: "/app/notifications", label: "Notifications", icon: Bell }, // HIGHLIGHT: added
