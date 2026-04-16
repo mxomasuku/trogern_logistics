@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, TrendingUp, Wrench } from "lucide-react";
+import { ArrowLeft, TrendingUp, Wrench, Cog } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 export function VehicleHeader({
@@ -38,6 +38,14 @@ export function VehicleHeader({
             >
               <Wrench className="mr-2 h-4 w-4" />
               Service Status
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => navigate(`/app/vehicles/modifications?id=${vehicleId}`)}
+              className="text-amber-700 border-amber-200 hover:bg-amber-50"
+            >
+              <Cog className="mr-2 h-4 w-4" />
+              Modifications
             </Button>
             <Button
               variant="outline"

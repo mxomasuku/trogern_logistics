@@ -53,6 +53,9 @@ import NotificationsPage from "@/pages/notifications/NotificationsPage";
 import SampleDashboardPage from "@/pages/SampleDashboard/SampleDashboardPage";
 import ArrestsPage from "@/pages/arrests/ArrestsPage";
 import LogArrestPage from "@/pages/arrests/pages/LogArrestPage";
+import ModificationsPage from "@/pages/modifications/ModificationsPage";
+import AddModificationPage from "@/pages/modifications/pages/AddModificationPage";
+import VehicleModifications from "@/pages/vehicles/pages/VehicleModifications";
 
 export default function AppRoutes() {
   return (
@@ -148,6 +151,9 @@ export default function AppRoutes() {
         <Route path="trips/:tripId" element={<TripDetailPage />} />
         <Route path="trips/edit/:tripId" element={<EditTripPage />} />
         <Route path="notifications" element={<NotificationsPage />} />
+        <Route path="modifications" element={<ModificationsPage />} />
+        <Route path="modifications/add" element={<AddModificationPage />} />
+        <Route path="vehicles/modifications" element={<VehicleModifications />} />
         <Route path="arrests" element={<ArrestsPage />} />
         <Route path="arrests/log" element={<LogArrestPage />} />
       </Route>

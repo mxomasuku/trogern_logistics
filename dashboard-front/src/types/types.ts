@@ -271,6 +271,18 @@ export interface MileageTrendsResponse {
   stats: MileageTrendStats;
 }
 
+export interface Modification {
+  id: string;
+  vehicleId: string;
+  description: string;
+  cost: number;
+  date: { _seconds: number; _nanoseconds: number };
+  mechanic: string;
+  nextCheckDate?: { _seconds: number; _nanoseconds: number };
+  createdAt: { _seconds: number; _nanoseconds: number };
+  updatedAt?: { _seconds: number; _nanoseconds: number };
+}
+
 export type FleetType = "small taxis" | "kombis" | "buses" | "trucks" | "mixed";
 
 export interface CompanyDoc {

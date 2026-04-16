@@ -10,3 +10,4 @@ export * from "./vehicle-kpi.types";
 export * from "./company.types";
 export * from "./auth.types";
 export * from "./companyTargets.types"
+export * from "./modification.types"
