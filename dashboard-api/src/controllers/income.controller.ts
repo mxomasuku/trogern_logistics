@@ -365,7 +365,7 @@ export const getIncomeLogs = async (req: Request, res: Response) => {
     };
 
     const orderBy: "createdAt" | "cashDate" =
-      orderByRaw === "cashDate" ? "cashDate" : "createdAt";
+      orderByRaw === "createdAt" ? "createdAt" : "cashDate";
     const order: "asc" | "desc" = orderRaw === "asc" ? "asc" : "desc";
     const limit = Math.min(
       Math.max(parseInt(limitRaw || "50", 10) || 50, 1),
@@ -506,6 +506,7 @@ export const getIncomeLogsByDriverId = async (
     const snapshot = await incomeRef
       .where("companyId", "==", companyId)
       .where("driverId", "==", driverId)
+      .orderBy("cashDate", "desc")
       .get();
 
     if (snapshot.empty) {
@@ -567,6 +568,7 @@ export const getIncomeLogsByVehicleId = async (
     const snapshot = await incomeRef
       .where("companyId", "==", companyId)
       .where("vehicle", "==", vehicle)
+      .orderBy("cashDate", "desc")
       .get();
 
     if (snapshot.empty) {
