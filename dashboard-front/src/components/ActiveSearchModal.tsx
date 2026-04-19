@@ -9,7 +9,7 @@ import { getVehicles } from "@/api/vehicles";
 import { getDrivers } from "@/api/drivers";
 import type { IncomeLog, Vehicle, Driver } from "@/types/types";
 import { toast } from "sonner";
-import { Search, Loader2, ArrowRight, Info, RotateCcw } from "lucide-react";
+import { Search, Loader2, ArrowRight, RotateCcw } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 function baseInputClasses() {
