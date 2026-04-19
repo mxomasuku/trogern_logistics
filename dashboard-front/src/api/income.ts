@@ -16,9 +16,19 @@ export async function addIncomeLog(payload: Omit<IncomeLog, "id" | "timestamp">)
   if (!data?.isSuccessful) throw new Error(data?.error?.message ?? "Failed to log income");
   return data.data!;
 }
-
 export async function listIncomeLogs(): Promise<IncomeLog[]> {
   const { data } = await http.get<ApiResponse<IncomeLog[]>>("/income/get");
+  if (!data?.isSuccessful) throw new Error(data?.error?.message ?? "Failed to fetch income logs");
+  return data.data!;
+}
+
+export async function queryIncomeLogs(params: { vehicle?: string, driverId?: string, start?: string, end?: string }): Promise<IncomeLog[]> {
+  const query = new URLSearchParams();
+  if(params.vehicle) query.append('vehicle', params.vehicle);
+  if(params.driverId) query.append('driverId', params.driverId);
+  if(params.start) query.append('start', params.start);
+  if(params.end) query.append('end', params.end);
+  const { data } = await http.get<ApiResponse<IncomeLog[]>>(`/income/get?${query.toString()}`);
   if (!data?.isSuccessful) throw new Error(data?.error?.message ?? "Failed to fetch income logs");
   return data.data!;
 }

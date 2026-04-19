@@ -1,5 +1,7 @@
-import { Menu } from "lucide-react";
+import { useState } from "react";
+import { Menu, Search } from "lucide-react";
 import { NotificationBell } from "@/components/NotificationBell";
+import { ActiveSearchModal } from "@/components/ActiveSearchModal";
 
 // HIGHLIGHT (EDITED): props for mobile sidebar toggle + user identity
 interface TopBarProps {
@@ -13,6 +15,7 @@ export default function TopBar({
   userName,
   userRole,
 }: TopBarProps) {
+  const [searchModalOpen, setSearchModalOpen] = useState(false);
 
   console.log("user object:", userRole);
 
@@ -44,11 +47,20 @@ export default function TopBar({
 
           {/* Right side: notifications + user info */}
           <div className="flex items-center gap-3 shrink-0">
+            {/* HIGHLIGHT: Active Search Tool */}
+            <button
+              onClick={() => setSearchModalOpen(true)}
+              title="Active Search Tool"
+              className="relative inline-flex h-8 w-8 items-center justify-center rounded-full text-slate-600 hover:bg-slate-100 hover:text-indigo-600 transition-colors focus:outline-none"
+            >
+              <Search className="h-4 w-4" />
+            </button>
+
             {/* HIGHLIGHT: real-time notification bell with dropdown */}
             <NotificationBell />
 
             {/* HIGHLIGHT: user identity block + online indicator */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 border-l border-slate-200 pl-3">
               <div className="flex max-w-[140px] flex-col items-end leading-tight sm:max-w-[180px]">
                 <span className="text-sm font-medium truncate text-slate-800">
                   {userName ?? ""}
@@ -68,6 +80,11 @@ export default function TopBar({
         </div>
         {/* HIGHLIGHT END */}
       </div>
+
+      <ActiveSearchModal 
+        isOpen={searchModalOpen} 
+        onOpenChange={setSearchModalOpen} 
+      />
     </header>
   );
 }

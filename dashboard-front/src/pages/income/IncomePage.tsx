@@ -1,7 +1,7 @@
 // src/pages/income/IncomePage.tsx
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom"; // HIGHLIGHT
-import { listIncomeLogs, deleteIncomeLog } from "@/api/income";
+import { useNavigate, useSearchParams } from "react-router-dom"; // HIGHLIGHT
+import { listIncomeLogs, deleteIncomeLog, queryIncomeLogs } from "@/api/income";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { List } from "lucide-react";
@@ -23,13 +23,24 @@ export default function IncomePage() {
   const [isDeleting, setIsDeleting] = useState(false);
 
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams(); // HIGHLIGHT
   const { isOwnerOrManager } = useAuth(); // HIGHLIGHT
   const canEditIncome = isOwnerOrManager; // HIGHLIGHT
 
   const load = async () => {
     setLoading(true);
     try {
-      const incomeLogsResult = await listIncomeLogs();
+      const vehicle = searchParams.get("vehicle") || undefined;
+      const driverId = searchParams.get("driverId") || undefined;
+      const start = searchParams.get("start") || undefined;
+      const end = searchParams.get("end") || undefined;
+
+      let incomeLogsResult;
+      if (vehicle || driverId || start || end) {
+        incomeLogsResult = await queryIncomeLogs({ vehicle, driverId, start, end });
+      } else {
+        incomeLogsResult = await listIncomeLogs();
+      }
       setItems(incomeLogsResult);
     } catch (error: any) {
       toast.error(error?.message ?? "Failed to fetch income");
@@ -40,7 +51,7 @@ export default function IncomePage() {
 
   useEffect(() => {
     load();
-  }, []);
+  }, [searchParams]);
 
   // HIGHLIGHT: same pattern as DriversPage → DriverTable
   const handleEditIncome = (row: IncomeLog) => {
