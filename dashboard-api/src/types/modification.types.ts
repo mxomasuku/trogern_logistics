@@ -2,6 +2,8 @@ export interface Modification {
   id: string;
   companyId: string;
   vehicleId: string;
+  driverId?: string;
+  driverName?: string;
   description: string;
   cost: number;
   date: FirebaseFirestore.Timestamp;

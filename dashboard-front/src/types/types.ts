@@ -274,6 +274,8 @@ export interface MileageTrendsResponse {
 export interface Modification {
   id: string;
   vehicleId: string;
+  driverId?: string;
+  driverName?: string;
   description: string;
   cost: number;
   date: { _seconds: number; _nanoseconds: number };
