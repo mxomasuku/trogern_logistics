@@ -20,9 +20,9 @@ function baseInputClasses() {
   return [
     "h-10 rounded-lg",
     "border-0",
-    "bg-blue-50/60",
-    "text-blue-950 placeholder:text-blue-300",
-    "focus-visible:ring-2 focus-visible:ring-sky-400 focus-visible:ring-offset-0",
+    "bg-slate-800/80",
+    "text-slate-100 placeholder:text-slate-500",
+    "focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-0",
   ].join(" ");
 }
 
@@ -196,23 +196,23 @@ export default function AddIncomePage() {
         <Button
           variant="ghost"
           onClick={() => navigate(-1)}
-          className="text-blue-700 hover:bg-blue-50 hover:text-blue-800"
+          className="text-slate-400 hover:bg-slate-800 hover:text-slate-100"
         >
           <ArrowLeft className="mr-2 h-4 w-4" /> Back
         </Button>
       </div>
 
       {/* Shell */}
-      <Card className="border-0 shadow-none bg-white rounded-2xl ring-1 ring-black/5">
+      <Card className="border-0 shadow-none bg-slate-900 rounded-2xl ring-1 ring-white/10">
         <CardHeader className="pb-2">
-          <CardTitle className="text-xl font-semibold text-blue-700">
+          <CardTitle className="text-xl font-semibold text-slate-100">
             {isEdit ? "Edit Income" : "Add Income"}
           </CardTitle>
         </CardHeader>
 
         <CardContent className="space-y-6">
           {loadingPrefill && isEdit ? (
-            <div className="flex items-center text-sm text-muted-foreground">
+            <div className="flex items-center text-sm text-slate-400">
               <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading entry…
             </div>
           ) : (
@@ -222,8 +222,8 @@ export default function AddIncomePage() {
               {/* Money & mileage */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <Label className="text-sm text-blue-900/80">
-                    Amount <span className="text-red-600">*</span>
+                  <Label className="text-sm text-slate-400">
+                    Amount <span className="text-rose-500">*</span>
                   </Label>
                   <Input
                     type="number"
@@ -235,8 +235,8 @@ export default function AddIncomePage() {
                 </div>
 
                 <div className="space-y-1">
-                  <Label className="text-sm text-blue-900/80">
-                    Week-ending mileage <span className="text-red-600">*</span>
+                  <Label className="text-sm text-slate-400">
+                    Week-ending mileage <span className="text-rose-500">*</span>
                   </Label>
                   <Input
                     type="number"
@@ -253,8 +253,8 @@ export default function AddIncomePage() {
               {/* Cash date & type */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <Label className="text-sm text-blue-900/80">
-                    Cash date <span className="text-red-600">*</span>
+                  <Label className="text-sm text-slate-400">
+                    Cash date <span className="text-rose-500">*</span>
                   </Label>
                   <Input
                     type="date"
@@ -265,8 +265,8 @@ export default function AddIncomePage() {
                 </div>
 
                 <div className="space-y-1">
-                  <Label className="text-sm text-blue-900/80">
-                    Type <span className="text-red-600">*</span>
+                  <Label className="text-sm text-slate-400">
+                    Type <span className="text-rose-500">*</span>
                   </Label>
                   <RadioGroup
                     value={ledgerType}
@@ -282,7 +282,7 @@ export default function AddIncomePage() {
                       />
                       <Label
                         htmlFor="ledger-income"
-                        className="text-sm text-blue-900/80"
+                        className="text-sm text-slate-300"
                       >
                         Income
                       </Label>
@@ -294,7 +294,7 @@ export default function AddIncomePage() {
                       />
                       <Label
                         htmlFor="ledger-expense"
-                        className="text-sm text-blue-900/80"
+                        className="text-sm text-slate-300"
                       >
                         Expense
                       </Label>
@@ -305,8 +305,8 @@ export default function AddIncomePage() {
 
               {/* Driver selection */}
               <div className="space-y-1">
-                <Label className="text-sm text-blue-900/80">
-                  Driver <span className="text-red-600">*</span>
+                <Label className="text-sm text-slate-400">
+                  Driver <span className="text-rose-500">*</span>
                 </Label>
 
                 {loadingDrivers ? (
@@ -335,7 +335,7 @@ export default function AddIncomePage() {
                 {/* Vehicle info (read-only, derived from driver or prefill) */}
                 <p className="text-xs text-slate-500 mt-1">
                   Vehicle:{" "}
-                  <span className="font-medium text-slate-800">
+                  <span className="font-medium text-slate-300">
                     {vehicle || "Select a driver to link vehicle"}
                   </span>
                 </p>
@@ -343,7 +343,7 @@ export default function AddIncomePage() {
 
               {/* Note */}
               <div className="space-y-1">
-                <Label className="text-sm text-blue-900/80">Note</Label>
+                <Label className="text-sm text-slate-400">Note</Label>
                 <textarea
                   value={note}
                   onChange={(event) => setNote(event.target.value)}
@@ -358,7 +358,7 @@ export default function AddIncomePage() {
                   variant="ghost"
                   onClick={() => navigate("/app/income")}
                   disabled={saving}
-                  className="text-blue-700 hover:bg-blue-50 hover:text-blue-800"
+                  className="text-slate-400 hover:bg-slate-800 hover:text-slate-100"
                 >
                   Cancel
                 </Button>
