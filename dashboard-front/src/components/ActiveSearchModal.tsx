@@ -24,22 +24,22 @@ interface ActiveSearchModalProps {
 function getLocalDatesFromWeek(year: number, week: number) {
   // Approximate ISO week 
   const jan4 = new Date(year, 0, 4);
-  const diff = jan4.getDay() === 0 ? 6 : jan4.getDay() - 1; 
+  const diff = jan4.getDay() === 0 ? 6 : jan4.getDay() - 1;
   const startOfWeek1 = new Date(jan4);
   startOfWeek1.setDate(jan4.getDate() - diff);
-  
+
   const targetMonday = new Date(startOfWeek1);
   targetMonday.setDate(startOfWeek1.getDate() + (week - 1) * 7);
-  
+
   const targetSunday = new Date(targetMonday);
   targetSunday.setDate(targetMonday.getDate() + 6);
   targetSunday.setHours(23, 59, 59, 999);
-  
+
   // Format as YYYY-MM-DD local
   const pad = (n: number) => n.toString().padStart(2, "0");
   const start = `${targetMonday.getFullYear()}-${pad(targetMonday.getMonth() + 1)}-${pad(targetMonday.getDate())}`;
   const end = `${targetSunday.getFullYear()}-${pad(targetSunday.getMonth() + 1)}-${pad(targetSunday.getDate())}`;
-  
+
   return { start, end };
 }
 
@@ -50,10 +50,10 @@ export function ActiveSearchModal({ isOpen, onOpenChange }: ActiveSearchModalPro
   const [year, setYear] = useState<number>(new Date().getFullYear());
   // Basic week estimation for initial value
   const [week, setWeek] = useState<number>(() => {
-     const today = new Date();
-     const firstDayOfYear = new Date(today.getFullYear(), 0, 1);
-     const pastDaysOfYear = (today.getTime() - firstDayOfYear.getTime()) / 86400000;
-     return Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
+    const today = new Date();
+    const firstDayOfYear = new Date(today.getFullYear(), 0, 1);
+    const pastDaysOfYear = (today.getTime() - firstDayOfYear.getTime()) / 86400000;
+    return Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
   });
 
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
@@ -136,62 +136,62 @@ export function ActiveSearchModal({ isOpen, onOpenChange }: ActiveSearchModalPro
 
           <div className="p-6 space-y-6">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 bg-white p-4 rounded-xl border border-slate-100 shadow-sm">
-               <div className="space-y-2">
-                 <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Type</Label>
-                 <select 
-                   disabled={loadingLookups} 
-                   value={mode} 
-                   onChange={(e: any) => { setMode(e.target.value); setSelectedId(""); setResults(null); }}
-                   className={baseInputClasses()}
-                 >
-                   <option value="vehicle">Vehicle</option>
-                   <option value="driver">Driver</option>
-                 </select>
-               </div>
+              <div className="space-y-2">
+                <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Type</Label>
+                <select
+                  disabled={loadingLookups}
+                  value={mode}
+                  onChange={(e: any) => { setMode(e.target.value); setSelectedId(""); setResults(null); }}
+                  className={baseInputClasses()}
+                >
+                  <option value="vehicle">Vehicle</option>
+                  <option value="driver">Driver</option>
+                </select>
+              </div>
 
-               <div className="space-y-2 col-span-1 md:col-span-1">
-                 <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                   {mode === "vehicle" ? "Vehicle" : "Driver"}
-                 </Label>
-                 <select 
-                   disabled={loadingLookups} 
-                   value={selectedId} 
-                   onChange={(e: any) => setSelectedId(e.target.value)}
-                   className={baseInputClasses()}
-                 >
-                   <option value="">{loadingLookups ? "Loading..." : `Select ${mode}`}</option>
-                   {mode === "vehicle"
-                     ? vehicles.map(v => <option key={v.id!} value={v.plateNumber}>{v.plateNumber}</option>)
-                     : drivers.map(d => <option key={d.id} value={d.id}>{d.name}</option>)
-                   }
-                 </select>
-               </div>
+              <div className="space-y-2 col-span-1 md:col-span-1">
+                <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                  {mode === "vehicle" ? "Vehicle" : "Driver"}
+                </Label>
+                <select
+                  disabled={loadingLookups}
+                  value={selectedId}
+                  onChange={(e: any) => setSelectedId(e.target.value)}
+                  className={baseInputClasses()}
+                >
+                  <option value="">{loadingLookups ? "Loading..." : `Select ${mode}`}</option>
+                  {mode === "vehicle"
+                    ? vehicles.map(v => <option key={v.id!} value={v.plateNumber}>{v.plateNumber}</option>)
+                    : drivers.map(d => <option key={d.id} value={d.id}>{d.name}</option>)
+                  }
+                </select>
+              </div>
 
-               <div className="space-y-2">
-                 <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Year</Label>
-                 <Input 
-                   type="number" 
-                   value={year} 
-                   onChange={e => setYear(Number(e.target.value))}
-                   className={baseInputClasses()}
-                 />
-               </div>
+              <div className="space-y-2">
+                <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Year</Label>
+                <Input
+                  type="number"
+                  value={year}
+                  onChange={e => setYear(Number(e.target.value))}
+                  className={baseInputClasses()}
+                />
+              </div>
 
-               <div className="space-y-2">
-                 <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Week #</Label>
-                 <Input 
-                   type="number" 
-                   value={week} 
-                   onChange={e => setWeek(Number(e.target.value))}
-                   className={baseInputClasses()} 
-                   min={1} 
-                   max={53}
-                 />
-               </div>
+              <div className="space-y-2">
+                <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Week #</Label>
+                <Input
+                  type="number"
+                  value={week}
+                  onChange={e => setWeek(Number(e.target.value))}
+                  className={baseInputClasses()}
+                  min={1}
+                  max={53}
+                />
+              </div>
             </div>
 
             <div className="flex justify-between items-center bg-slate-50 p-2 rounded-lg border border-slate-100">
-              <p className="text-sm text-slate-600 font-medium flex items-center gap-1.5"><Info className="w-4 h-4 text-indigo-500"/> Bounds: {getLocalDatesFromWeek(year, week).start} to {getLocalDatesFromWeek(year, week).end}</p>
+
               <div className="flex gap-2">
                 <Button variant="ghost" onClick={handleClear} size="sm" className="text-slate-600 hover:bg-slate-200">
                   <RotateCcw className="w-4 h-4 mr-1" /> Clear
