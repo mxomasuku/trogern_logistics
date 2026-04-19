@@ -3,14 +3,18 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
 import { queryIncomeLogs } from "@/api/income";
 import { getVehicles } from "@/api/vehicles";
 import { getDrivers } from "@/api/drivers";
 import type { IncomeLog, Vehicle, Driver } from "@/types/types";
 import { toast } from "sonner";
-import { Search, Loader2, ArrowRight, Info } from "lucide-react";
+import { Search, Loader2, ArrowRight, Info, RotateCcw } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+
+function baseInputClasses() {
+  return "h-10 rounded-lg border-0 bg-blue-50/60 text-blue-950 placeholder:text-blue-300 focus-visible:ring-2 focus-visible:ring-sky-400 focus-visible:ring-offset-0 px-3 w-full";
+}
 
 interface ActiveSearchModalProps {
   isOpen: boolean;
@@ -96,14 +100,22 @@ export function ActiveSearchModal({ isOpen, onOpenChange }: ActiveSearchModalPro
   };
 
   const handleGoToMainRoute = () => {
-    if (!selectedId) return;
-    const { start, end } = getLocalDatesFromWeek(year, week);
-    const query = new URLSearchParams();
-    query.set(mode === "vehicle" ? "vehicle" : "driverId", selectedId);
-    query.set("start", start);
-    query.set("end", end);
-    navigate(`/app/income?${query.toString()}`);
+    let url = `/app/income`;
+    if (selectedId) {
+      const { start, end } = getLocalDatesFromWeek(year, week);
+      const query = new URLSearchParams();
+      query.set(mode === "vehicle" ? "vehicle" : "driverId", selectedId);
+      query.set("start", start);
+      query.set("end", end);
+      url += `?${query.toString()}`;
+    }
+    navigate(url);
     onOpenChange(false);
+  };
+
+  const handleClear = () => {
+    setSelectedId("");
+    setResults(null);
   };
 
   return (
@@ -126,32 +138,33 @@ export function ActiveSearchModal({ isOpen, onOpenChange }: ActiveSearchModalPro
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 bg-white p-4 rounded-xl border border-slate-100 shadow-sm">
                <div className="space-y-2">
                  <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Type</Label>
-                 <Select value={mode} onValueChange={(v: "vehicle" | "driver") => { setMode(v); setSelectedId(""); setResults(null); }}>
-                   <SelectTrigger className="bg-slate-50 border-0 h-10 shadow-none font-medium">
-                     <SelectValue placeholder="Select type" />
-                   </SelectTrigger>
-                   <SelectContent>
-                     <SelectItem value="vehicle" className="font-medium">Vehicle</SelectItem>
-                     <SelectItem value="driver" className="font-medium">Driver</SelectItem>
-                   </SelectContent>
-                 </Select>
+                 <select 
+                   disabled={loadingLookups} 
+                   value={mode} 
+                   onChange={(e: any) => { setMode(e.target.value); setSelectedId(""); setResults(null); }}
+                   className={baseInputClasses()}
+                 >
+                   <option value="vehicle">Vehicle</option>
+                   <option value="driver">Driver</option>
+                 </select>
                </div>
 
                <div className="space-y-2 col-span-1 md:col-span-1">
                  <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
                    {mode === "vehicle" ? "Vehicle" : "Driver"}
                  </Label>
-                 <Select value={selectedId} onValueChange={setSelectedId}>
-                   <SelectTrigger className="bg-slate-50 border-0 h-10 shadow-none font-medium">
-                     <SelectValue placeholder={`Select ${mode}`} />
-                   </SelectTrigger>
-                   <SelectContent>
-                     {mode === "vehicle"
-                       ? vehicles.map(v => <SelectItem key={v.id!} value={v.plateNumber} className="font-medium">{v.plateNumber}</SelectItem>)
-                       : drivers.map(d => <SelectItem key={d.id} value={d.id} className="font-medium">{d.name}</SelectItem>)
-                     }
-                   </SelectContent>
-                 </Select>
+                 <select 
+                   disabled={loadingLookups} 
+                   value={selectedId} 
+                   onChange={(e: any) => setSelectedId(e.target.value)}
+                   className={baseInputClasses()}
+                 >
+                   <option value="">{loadingLookups ? "Loading..." : `Select ${mode}`}</option>
+                   {mode === "vehicle"
+                     ? vehicles.map(v => <option key={v.id!} value={v.plateNumber}>{v.plateNumber}</option>)
+                     : drivers.map(d => <option key={d.id} value={d.id}>{d.name}</option>)
+                   }
+                 </select>
                </div>
 
                <div className="space-y-2">
@@ -160,7 +173,7 @@ export function ActiveSearchModal({ isOpen, onOpenChange }: ActiveSearchModalPro
                    type="number" 
                    value={year} 
                    onChange={e => setYear(Number(e.target.value))}
-                   className="bg-slate-50 border-0 h-10 shadow-none font-medium" 
+                   className={baseInputClasses()}
                  />
                </div>
 
@@ -170,28 +183,33 @@ export function ActiveSearchModal({ isOpen, onOpenChange }: ActiveSearchModalPro
                    type="number" 
                    value={week} 
                    onChange={e => setWeek(Number(e.target.value))}
-                   className="bg-slate-50 border-0 h-10 shadow-none font-medium" 
+                   className={baseInputClasses()} 
                    min={1} 
                    max={53}
                  />
                </div>
             </div>
 
-            <div className="flex justify-between items-center">
-              <p className="text-sm text-slate-500 font-medium flex items-center gap-1.5"><Info className="w-4 h-4"/> Time bounds: {getLocalDatesFromWeek(year, week).start} to {getLocalDatesFromWeek(year, week).end}</p>
-              <Button onClick={handleSearch} disabled={loadingResults} className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-full px-6 font-semibold shadow-md shadow-indigo-200">
-                {loadingResults && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Run Query
-              </Button>
+            <div className="flex justify-between items-center bg-slate-50 p-2 rounded-lg border border-slate-100">
+              <p className="text-sm text-slate-600 font-medium flex items-center gap-1.5"><Info className="w-4 h-4 text-indigo-500"/> Bounds: {getLocalDatesFromWeek(year, week).start} to {getLocalDatesFromWeek(year, week).end}</p>
+              <div className="flex gap-2">
+                <Button variant="ghost" onClick={handleClear} size="sm" className="text-slate-600 hover:bg-slate-200">
+                  <RotateCcw className="w-4 h-4 mr-1" /> Clear
+                </Button>
+                <Button variant="outline" size="sm" onClick={handleGoToMainRoute} className="text-indigo-600 border-indigo-200 hover:bg-indigo-50 font-semibold h-8 rounded-lg shadow-sm">
+                  Main Base <ArrowRight className="w-4 h-4 ml-1" />
+                </Button>
+                <Button onClick={handleSearch} disabled={loadingResults} className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg px-6 font-semibold shadow-md shadow-indigo-200 h-8 ml-2">
+                  {loadingResults && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Run Query
+                </Button>
+              </div>
             </div>
 
             {results !== null && (
               <div className="mt-6 border border-slate-100 bg-white rounded-xl overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-300">
                 <div className="bg-slate-50 px-4 py-3 border-b border-slate-100 flex justify-between items-center">
                   <h4 className="font-bold text-slate-700 text-sm">Results ({results.length})</h4>
-                  <Button variant="ghost" size="sm" onClick={handleGoToMainRoute} className="text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 font-semibold h-8 rounded-lg">
-                    View in Main Route <ArrowRight className="w-4 h-4 ml-1" />
-                  </Button>
                 </div>
                 {results.length === 0 ? (
                   <div className="p-8 text-center text-slate-400 font-medium">No logs found for this period.</div>
